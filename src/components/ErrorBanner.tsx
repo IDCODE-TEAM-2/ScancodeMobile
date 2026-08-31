@@ -13,22 +13,22 @@ const BOX_CLASSES: Record<NonNullable<ErrorBannerProps['type']>, string> = {
   error: 'bg-red-100 border-red-300',
   success: 'bg-emerald-100 border-emerald-300',
   warning: 'bg-amber-100 border-amber-300',
-  info: 'bg-indigo-100 border-indigo-300',
+  // Neutral slate, not emerald — the primary-color sweep replaced this type's original
+  // indigo with emerald too, which collided visually with `success`. Blue is off the
+  // table project-wide, so "info" gets gray instead of reusing success's color.
+  info: 'bg-slate-100 border-slate-300',
 };
 
 const TEXT_CLASSES: Record<NonNullable<ErrorBannerProps['type']>, string> = {
   error: 'text-red-600',
   success: 'text-emerald-800',
   warning: 'text-amber-800',
-  info: 'text-indigo-800',
+  info: 'text-slate-700',
 };
 
-const ICON_COLORS: Record<NonNullable<ErrorBannerProps['type']>, string> = {
-  error: '#DC2626',
-  success: '#065F46',
-  warning: '#92400E',
-  info: '#3730A3',
-};
+// The dismiss icon is monochrome regardless of banner type — only the box/text stay
+// semantically colored (that's feedback coloring, not decorative icon coloring).
+const ICON_COLOR = '#374151';
 
 export default function ErrorBanner({
   message,
@@ -42,7 +42,7 @@ export default function ErrorBanner({
       <Text className={cn('text-sm font-medium flex-1', TEXT_CLASSES[type])}>{message}</Text>
       {onDismiss ? (
         <TouchableOpacity onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <X size={16} color={ICON_COLORS[type]} strokeWidth={2.5} />
+          <X size={16} color={ICON_COLOR} strokeWidth={2.5} />
         </TouchableOpacity>
       ) : null}
     </View>

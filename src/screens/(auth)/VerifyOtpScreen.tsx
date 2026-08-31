@@ -112,7 +112,7 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
             disabled={resending || loading}
           >
             {resending ? (
-              <ActivityIndicator size="small" color="#6C63FF" />
+              <ActivityIndicator size="small" color="#059669" />
             ) : (
               <>
                 <Text className="text-sm text-gray-500">Didn't get the code? </Text>

@@ -79,7 +79,7 @@ export default function RegisterScreen({ navigation }: Props) {
                   disabled={loading}
                   activeOpacity={0.8}
                 >
-                  <Icon size={16} color={isActive ? '#6C63FF' : '#6B7280'} strokeWidth={2.2} />
+                  <Icon size={16} color={isActive ? '#111827' : '#6B7280'} strokeWidth={2.2} />
                   <Text className={cn('text-sm font-bold', isActive ? 'text-primary' : 'text-gray-500')}>
                     Register as {option.label}
                   </Text>

@@ -73,7 +73,7 @@ export default function LoginScreen({ navigation }: Props) {
             disabled={loading}
             activeOpacity={0.85}
           >
-            <QrCode size={18} color="#6C63FF" strokeWidth={2.2} />
+            <QrCode size={18} color="#374151" strokeWidth={2.2} />
             <Text className="text-primary text-base font-bold">Scan a Table QR Code</Text>
           </TouchableOpacity>
           <Text className="text-xs text-gray-400 text-center mt-2">Just visiting? No account needed.</Text>
@@ -125,29 +125,29 @@ export default function LoginScreen({ navigation }: Props) {
           </View>
 
           {isDemoMode && (
-            <View className="bg-violet-50 border border-violet-200 rounded-xl p-3.5 mt-5">
+            <View className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 mt-5">
               <View className="flex-row items-center justify-center gap-1.5 mb-2.5">
-                <FlaskConical size={13} color="#5B21B6" strokeWidth={2.2} />
-                <Text className="text-xs font-bold text-violet-800">Demo Mode — Quick Login</Text>
+                <FlaskConical size={13} color="#374151" strokeWidth={2.2} />
+                <Text className="text-xs font-bold text-emerald-800">Demo Mode — Quick Login</Text>
               </View>
               <View className="flex-row gap-2">
                 <TouchableOpacity
-                  className="flex-1 bg-white border border-violet-300 rounded-lg py-2.5 items-center flex-row justify-center gap-1.5"
+                  className="flex-1 bg-white border border-emerald-300 rounded-lg py-2.5 items-center flex-row justify-center gap-1.5"
                   onPress={() => handleQuickDemoLogin('admin')}
                   disabled={loading}
                   activeOpacity={0.8}
                 >
-                  <Briefcase size={14} color="#5B21B6" strokeWidth={2.2} />
-                  <Text className="text-[13px] font-bold text-violet-800">Admin</Text>
+                  <Briefcase size={14} color="#374151" strokeWidth={2.2} />
+                  <Text className="text-[13px] font-bold text-emerald-800">Admin</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  className="flex-1 bg-white border border-violet-300 rounded-lg py-2.5 items-center flex-row justify-center gap-1.5"
+                  className="flex-1 bg-white border border-emerald-300 rounded-lg py-2.5 items-center flex-row justify-center gap-1.5"
                   onPress={() => handleQuickDemoLogin('customer')}
                   disabled={loading}
                   activeOpacity={0.8}
                 >
-                  <ShoppingCart size={14} color="#5B21B6" strokeWidth={2.2} />
-                  <Text className="text-[13px] font-bold text-violet-800">Customer</Text>
+                  <ShoppingCart size={14} color="#374151" strokeWidth={2.2} />
+                  <Text className="text-[13px] font-bold text-emerald-800">Customer</Text>
                 </TouchableOpacity>
               </View>
             </View>

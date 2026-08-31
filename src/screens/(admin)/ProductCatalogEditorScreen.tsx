@@ -200,7 +200,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#6C63FF" />
+        <ActivityIndicator size="large" color="#059669" />
       </View>
     );
   }
@@ -228,7 +228,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
             disabled={uploadingImage}
           >
             {uploadingImage ? (
-              <ActivityIndicator color="#6C63FF" />
+              <ActivityIndicator color="#059669" />
             ) : form.imageUri ? (
               <Image source={{ uri: form.imageUri }} className="w-24 h-24" />
             ) : (
@@ -295,7 +295,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
             <Switch
               value={form.isPopular}
               onValueChange={(v) => setForm((p) => ({ ...p, isPopular: v }))}
-              trackColor={{ false: '#D1D5DB', true: '#6C63FF' }}
+              trackColor={{ false: '#D1D5DB', true: '#059669' }}
             />
           </View>
 
@@ -343,8 +343,8 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
               </View>
               <View className="justify-between items-end ml-2">
                 <View className="flex-row gap-1.5">
-                  <TouchableOpacity onPress={() => openEditForm(p)} className="w-8 h-8 rounded-full bg-violet-50 items-center justify-center">
-                    <Pencil size={14} color="#6C63FF" strokeWidth={2} />
+                  <TouchableOpacity onPress={() => openEditForm(p)} className="w-8 h-8 rounded-full bg-emerald-50 items-center justify-center">
+                    <Pencil size={14} color="#374151" strokeWidth={2} />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDelete(p)} className="w-8 h-8 rounded-full bg-red-50 items-center justify-center">
                     <Trash2 size={14} color="#DC2626" strokeWidth={2} />

@@ -111,7 +111,7 @@ export default function DashboardScreen({ navigation }: Props) {
         {/* Operations row — always visible */}
         <View className="flex-row gap-2 mt-2">
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('LiveOrdersManager', {
                 storefrontId: item.id,
@@ -121,11 +121,11 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <ShoppingBag size={13} color="#4F46E5" strokeWidth={2.2} />
-            <Text className="text-indigo-600 font-semibold text-xs">Orders</Text>
+            <ShoppingBag size={13} color="#374151" strokeWidth={2.2} />
+            <Text className="text-emerald-600 font-semibold text-xs">Orders</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('ToolbarRequestsAdmin', {
                 storefrontId: item.id,
@@ -135,11 +135,11 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <Bell size={13} color="#4F46E5" strokeWidth={2.2} />
-            <Text className="text-indigo-600 font-semibold text-xs">Activity</Text>
+            <Bell size={13} color="#374151" strokeWidth={2.2} />
+            <Text className="text-emerald-600 font-semibold text-xs">Activity</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('StoreChargesConfig', {
                 storefrontId: item.id,
@@ -149,11 +149,11 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <Settings2 size={13} color="#4F46E5" strokeWidth={2.2} />
-            <Text className="text-indigo-600 font-semibold text-xs">Config</Text>
+            <Settings2 size={13} color="#374151" strokeWidth={2.2} />
+            <Text className="text-emerald-600 font-semibold text-xs">Config</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('EventsManager', {
                 storefrontId: item.id,
@@ -163,13 +163,13 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <Calendar size={13} color="#4F46E5" strokeWidth={2.2} />
-            <Text className="text-indigo-600 font-semibold text-xs">Events</Text>
+            <Calendar size={13} color="#374151" strokeWidth={2.2} />
+            <Text className="text-emerald-600 font-semibold text-xs">Events</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          className="border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
+          className="border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
           onPress={() =>
             navigation.navigate('ProductCatalogEditor', {
               storefrontId: item.id,
@@ -179,8 +179,8 @@ export default function DashboardScreen({ navigation }: Props) {
           }
           activeOpacity={0.7}
         >
-          <Package size={13} color="#4F46E5" strokeWidth={2.2} />
-          <Text className="text-indigo-600 font-semibold text-xs">Product Catalog</Text>
+          <Package size={13} color="#374151" strokeWidth={2.2} />
+          <Text className="text-emerald-600 font-semibold text-xs">Product Catalog</Text>
         </TouchableOpacity>
       </View>
     );
@@ -243,7 +243,7 @@ export default function DashboardScreen({ navigation }: Props) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => load(true)}
-              tintColor="#6C63FF"
+              tintColor="#059669"
             />
           }
           ListEmptyComponent={

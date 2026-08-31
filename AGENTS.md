@@ -32,6 +32,65 @@ memory regression) — do not assume a training-data cutoff knows the right APIs
 
 Most recent first. Add an entry here for every fix so changes stay traceable across sessions.
 
+### 2026-08-31 (session 9) — Color scheme: blue → emerald, icon monochrome pass, gradient CTAs, responsive verification
+
+Three items appeared directly in `Native guide.txt` (heading 5) mid-session-8, added by the
+user in their own editor. Asked clarifying questions before touching anything (exact green,
+icon-audit scope, responsive-audit depth) rather than guessing at a palette or how far to take
+a project-wide icon sweep. `npx tsc --noEmit` clean throughout; verified live via
+`expo start --web`.
+
+**Primary color: #6C63FF (purple) → #059669 (emerald-600), with a "mini gradient" on CTAs.**
+`tailwind.config.js`'s `primary` token changed, which auto-cascaded to every `bg-primary`/
+`text-primary`/`border-primary` class already using it — no per-file changes needed for those.
+Also added `gradientStart`/`gradientEnd` (`#10B981`/`#047857`) for the two-stop gradient.
+Installed `expo-linear-gradient`; `CustomButton`'s `primary` variant now renders through a
+real `<LinearGradient>` instead of a flat `bg-primary` fill — verified live on Login's "Sign
+In" button (a genuine diagonal light-to-dark emerald gradient, not a flat color). Only
+`CustomButton` callers get the gradient (Login/Register/ForgotPassword/VerifyOtp); the many
+other hand-rolled `bg-primary` buttons across the app correctly render the new flat emerald
+but not the gradient — flagged as a scoped decision, not an oversight, since converting every
+CTA individually to `LinearGradient` is a separate, larger mechanical task.
+
+**48 hardcoded hex occurrences of the old brand colors** (`#6C63FF`, `#4F46E5`, `#4338CA`,
+`#3730A3`, plus a stray `#5B21B6` and a pre-existing inconsistent `#126B33` in
+`MerchantProfileBankScreen`) were individually reviewed and reclassified rather than
+blanket-replaced — a first attempt at a fast blanket sed (`color="#6C63FF"` →
+`'#6C63FF'` pattern matching) was too broad and wrongly recolored several icon ternaries
+(e.g. `RegisterScreen`'s active-role icon) to emerald instead of monochrome; caught by
+reviewing every touched site afterward rather than trusting the sed blindly, and corrected.
+Final rule applied: brand-signal chrome (loading spinners, a `Switch`'s "on" state,
+`headerTintColor`) → new emerald; decorative icon glyphs → monochrome (`#374151`, or
+`#111827` for larger/emphasized icons, per the user's "remove coloring from all icons except
+the toolbar" instruction).
+
+**55 literal `indigo-*`/`violet-*` Tailwind classes swept to `emerald-*`** (same numeric
+shade) project-wide via a confirmed-safe blanket sed — grepped first to verify every match
+was a Tailwind color class and nothing else (no stray English usage of the words "indigo"/
+"violet" anywhere in the codebase). `StorefrontToolbar.tsx` was confirmed to use neither
+family beforehand, so it needed no exclusion and is verified untouched (zero-diff) — it keeps
+its own original color scheme exactly as instructed. One real regression this swept in and
+had to fix separately: `ErrorBanner`'s `info` banner type had been indigo, `success` was
+already emerald — sweeping both to emerald made them visually identical, so `info` was
+recolored to slate-gray instead of colliding with `success`.
+
+**Deliberate exceptions to "monochrome everywhere but the toolbar,"** flagged rather than
+silently decided: icons whose color *is* the information, not decoration — `Trash2`/delete
+(red), `Heart` favorited state (red), star ratings (amber/gold), and the order-status icons
+in `OrderReceiptTrackerScreen` that already match `StatusBadge`'s existing red/amber/emerald
+convention — plus a handful of small icons sitting on their own matching colored chip
+background (`Ticket`/`Sparkles`/`MapPin`/`Music2`/`Bell`), where recoloring only the icon to
+gray while its chip stayed colored would have looked like a mismatch rather than a design
+choice.
+
+**Responsive/split-screen verification** — rather than rewrite blind, verified live at a
+320px viewport (a genuinely narrow split-screen width) on the two most visually dense
+screens, `StorefrontScreen` and `DashboardScreen`. Both held up cleanly with no horizontal
+overflow and correct flex-wrap behavior on the ops-row button grid. This app was already
+Flexbox-first (React Native's default layout model, unlike web CSS's block default), so it
+was largely responsive by construction already — logged in `Native guide.txt` as "verified,"
+not "rebuilt," since that's what actually happened.
+
 ### 2026-08-31 (session 8) — ItemDetailsModal bottom sheet, headings 4 & 5 (haptics, skeletons, micro-animations, OLED dark mode, offline queue, state-level geofencing)
 
 Terms email fixed (support@scancode.live → .ng; Privacy Policy's privacy@scancode.live → .ng

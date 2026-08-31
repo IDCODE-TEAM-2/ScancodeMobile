@@ -179,7 +179,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
           ) : placedOrder ? (
             <View className="items-center py-6">
               <View className="w-16 h-16 rounded-full bg-emerald-100 justify-center items-center mb-4">
-                <CheckCircle2 size={34} color="#059669" strokeWidth={2} />
+                <CheckCircle2 size={34} color="#111827" strokeWidth={2} />
               </View>
               <Text className="text-[22px] font-extrabold text-gray-900 text-center mb-1.5">Order Placed Successfully!</Text>
               <Text className="text-sm text-gray-600 text-center mb-6">

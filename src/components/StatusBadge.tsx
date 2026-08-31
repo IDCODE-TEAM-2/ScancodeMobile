@@ -45,7 +45,7 @@ export default function StatusBadge({ status, label }: StatusBadgeProps) {
       ? 'bg-amber-100 text-amber-800'
       : DANGER.includes(normalized)
         ? 'bg-red-100 text-red-800'
-        : 'bg-indigo-100 text-indigo-800';
+        : 'bg-emerald-100 text-emerald-800';
 
   const [bgClass, textClass] = bgTextClasses.split(' ');
   const displayLabel = label || status;

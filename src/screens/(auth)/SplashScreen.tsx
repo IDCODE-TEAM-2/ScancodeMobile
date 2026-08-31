@@ -33,7 +33,7 @@ export default function SplashScreen(_props: Props) {
   return (
     <View className="flex-1 bg-white items-center justify-center">
       <Text className="text-[32px] font-bold text-primary tracking-wide">ScanCode</Text>
-      <ActivityIndicator size="large" color="#6C63FF" className="mt-6" />
+      <ActivityIndicator size="large" color="#059669" className="mt-6" />
     </View>
   );
 }

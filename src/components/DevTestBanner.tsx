@@ -60,28 +60,28 @@ export default function DevTestBanner({ onRoleChange }: Props) {
   ];
 
   return (
-    <View className="bg-indigo-950 rounded-xl p-3.5 mx-4 my-2.5 border border-indigo-700">
+    <View className="bg-emerald-950 rounded-xl p-3.5 mx-4 my-2.5 border border-emerald-700">
       <View className="flex-row items-center justify-between mb-2.5">
         <Text className="bg-red-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded">DEMO CONTROL PANEL</Text>
-        <TouchableOpacity className="bg-indigo-900 px-2 py-1 rounded-md" onPress={toggleDemoMode}>
-          <Text className="text-indigo-100 text-[11px] font-semibold">
+        <TouchableOpacity className="bg-emerald-900 px-2 py-1 rounded-md" onPress={toggleDemoMode}>
+          <Text className="text-emerald-100 text-[11px] font-semibold">
             Mode: <Text className={cn('font-black', isDemo ? 'text-emerald-400' : 'text-red-400')}>{isDemo ? 'DEMO (MOCK)' : 'LIVE API'}</Text>
           </Text>
         </TouchableOpacity>
       </View>
 
-      <Text className="text-indigo-300 text-[11px] font-bold mt-1 mb-1.5 uppercase">Active Role Switcher:</Text>
+      <Text className="text-emerald-300 text-[11px] font-bold mt-1 mb-1.5 uppercase">Active Role Switcher:</Text>
       <View className="flex-row gap-1.5 mb-2.5">
         {ROLE_OPTIONS.map(({ role, label, icon: Icon }) => {
           const isActive = activeRole === role;
           return (
             <TouchableOpacity
               key={role}
-              className={cn('flex-1 py-1.5 rounded-md items-center flex-row justify-center gap-1', isActive ? 'bg-primary' : 'bg-indigo-900')}
+              className={cn('flex-1 py-1.5 rounded-md items-center flex-row justify-center gap-1', isActive ? 'bg-primary' : 'bg-emerald-900')}
               onPress={() => switchRole(role)}
             >
-              <Icon size={12} color={isActive ? '#FFFFFF' : '#C7D2FE'} strokeWidth={2.2} />
-              <Text className={cn('text-[11px]', isActive ? 'text-white font-extrabold' : 'text-indigo-200 font-semibold')}>
+              <Icon size={12} color={isActive ? '#FFFFFF' : '#D1D5DB'} strokeWidth={2.2} />
+              <Text className={cn('text-[11px]', isActive ? 'text-white font-extrabold' : 'text-emerald-200 font-semibold')}>
                 {label}
               </Text>
             </TouchableOpacity>
@@ -89,10 +89,10 @@ export default function DevTestBanner({ onRoleChange }: Props) {
         })}
       </View>
 
-      <Text className="text-indigo-300 text-[11px] font-bold mt-1 mb-1.5 uppercase">Quick Test Actions:</Text>
+      <Text className="text-emerald-300 text-[11px] font-bold mt-1 mb-1.5 uppercase">Quick Test Actions:</Text>
       <View className="flex-row gap-1.5">
         <TouchableOpacity
-          className="flex-1 py-2 rounded-md items-center bg-indigo-600 gap-1"
+          className="flex-1 py-2 rounded-md items-center bg-emerald-600 gap-1"
           onPress={() => navigation.navigate('CameraQRScanner')}
           activeOpacity={0.8}
         >

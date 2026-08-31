@@ -90,7 +90,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
           <Text className="text-[11px] font-extrabold text-primary tracking-wide mb-1">QR ACTIVATION</Text>
           <Text className="text-[22px] font-extrabold text-gray-900 mb-4">{name}</Text>
 
-          <View className="bg-violet-50 rounded-xl p-4 items-center mb-4">
+          <View className="bg-emerald-50 rounded-xl p-4 items-center mb-4">
             <Text className="text-[13px] text-gray-500 mb-0.5">One-time Activation Fee</Text>
             <Text className="text-[28px] font-extrabold text-primary">₦15,000</Text>
           </View>
@@ -113,7 +113,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
           {step === 'success' ? (
             <View className="bg-emerald-100 rounded-xl p-4 items-center">
               <View className="flex-row items-center gap-2 mb-1">
-                <PartyPopper size={18} color="#065F46" strokeWidth={2.2} />
+                <PartyPopper size={18} color="#374151" strokeWidth={2.2} />
                 <Text className="text-lg font-extrabold text-emerald-800">QR Code Activated!</Text>
               </View>
               <Text className="text-[13px] text-emerald-700 mb-3">Your storefront is now live and published.</Text>

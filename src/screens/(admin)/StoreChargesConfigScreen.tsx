@@ -110,7 +110,7 @@ export default function StoreChargesConfigScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#6C63FF" />
+        <ActivityIndicator size="large" color="#059669" />
         <Text className="mt-3 text-sm text-gray-600">Loading store charges configuration...</Text>
       </View>
     );
@@ -123,8 +123,8 @@ export default function StoreChargesConfigScreen() {
     >
       <ScrollView contentContainerClassName="p-5" keyboardShouldPersistTaps="handled">
         <View className="bg-white rounded-[20px] p-5 mb-4 items-center shadow-sm">
-          <View className="w-12 h-12 rounded-full bg-indigo-50 items-center justify-center mb-2">
-            <Settings2 size={22} color="#6C63FF" strokeWidth={2} />
+          <View className="w-12 h-12 rounded-full bg-emerald-50 items-center justify-center mb-2">
+            <Settings2 size={22} color="#374151" strokeWidth={2} />
           </View>
           <Text className="text-[17px] font-bold text-gray-900 mb-1">Store Charges & Tax Settings</Text>
           <Text className="text-[13px] text-gray-500 text-center leading-[18px]">
@@ -184,7 +184,7 @@ export default function StoreChargesConfigScreen() {
               value={deliveryEnabled}
               onValueChange={setDeliveryEnabled}
               trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-              thumbColor={deliveryEnabled ? '#6C63FF' : '#F3F4F6'}
+              thumbColor={deliveryEnabled ? '#059669' : '#F3F4F6'}
             />
           </View>
 

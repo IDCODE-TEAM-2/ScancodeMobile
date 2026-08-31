@@ -56,7 +56,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
           {isSubmitted ? (
             <View className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 items-center mb-5">
               <View className="w-14 h-14 rounded-full bg-emerald-100 items-center justify-center mb-2.5">
-                <Mail size={26} color="#065F46" strokeWidth={2} />
+                <Mail size={26} color="#374151" strokeWidth={2} />
               </View>
               <Text className="text-lg font-bold text-emerald-800 mb-1.5">Check your email</Text>
               <Text className="text-sm text-emerald-700 text-center leading-5 mb-4">
@@ -102,7 +102,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('Login')}
             disabled={loading}
           >
-            <ArrowLeft size={14} color="#6C63FF" strokeWidth={2.5} />
+            <ArrowLeft size={14} color="#374151" strokeWidth={2.5} />
             <Text className="text-primary text-sm font-semibold">Back to Login</Text>
           </TouchableOpacity>
         </View>

@@ -229,9 +229,9 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
               </View>
 
               {sortMode === 'nearby' && nearbyState && (
-                <View className="flex-row items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 mb-3.5">
-                  <LocateFixed size={13} color="#4F46E5" strokeWidth={2.2} />
-                  <Text className="text-xs text-indigo-700 font-medium">
+                <View className="flex-row items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-3.5">
+                  <LocateFixed size={13} color="#374151" strokeWidth={2.2} />
+                  <Text className="text-xs text-emerald-700 font-medium">
                     Showing storefronts near {nearbyState} first
                   </Text>
                 </View>

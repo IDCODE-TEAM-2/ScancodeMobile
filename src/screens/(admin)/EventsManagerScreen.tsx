@@ -99,7 +99,7 @@ export default function EventsManagerScreen({ route }: Props) {
   if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#6C63FF" />
+        <ActivityIndicator size="large" color="#059669" />
         <Text className="mt-3 text-sm text-gray-600">Loading weekly events...</Text>
       </View>
     );

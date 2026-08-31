@@ -67,7 +67,7 @@ const accessPageGuestOptions: NativeStackNavigationOptions = { title: 'Event Che
 
 const sharedScreenOptions: NativeStackNavigationOptions = {
   headerStyle: { backgroundColor: '#ffffff' },
-  headerTintColor: '#6C63FF',
+  headerTintColor: '#059669',
   headerTitleStyle: { fontWeight: '700' },
   contentStyle: { backgroundColor: '#F3F4F6' },
 };
@@ -262,7 +262,7 @@ function BootScreen() {
   return (
     <View className="flex-1 bg-white items-center justify-center">
       <Text className="text-[32px] font-bold text-primary tracking-wide">ScanCode</Text>
-      <ActivityIndicator size="large" color="#6C63FF" className="mt-6" />
+      <ActivityIndicator size="large" color="#059669" className="mt-6" />
     </View>
   );
 }

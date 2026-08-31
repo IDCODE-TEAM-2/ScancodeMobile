@@ -223,7 +223,7 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
             disabled={uploadingLogo || loading}
           >
             {uploadingLogo ? (
-              <ActivityIndicator color="#6C63FF" />
+              <ActivityIndicator color="#059669" />
             ) : logoUri ? (
               <Image source={{ uri: logoUri }} className="w-[88px] h-[88px] rounded-full" />
             ) : (
@@ -360,7 +360,7 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
               key={t}
               className={cn(
                 'flex-1 border-[1.5px] rounded-xl py-3 items-center bg-white',
-                businessType === t ? 'border-primary bg-violet-50' : 'border-gray-300'
+                businessType === t ? 'border-primary bg-emerald-50' : 'border-gray-300'
               )}
               onPress={() => setBusinessType(t)}
               disabled={loading}
@@ -379,10 +379,10 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
         {categories.length > 0 && (
           <View className="flex-row flex-wrap gap-2 mb-2.5">
             {categories.map((cat, idx) => (
-              <View key={idx} className="flex-row items-center gap-1.5 bg-indigo-100 rounded-full px-3 py-1.5">
-                <Text className="text-indigo-800 text-[13px] font-medium">{cat}</Text>
+              <View key={idx} className="flex-row items-center gap-1.5 bg-emerald-100 rounded-full px-3 py-1.5">
+                <Text className="text-emerald-800 text-[13px] font-medium">{cat}</Text>
                 <TouchableOpacity onPress={() => handleRemoveCategory(cat)}>
-                  <X size={12} color="#6C63FF" strokeWidth={2.5} />
+                  <X size={12} color="#374151" strokeWidth={2.5} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -427,9 +427,9 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
           />
         </View>
 
-        <View className="bg-indigo-50 rounded-xl p-3.5 mb-6 border border-indigo-200 flex-row items-start gap-2">
-          <Info size={16} color="#3730A3" strokeWidth={2.2} />
-          <Text className="text-indigo-800 text-[13px] leading-[19px] flex-1">
+        <View className="bg-emerald-50 rounded-xl p-3.5 mb-6 border border-emerald-200 flex-row items-start gap-2">
+          <Info size={16} color="#374151" strokeWidth={2.2} />
+          <Text className="text-emerald-800 text-[13px] leading-[19px] flex-1">
             After creating your storefront you'll need to activate your QR code.
           </Text>
         </View>

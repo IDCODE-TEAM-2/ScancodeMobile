@@ -128,7 +128,7 @@ export default function CameraQRScannerScreen({ navigation }: Props) {
     }
 
     return (
-      <View className="absolute inset-0 bg-indigo-950 items-center justify-center">
+      <View className="absolute inset-0 bg-emerald-950 items-center justify-center">
         <View className="w-60 h-60 relative justify-between">
           <View className="absolute w-8 h-8 border-primary top-0 left-0 border-t-4 border-l-4" />
           <View className="absolute w-8 h-8 border-primary top-0 right-0 border-t-4 border-r-4" />

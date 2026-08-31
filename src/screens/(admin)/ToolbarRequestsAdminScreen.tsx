@@ -70,7 +70,7 @@ function StatusPill({ status }: { status: 'PENDING' | 'ACKNOWLEDGED' }) {
       {isPending ? (
         <Bell size={10} color="#92400E" strokeWidth={2.5} />
       ) : (
-        <Check size={10} color="#065F46" strokeWidth={2.5} />
+        <Check size={10} color="#374151" strokeWidth={2.5} />
       )}
       <Text className={cn('text-[11px] font-bold', isPending ? 'text-amber-800' : 'text-emerald-800')}>
         {isPending ? 'Pending' : 'Acknowledged'}
@@ -227,7 +227,7 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
 
       {item.status === 'PENDING' && (
         <TouchableOpacity
-          className="bg-indigo-600 rounded-[10px] py-2.5 items-center flex-row justify-center gap-1.5"
+          className="bg-emerald-600 rounded-[10px] py-2.5 items-center flex-row justify-center gap-1.5"
           onPress={() => handleAckCall(item)}
           activeOpacity={0.8}
         >
@@ -259,7 +259,7 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
 
       {item.status === 'PENDING' && (
         <TouchableOpacity
-          className="bg-indigo-600 rounded-[10px] py-2.5 items-center flex-row justify-center gap-1.5"
+          className="bg-emerald-600 rounded-[10px] py-2.5 items-center flex-row justify-center gap-1.5"
           onPress={() => handleAckRequest(item)}
           activeOpacity={0.8}
         >
@@ -364,7 +364,7 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
 
       {loading ? (
         <View className="flex-1 items-center justify-center p-6">
-          <ActivityIndicator size="large" color="#6C63FF" />
+          <ActivityIndicator size="large" color="#059669" />
           <Text className="mt-2.5 text-sm text-gray-500">Loading activity...</Text>
         </View>
       ) : (
@@ -377,7 +377,7 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => loadAll(true)}
-              tintColor="#6C63FF"
+              tintColor="#059669"
             />
           }
           ListEmptyComponent={

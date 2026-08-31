@@ -10,13 +10,20 @@ module.exports = {
     extend: {
       colors: {
         // The app's existing design already matched Tailwind's default gray/emerald/
-        // amber/red/indigo scales almost exactly (e.g. #111827 = gray-900, #059669 =
-        // emerald-600) — those are used directly rather than re-declared here. The one
-        // color genuinely custom to this app is the brand purple.
+        // amber/red scales almost exactly (e.g. #111827 = gray-900) — those are used
+        // directly rather than re-declared here.
+        // Primary changed 2026-08-31 from the original brand purple (#6C63FF) to
+        // Scancode's green/emerald identity, per direct user instruction. `DEFAULT` is
+        // the flat-fill anchor (borders, text, non-gradient surfaces); `gradientStart`/
+        // `gradientEnd` back the two-stop "mini gradient" used on primary CTA buttons
+        // (see src/components/GradientButton.tsx) — deliberately a subtle emerald-500 ->
+        // emerald-700 shift, not a dramatic multi-hue gradient.
         primary: {
-          DEFAULT: '#6C63FF',
-          dark: '#4F46E5',
-          darker: '#4338CA',
+          DEFAULT: '#059669',
+          dark: '#047857',
+          darker: '#065F46',
+          gradientStart: '#10B981',
+          gradientEnd: '#047857',
         },
       },
     },

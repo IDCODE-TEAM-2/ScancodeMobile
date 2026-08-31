@@ -91,7 +91,7 @@ export default function CartDrawerScreen({ navigation, route }: Props) {
 
             <View className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mt-4">
               {isLoadingConfig ? (
-                <ActivityIndicator color="#6C63FF" />
+                <ActivityIndicator color="#059669" />
               ) : (
                 <>
                   <View className="flex-row justify-between py-1.5">

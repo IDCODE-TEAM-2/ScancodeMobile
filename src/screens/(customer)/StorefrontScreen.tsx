@@ -378,7 +378,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                         onPress={() => navigation.navigate('CartDrawer', { slug, storefrontId, name: vendor?.name, table: scannedTableCode })}
                         accessibilityLabel="Open cart"
                     >
-                        <ShoppingCart size={20} color="#065F46" strokeWidth={2} />
+                        <ShoppingCart size={20} color="#374151" strokeWidth={2} />
                         <BounceBadge count={financialSummary.totalQty} />
                     </TouchableOpacity>
 
@@ -410,7 +410,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                                 key={cat.id}
                                 className={cn(
                                     'w-[76px] bg-white border rounded-xl p-2 items-center mr-2.5',
-                                    isSelected ? 'border-primary bg-violet-50' : 'border-gray-200'
+                                    isSelected ? 'border-primary bg-emerald-50' : 'border-gray-200'
                                 )}
                                 activeOpacity={0.8}
                                 onPress={() => handleCategoryPress(cat.name)}

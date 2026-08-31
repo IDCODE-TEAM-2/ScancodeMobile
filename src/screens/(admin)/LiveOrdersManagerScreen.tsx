@@ -266,7 +266,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
                 <Text className={cn('text-sm font-medium', oledDark ? 'text-zinc-100' : 'text-gray-900')}>{it.name}</Text>
                 {it.options ? <Text className={cn('text-xs', oledDark ? 'text-zinc-500' : 'text-gray-500')}>{it.options}</Text> : null}
               </View>
-              <Text className={cn('text-[13px] font-semibold', oledDark ? 'text-indigo-400' : 'text-indigo-800')}>₦{(it.price * it.quantity).toLocaleString()}</Text>
+              <Text className={cn('text-[13px] font-semibold', oledDark ? 'text-emerald-400' : 'text-emerald-800')}>₦{(it.price * it.quantity).toLocaleString()}</Text>
             </View>
           ))}
         </View>
@@ -337,23 +337,23 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="bg-indigo-50 rounded-full px-2.5 py-1.5 border border-indigo-200 flex-row items-center gap-1"
+            className="bg-emerald-50 rounded-full px-2.5 py-1.5 border border-emerald-200 flex-row items-center gap-1"
             onPress={handleTriggerTestOrder}
           >
-            <Zap size={12} color="#4F46E5" strokeWidth={2.2} />
-            <Text className="text-xs font-bold text-indigo-600">Test Alarm</Text>
+            <Zap size={12} color="#374151" strokeWidth={2.2} />
+            <Text className="text-xs font-bold text-emerald-600">Test Alarm</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className={cn('rounded-full px-3 py-1.5 flex-row items-center gap-1', soundEnabled ? 'bg-indigo-100' : 'bg-gray-100')}
+            className={cn('rounded-full px-3 py-1.5 flex-row items-center gap-1', soundEnabled ? 'bg-emerald-100' : 'bg-gray-100')}
             onPress={handleSoundToggle}
           >
             {soundEnabled ? (
-              <Volume2 size={12} color="#3730A3" strokeWidth={2.2} />
+              <Volume2 size={12} color="#374151" strokeWidth={2.2} />
             ) : (
-              <VolumeX size={12} color="#3730A3" strokeWidth={2.2} />
+              <VolumeX size={12} color="#374151" strokeWidth={2.2} />
             )}
-            <Text className="text-xs font-semibold text-indigo-800">{soundEnabled ? 'Sound On' : 'Muted'}</Text>
+            <Text className="text-xs font-semibold text-emerald-800">{soundEnabled ? 'Sound On' : 'Muted'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -392,7 +392,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
 
       {loading ? (
         <View className="flex-1 items-center justify-center p-6">
-          <ActivityIndicator size="large" color="#6C63FF" />
+          <ActivityIndicator size="large" color="#059669" />
         </View>
       ) : (
         <FlatList
@@ -404,7 +404,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => fetchOrders(true)}
-              tintColor="#6C63FF"
+              tintColor="#059669"
             />
           }
           ListEmptyComponent={

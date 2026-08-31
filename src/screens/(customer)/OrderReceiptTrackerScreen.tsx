@@ -73,7 +73,7 @@ export default function OrderReceiptTrackerScreen({ navigation, route }: Props) 
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center p-6 bg-gray-50 gap-3">
-        <ActivityIndicator size="large" color="#6C63FF" />
+        <ActivityIndicator size="large" color="#059669" />
       </View>
     );
   }
@@ -102,7 +102,7 @@ export default function OrderReceiptTrackerScreen({ navigation, route }: Props) 
           {isRejectedOrCancelled ? (
             <XCircle size={48} color="#DC2626" strokeWidth={1.5} />
           ) : order.status === 'CONFIRMED' || order.status === 'COMPLETED' ? (
-            <CheckCircle2 size={48} color="#059669" strokeWidth={1.5} />
+            <CheckCircle2 size={48} color="#111827" strokeWidth={1.5} />
           ) : (
             <Clock size={48} color="#D97706" strokeWidth={1.5} />
           )}

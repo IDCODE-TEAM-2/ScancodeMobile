@@ -75,7 +75,7 @@ export default function MerchantProfileBankScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#126B33" />
+        <ActivityIndicator size="large" color="#059669" />
         <Text className="mt-3 text-sm text-gray-600">Loading profile details...</Text>
       </View>
     );
@@ -88,7 +88,7 @@ export default function MerchantProfileBankScreen() {
     >
       <ScrollView contentContainerClassName="p-5" keyboardShouldPersistTaps="handled">
         <View className="flex-row bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 items-start gap-3">
-          <Landmark size={24} color="#065F46" strokeWidth={2} />
+          <Landmark size={24} color="#374151" strokeWidth={2} />
           <View className="flex-1">
             <Text className="text-sm font-bold text-emerald-800 mb-0.5">Payment Account Details</Text>
             <Text className="text-xs text-emerald-700 leading-[18px]">

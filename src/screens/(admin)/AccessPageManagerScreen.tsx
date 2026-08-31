@@ -222,7 +222,7 @@ export default function AccessPageManagerScreen({ route }: Props) {
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#6C63FF" />
+        <ActivityIndicator size="large" color="#059669" />
       </View>
     );
   }
@@ -251,7 +251,7 @@ export default function AccessPageManagerScreen({ route }: Props) {
                 key={opt.type}
                 className={cn(
                   'border-[1.5px] rounded-xl px-3.5 py-2.5 bg-white',
-                  type === opt.type ? 'border-primary bg-violet-50' : 'border-gray-300'
+                  type === opt.type ? 'border-primary bg-emerald-50' : 'border-gray-300'
                 )}
                 onPress={() => handleSelectType(opt.type)}
               >
@@ -386,22 +386,22 @@ export default function AccessPageManagerScreen({ route }: Props) {
 
               <View className="flex-row gap-2 mb-2">
                 <TouchableOpacity
-                  className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2"
+                  className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2"
                   onPress={() => handleCopyLink(p.slug)}
                 >
-                  <Link2 size={13} color="#4F46E5" strokeWidth={2.2} />
-                  <Text className="text-indigo-600 font-semibold text-xs">Copy Link</Text>
+                  <Link2 size={13} color="#374151" strokeWidth={2.2} />
+                  <Text className="text-emerald-600 font-semibold text-xs">Copy Link</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2"
+                  className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2"
                   onPress={() => handleToggleGuests(p)}
                 >
-                  <Users size={13} color="#4F46E5" strokeWidth={2.2} />
-                  <Text className="text-indigo-600 font-semibold text-xs">Guests</Text>
+                  <Users size={13} color="#374151" strokeWidth={2.2} />
+                  <Text className="text-emerald-600 font-semibold text-xs">Guests</Text>
                   {expandedGuests === p.id ? (
-                    <ChevronUp size={13} color="#4F46E5" strokeWidth={2.2} />
+                    <ChevronUp size={13} color="#374151" strokeWidth={2.2} />
                   ) : (
-                    <ChevronDown size={13} color="#4F46E5" strokeWidth={2.2} />
+                    <ChevronDown size={13} color="#374151" strokeWidth={2.2} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -411,7 +411,7 @@ export default function AccessPageManagerScreen({ route }: Props) {
                   <Switch
                     value={p.isActive}
                     onValueChange={() => handleToggleActive(p)}
-                    trackColor={{ false: '#D1D5DB', true: '#6C63FF' }}
+                    trackColor={{ false: '#D1D5DB', true: '#059669' }}
                   />
                   <Text className="text-xs text-gray-500">Accepting check-ins</Text>
                 </View>
@@ -423,7 +423,7 @@ export default function AccessPageManagerScreen({ route }: Props) {
               {expandedGuests === p.id && (
                 <View className="mt-3 border-t border-gray-100 pt-3">
                   {guestsLoading ? (
-                    <ActivityIndicator color="#6C63FF" />
+                    <ActivityIndicator color="#059669" />
                   ) : guests.length === 0 ? (
                     <Text className="text-xs text-gray-400">No guests have checked in yet.</Text>
                   ) : (

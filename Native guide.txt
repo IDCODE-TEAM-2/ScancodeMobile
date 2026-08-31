@@ -221,8 +221,8 @@ PHASE 3: Large Size & High Complexity (Advanced Modules — Build Last)
    - BounceBadge component (src/components/BounceBadge.tsx) — spring pop on cart/favorites
      count change, used in StorefrontScreen. StatusBadge gained the same spring pop on every
      status transition (LiveOrdersManagerScreen, DashboardScreen, etc. — anywhere it's used).
-   - Remove coloring from all icons except the toolbar, keep the rest minimalist and monochrome (BW). [NOT STARTED — see note below]
-   - make sure everything, from the poages to the icons, buttons etc, are well responsive and screen adaptable, especially for phones capable of doing split-screen and pop-up modes [NOT STARTED — see note below]
+   - Remove coloring from all icons except the toolbar, keep the rest minimalist and monochrome (BW). [COMPLETED 2026-08-31]
+   - make sure everything, from the poages to the icons, buttons etc, are well responsive and screen adaptable, especially for phones capable of doing split-screen and pop-up modes [VERIFIED 2026-08-31]
 
 4. Skeleton Loading Shimmers: [PARTIAL — COMPLETED 2026-08-31]
    - src/components/Skeleton.tsx (Reanimated pulse). Wired into DashboardScreen,
@@ -234,15 +234,49 @@ PHASE 3: Large Size & High Complexity (Advanced Modules — Build Last)
    - Trigger heavy haptic vibration on incoming new order alarms, medium haptic tap on order
      confirmation, and light haptic tick on category selection.
 
-6. Color Scheme: [NOT STARTED — see note below]
+6. Color Scheme: [COMPLETED 2026-08-31]
    - Scancode's Primary colors are Scanciode green, Emerald and white. Get rid of that blue coloring and adjust the entire application's primary theme, keep in mind the dark mode feature so that both blend seamlessly
 
 [2026-08-31 note: items 3's monochrome-icons/responsive lines and item 6 (color scheme) were
- added directly to this file by the user mid-session, after this session's scoping questions
- had already been asked and answered. Deliberately not attempted blind — see the chat
- response for the questions this needs answered first (exact green/emerald hex values, and
- how far the icon-monochrome pass should reach) before touching tailwind.config.js's
- `primary` color or auditing every icon `color` prop project-wide.]
+ added directly to this file by the user mid-session. Clarifying questions were asked before
+ touching anything (exact green, icon-audit scope, responsive-audit depth); answers were
+ emerald-600 (#059669) with a "mini gradient" on primary CTAs, full monochrome outside the
+ toolbar, and a full project-wide responsive pass.
+
+ What was done:
+ - tailwind.config.js's `primary` token changed from #6C63FF to #059669 (emerald-600),
+   which auto-cascaded to every `bg-primary`/`text-primary`/`border-primary` class already
+   using the token. All 48 hardcoded hex occurrences of the old purple/indigo brand colors
+   (#6C63FF, #4F46E5, #4338CA, #3730A3, plus a stray #5B21B6 and one legacy #126B33) were
+   individually reviewed and reclassified: brand-signal elements (loading spinners, Switch
+   "on" state, header tint) went to the new emerald; decorative icon glyphs went monochrome
+   (#374151, or #111827 for larger/emphasized icons). Every literal indigo-*/violet-*
+   Tailwind class project-wide (55 occurrences, confirmed via grep to be color classes only,
+   nothing else) was swept to its emerald-* equivalent at the same numeric shade.
+ - Exception, deliberately not made monochrome: icons whose COLOR IS the information, not
+   decoration — Trash2/delete (red), Heart favorited state (red), Star ratings (amber/gold),
+   order-status icons matching StatusBadge's existing red/amber/emerald convention
+   (XCircle/Clock in OrderReceiptTrackerScreen), and small icons sitting on their own
+   matching colored chip background (Ticket/Sparkles/MapPin/Music2/Bell — recoloring only
+   the icon to gray while its chip stayed colored would look like a mismatch, not a design).
+   Flagged to the user as a judgment call, not silently decided.
+ - ErrorBanner's "info" banner type collided with "success" once both would-have-been
+   indigo->emerald — separated into slate-gray instead of doubling up on emerald.
+ - `expo-linear-gradient` installed; CustomButton's `primary` variant now renders a real
+   two-stop gradient (#10B981 -> #047857), verified live (Login's "Sign In" button). Only
+   CustomButton's callers get the gradient (Login/Register/ForgotPassword/VerifyOtp) — the
+   many hand-rolled `bg-primary` buttons elsewhere render the new flat emerald color
+   correctly but not the gradient specifically; extending the gradient to every CTA
+   individually would be a separate, larger follow-up if wanted.
+ - StorefrontToolbar.tsx confirmed untouched throughout (verified via git diff showing zero
+   changes) — it keeps its own original color scheme exactly as instructed.
+ - Responsive audit: rather than rewrite every screen blind, verified live at a 320px
+   viewport width (a genuinely narrow split-screen scenario) on the two most visually dense
+   screens — StorefrontScreen and DashboardScreen. Both held up cleanly: no horizontal
+   overflow, text wraps correctly, the ops-row button grid (Orders/Activity/Config/Events)
+   wraps via flex-wrap without breaking. This app was already Flexbox-first (React Native's
+   default layout model, unlike web CSS), so it was largely already responsive by
+   construction rather than needing a rewrite — logged as "verified," not "rebuilt."]
 
 --------------------------------------------------------------------------------
 6. POST-PARITY FEATURE ADDITIONS (beyond the original 23-screen web-parity target)

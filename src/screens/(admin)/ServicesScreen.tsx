@@ -46,7 +46,7 @@ export default function ServicesScreen({ navigation }: Props) {
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#6C63FF" />
+        <ActivityIndicator size="large" color="#059669" />
       </View>
     );
   }
@@ -63,11 +63,11 @@ export default function ServicesScreen({ navigation }: Props) {
         onPress={() => navigation.navigate('CreateStorefront')}
         activeOpacity={0.75}
       >
-        <View className="w-12 h-12 rounded-xl bg-violet-50 items-center justify-center mr-3.5">
+        <View className="w-12 h-12 rounded-xl bg-emerald-50 items-center justify-center mr-3.5">
           {hasStorefronts ? (
-            <PlusCircle size={22} color="#6C63FF" strokeWidth={2} />
+            <PlusCircle size={22} color="#374151" strokeWidth={2} />
           ) : (
-            <Store size={22} color="#6C63FF" strokeWidth={2} />
+            <Store size={22} color="#374151" strokeWidth={2} />
           )}
         </View>
         <View className="flex-1">

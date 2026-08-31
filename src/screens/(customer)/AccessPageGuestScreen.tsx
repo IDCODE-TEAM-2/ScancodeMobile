@@ -72,7 +72,7 @@ export default function AccessPageGuestScreen({ route }: Props) {
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#6C63FF" />
+        <ActivityIndicator size="large" color="#059669" />
       </View>
     );
   }
@@ -104,7 +104,7 @@ export default function AccessPageGuestScreen({ route }: Props) {
   if (submitted) {
     return (
       <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-6 items-center justify-center flex-grow">
-        <CheckCircle2 size={48} color="#059669" strokeWidth={1.8} />
+        <CheckCircle2 size={48} color="#111827" strokeWidth={1.8} />
         <Text className="text-lg font-bold text-gray-900 mt-3 text-center">You're checked in!</Text>
         <Text className="text-sm text-gray-500 text-center mt-1.5 mb-5">Welcome to {page.title}.</Text>
         {page.exclusiveContent && (
@@ -149,7 +149,7 @@ export default function AccessPageGuestScreen({ route }: Props) {
                     key={opt}
                     className={cn(
                       'flex-1 border-[1.5px] rounded-xl py-3 items-center bg-white',
-                      responses[f.id] === opt ? 'border-primary bg-violet-50' : 'border-gray-300'
+                      responses[f.id] === opt ? 'border-primary bg-emerald-50' : 'border-gray-300'
                     )}
                     onPress={() => setResponse(f.id, opt)}
                   >
@@ -166,7 +166,7 @@ export default function AccessPageGuestScreen({ route }: Props) {
                     key={opt}
                     className={cn(
                       'border-[1.5px] rounded-xl px-3.5 py-2.5 bg-white',
-                      responses[f.id] === opt ? 'border-primary bg-violet-50' : 'border-gray-300'
+                      responses[f.id] === opt ? 'border-primary bg-emerald-50' : 'border-gray-300'
                     )}
                     onPress={() => setResponse(f.id, opt)}
                   >
