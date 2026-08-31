@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
-import { MapPin, ShoppingBag, Bell, Zap, Volume2, VolumeX, Music2, Check } from 'lucide-react-native';
+import { MapPin, ShoppingBag, Bell, Zap, Volume2, VolumeX, Music2, Check, Moon, Sun } from 'lucide-react-native';
+import * as Haptics from '../../utils/haptics';
 import type { NavigationProp, RouteProps } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import ErrorBanner from '../../components/ErrorBanner';
@@ -73,6 +74,10 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [customToneUri, setCustomToneUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Scoped to this screen only — a high-contrast OLED theme for kitchen/POS terminals,
+  // independent of the rest of the app's (light-only, for now) styling. Not wired through
+  // NativeWind's global dark: variant since that would darken every other screen too.
+  const [oledDark, setOledDark] = useState(false);
 
   // Load persisted custom alarm tone on mount
   useEffect(() => {
@@ -123,12 +128,14 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
   function handleSoundToggle() {
     const nextState = !soundEnabled;
     setSoundEnabled(nextState);
+    Haptics.tapLight();
     if (nextState) {
       playOrderAlarmSound();
     }
   }
 
   function handleTriggerTestOrder() {
+    Haptics.tapLight();
     if (soundEnabled) {
       playOrderAlarmSound();
     }
@@ -192,6 +199,11 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
               if (soundEnabled) {
                 playStatusChangeSound();
               }
+              if (newStatus === 'CONFIRMED' || newStatus === 'COMPLETED') {
+                Haptics.notifySuccess();
+              } else {
+                Haptics.notifyWarning();
+              }
               setOrders((prev) =>
                 prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
               );
@@ -215,56 +227,62 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
     const isPending = item.status === 'PENDING';
 
     return (
-      <View className={cn('bg-white rounded-xl p-4 shadow-sm', isPending && 'border-l-4 border-amber-500')}>
+      <View
+        className={cn(
+          'rounded-xl p-4 shadow-sm border',
+          oledDark ? 'bg-[#0F0F11] border-[#1F1F23]' : 'bg-white border-transparent',
+          isPending && (oledDark ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-amber-500')
+        )}
+      >
         <View className="flex-row justify-between items-start mb-3">
           <View>
             <View className="flex-row items-center gap-2">
-              <Text className="text-base font-extrabold text-gray-900">{item.orderNumber}</Text>
+              <Text className={cn('text-base font-extrabold', oledDark ? 'text-white' : 'text-gray-900')}>{item.orderNumber}</Text>
               <StatusBadge status={item.status} />
             </View>
             <View className="flex-row items-center gap-1 mt-0.5">
               {item.tableNumber ? (
                 <>
-                  <MapPin size={11} color="#6B7280" strokeWidth={2.2} />
-                  <Text className="text-[13px] text-gray-500">{item.tableNumber}</Text>
+                  <MapPin size={11} color={oledDark ? '#A1A1AA' : '#6B7280'} strokeWidth={2.2} />
+                  <Text className={cn('text-[13px]', oledDark ? 'text-zinc-400' : 'text-gray-500')}>{item.tableNumber}</Text>
                 </>
               ) : (
                 <>
-                  <ShoppingBag size={11} color="#6B7280" strokeWidth={2.2} />
-                  <Text className="text-[13px] text-gray-500">Delivery / Takeout</Text>
+                  <ShoppingBag size={11} color={oledDark ? '#A1A1AA' : '#6B7280'} strokeWidth={2.2} />
+                  <Text className={cn('text-[13px]', oledDark ? 'text-zinc-400' : 'text-gray-500')}>Delivery / Takeout</Text>
                 </>
               )}
-              {item.customerName ? <Text className="text-[13px] text-gray-500"> • {item.customerName}</Text> : null}
+              {item.customerName ? <Text className={cn('text-[13px]', oledDark ? 'text-zinc-400' : 'text-gray-500')}> • {item.customerName}</Text> : null}
             </View>
           </View>
-          <Text className="text-xs text-gray-400">{item.createdAt}</Text>
+          <Text className={cn('text-xs', oledDark ? 'text-zinc-500' : 'text-gray-400')}>{item.createdAt}</Text>
         </View>
 
-        <View className="border-t border-b border-gray-100 py-2 my-2 gap-1.5">
+        <View className={cn('border-t border-b py-2 my-2 gap-1.5', oledDark ? 'border-[#1F1F23]' : 'border-gray-100')}>
           {item.items.map((it) => (
             <View key={it.id} className="flex-row items-center">
               <Text className="font-bold text-primary w-7 text-[13px]">{it.quantity}x</Text>
               <View className="flex-1">
-                <Text className="text-sm text-gray-900 font-medium">{it.name}</Text>
-                {it.options ? <Text className="text-xs text-gray-500">{it.options}</Text> : null}
+                <Text className={cn('text-sm font-medium', oledDark ? 'text-zinc-100' : 'text-gray-900')}>{it.name}</Text>
+                {it.options ? <Text className={cn('text-xs', oledDark ? 'text-zinc-500' : 'text-gray-500')}>{it.options}</Text> : null}
               </View>
-              <Text className="text-[13px] font-semibold text-indigo-800">₦{(it.price * it.quantity).toLocaleString()}</Text>
+              <Text className={cn('text-[13px] font-semibold', oledDark ? 'text-indigo-400' : 'text-indigo-800')}>₦{(it.price * it.quantity).toLocaleString()}</Text>
             </View>
           ))}
         </View>
 
         <View className="mt-1">
-          <Text className="text-sm text-gray-500 mb-3">
-            Total: <Text className="text-base font-extrabold text-gray-900">₦{item.totalAmount.toLocaleString()}</Text>
+          <Text className={cn('text-sm mb-3', oledDark ? 'text-zinc-400' : 'text-gray-500')}>
+            Total: <Text className={cn('text-base font-extrabold', oledDark ? 'text-white' : 'text-gray-900')}>₦{item.totalAmount.toLocaleString()}</Text>
           </Text>
 
           {isPending ? (
             <View className="flex-row gap-2.5">
               <TouchableOpacity
-                className="flex-1 rounded-lg py-2.5 items-center bg-red-100"
+                className={cn('flex-1 rounded-lg py-2.5 items-center', oledDark ? 'bg-red-950' : 'bg-red-100')}
                 onPress={() => handleUpdateStatus(item.id, 'REJECTED')}
               >
-                <Text className="text-red-600 font-bold text-sm">Reject</Text>
+                <Text className={cn('font-bold text-sm', oledDark ? 'text-red-400' : 'text-red-600')}>Reject</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 className="flex-1 rounded-lg py-2.5 items-center bg-emerald-600"
@@ -279,7 +297,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
                 className="self-end"
                 onPress={() => handleUpdateStatus(item.id, 'CANCELLED')}
               >
-                <Text className="text-xs text-red-500 font-semibold">Cancel Order</Text>
+                <Text className={cn('text-xs font-semibold', oledDark ? 'text-red-400' : 'text-red-500')}>Cancel Order</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 className="flex-1 rounded-lg py-2.5 items-center bg-emerald-600"
@@ -295,13 +313,13 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
   }
 
   return (
-    <View className="flex-1 bg-gray-100">
-      <View className="flex-row justify-between items-center px-5 py-3.5 bg-white border-b border-gray-200">
+    <View className={cn('flex-1', oledDark ? 'bg-[#09090B]' : 'bg-gray-100')}>
+      <View className={cn('flex-row justify-between items-center px-5 py-3.5 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}>
         <View>
-          <Text className="text-lg font-bold text-gray-900">{storefrontName}</Text>
+          <Text className={cn('text-lg font-bold', oledDark ? 'text-white' : 'text-gray-900')}>{storefrontName}</Text>
           <View className="flex-row items-center gap-1 mt-0.5">
-            {pendingCount > 0 && <Bell size={12} color="#6B7280" strokeWidth={2.2} />}
-            <Text className="text-[13px] text-gray-500">
+            {pendingCount > 0 && <Bell size={12} color={oledDark ? '#A1A1AA' : '#6B7280'} strokeWidth={2.2} />}
+            <Text className={cn('text-[13px]', oledDark ? 'text-zinc-400' : 'text-gray-500')}>
               {pendingCount > 0
                 ? `${pendingCount} Pending Order${pendingCount > 1 ? 's' : ''}`
                 : 'All orders up to date'}
@@ -310,6 +328,14 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
         </View>
 
         <View className="flex-row items-center gap-2">
+          <TouchableOpacity
+            className={cn('rounded-full w-8 h-8 items-center justify-center border', oledDark ? 'bg-zinc-900 border-zinc-700' : 'bg-gray-100 border-gray-200')}
+            onPress={() => { Haptics.tapLight(); setOledDark((prev) => !prev); }}
+            accessibilityLabel={oledDark ? 'Switch to light mode' : 'Switch to OLED kitchen display mode'}
+          >
+            {oledDark ? <Sun size={14} color="#FBBF24" strokeWidth={2.2} /> : <Moon size={14} color="#4B5563" strokeWidth={2.2} />}
+          </TouchableOpacity>
+
           <TouchableOpacity
             className="bg-indigo-50 rounded-full px-2.5 py-1.5 border border-indigo-200 flex-row items-center gap-1"
             onPress={handleTriggerTestOrder}
@@ -342,7 +368,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
         </View>
       </View>
 
-      <View className="flex-row bg-white px-4 py-2 gap-2 border-b border-gray-200">
+      <View className={cn('flex-row px-4 py-2 gap-2 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}>
         {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED'] as const).map((tab) => {
           const active = activeTab === tab;
           const count =
@@ -351,10 +377,10 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
           return (
             <TouchableOpacity
               key={tab}
-              className={cn('px-3 py-1.5 rounded-lg', active ? 'bg-primary' : 'bg-gray-100')}
-              onPress={() => setActiveTab(tab)}
+              className={cn('px-3 py-1.5 rounded-lg', active ? 'bg-primary' : oledDark ? 'bg-zinc-900' : 'bg-gray-100')}
+              onPress={() => { Haptics.tapLight(); setActiveTab(tab); }}
             >
-              <Text className={cn('text-xs font-semibold', active ? 'text-white' : 'text-gray-600')}>
+              <Text className={cn('text-xs font-semibold', active ? 'text-white' : oledDark ? 'text-zinc-400' : 'text-gray-600')}>
                 {tab} ({count})
               </Text>
             </TouchableOpacity>
@@ -383,8 +409,8 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
           }
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center p-8">
-              <Text className="text-base font-bold text-gray-600 mb-1">No {activeTab.toLowerCase()} orders</Text>
-              <Text className="text-[13px] text-gray-400 text-center">
+              <Text className={cn('text-base font-bold mb-1', oledDark ? 'text-zinc-300' : 'text-gray-600')}>No {activeTab.toLowerCase()} orders</Text>
+              <Text className={cn('text-[13px] text-center', oledDark ? 'text-zinc-500' : 'text-gray-400')}>
                 {storefrontId
                   ? 'New incoming customer orders will appear here automatically.'
                   : 'No storefront was specified for this screen.'}

@@ -32,6 +32,90 @@ memory regression) — do not assume a training-data cutoff knows the right APIs
 
 Most recent first. Add an entry here for every fix so changes stay traceable across sessions.
 
+### 2026-08-31 (session 8) — ItemDetailsModal bottom sheet, headings 4 & 5 (haptics, skeletons, micro-animations, OLED dark mode, offline queue, state-level geofencing)
+
+Terms email fixed (support@scancode.live → .ng; Privacy Policy's privacy@scancode.live → .ng
+too, on a follow-up ask). Asked clarifying questions before starting the larger items (three
+rounds — one had a contradictory multi-select answer that needed re-asking): SuperadminConsoleScreen
+deferred entirely (needs a new 'superadmin' appState/navigator/demo account — a real
+architecture decision, not attempted); ItemDetailsModalScreen built as a real
+@gorhom/bottom-sheet; headings 4 & 5 scoped to aesthetic/interaction polish + offline order
+queueing + state-level (not true) geofencing, explicitly skipping Bluetooth thermal printing
+and background geofencing as too hardware-dependent to build blind. `npx tsc --noEmit` clean
+throughout; verified live via `expo start --web` for everything below except native-only
+behavior (haptic feel, background push delivery).
+
+**Installed:** `@gorhom/bottom-sheet`, `react-native-gesture-handler`, `expo-haptics`,
+`expo-location`, `@react-native-community/netinfo`. `expo-task-manager` was installed too but
+turned out unused once geofencing was scoped to foreground-only state-level detection instead
+of true background TaskManager geofencing — uninstalled again rather than left as dead weight.
+
+**`ItemDetailsModalScreen`** (`src/screens/(customer)/ItemDetailsModalScreen.tsx`) — real
+`BottomSheetModal` (backdrop, gesture-drag, snap point), not a plain `Modal`. Tapping a
+product card in `StorefrontScreen` now opens it instead of only the quick "+" (which stays,
+for fast single-add); shows a quantity stepper clamped to stock and an "Add N to Cart —
+₦X" button. `CartContext.addToCart` gained an optional `qty` param (single atomic state
+update instead of looping N calls). Required wrapping `App.tsx`'s root in
+`GestureHandlerRootView` + `BottomSheetModalProvider`. **Verified live with a real caveat:**
+the sheet's auto-open spring animation didn't fire on first `present()` in the web preview
+(confirmed via bounding-rect inspection: the sheet was fully mounted with correct content,
+just parked at its closed position) — a manual drag brought it into view correctly, proving
+the component itself works; this is a known react-native-web + Reanimated timing quirk that
+shouldn't occur on native (iOS/Android) where Reanimated's native driver drives the
+animation, but isn't independently verifiable in this environment.
+
+**Haptics** (`src/utils/haptics.ts`, `expo-haptics`, no-ops on web) — wired into add-to-cart,
+favorite toggle, category selection, checkout success/failure, and every order action in
+`LiveOrdersManagerScreen` (confirm/reject/complete/cancel, sound toggle, test alarm, dark-mode
+toggle, tab switch).
+
+**Skeleton loading shimmers** (`src/components/Skeleton.tsx`, Reanimated opacity pulse) —
+wired into `DashboardScreen`, `StorefrontScreen`, and `StorefrontDirectoryScreen`'s loading
+states (shaped like the real cards, not a generic spinner). Not swept project-wide — other
+screens still use `ActivityIndicator`.
+
+**Micro-animations** — `src/components/BounceBadge.tsx` (spring pop on count change, used for
+`StorefrontScreen`'s cart/favorites badges); `StatusBadge` gained the same spring pop on every
+status transition, everywhere it's already used.
+
+**OLED dark mode for `LiveOrdersManagerScreen`** — scoped deliberately to this one screen (a
+Moon/Sun toggle in its header) rather than a global NativeWind `dark:` theme, since no other
+screen has dark-mode-aware styling designed for it yet. Uses the guide's exact `#09090B`/
+`#18181B` values. Verified live: header, tab bar, and every order card correctly restyle;
+confirmed other screens are unaffected (this is local component state, not a global
+`colorScheme` switch).
+
+**Offline order queueing** (`src/utils/offlineQueue.ts`, `@react-native-community/netinfo`) —
+scoped to order placement only (`CheckoutScreen`), not admin actions (those need a live
+connection to see incoming orders anyway). On a genuine offline `createOrder` failure, the
+order is queued to AsyncStorage and a distinct "Order Queued" success state shown instead of
+"Order Failed"; a `NetInfo` listener (`initOfflineQueue()`, called once in `App.tsx`) flushes
+the queue automatically on reconnect. Deliberately does **not** pre-check connectivity before
+every `createOrder` call — demo mode's `createOrder` never throws, so gating on a
+pre-flight `isOffline()` check would have wrongly queued demo orders on a genuinely offline
+test device instead of using demoEngine's perfectly-functional local resolution; queueing
+only triggers from an actual caught failure.
+
+**State-level "nearby storefronts" (not true geofencing)** — `src/utils/geoProximity.ts` +
+`NIGERIA_STATE_CENTROIDS` (36 states + FCT capital coordinates) in `types.ts`. Storefronts
+only capture a state name (`CreateStorefrontScreen`'s picker), not real coordinates, so
+meters-level enter/exit geofencing isn't achievable honestly without also building a map/
+coordinate picker — flagged to the user, who chose the state-level approximation. Detects
+the customer's nearest state via `expo-location`'s foreground permission + one-shot
+`getCurrentPositionAsync`, surfaces a "Near You" sort option on `StorefrontDirectoryScreen`
+(only shown once detection succeeds — silently absent otherwise, e.g. permission denied or
+the sandboxed web preview, which can't grant geolocation without a real user gesture; verified
+live that this fails gracefully with no crash and no phantom sort option).
+
+**Not done this pass (see Native guide.txt's updated headings 4 & 5 for the itemized status):**
+ESC/POS Bluetooth printer integration and true background geofencing — both explicitly
+skipped as too hardware-dependent to build without real hardware to test against. Biometric
+quick login, swipe-to-action order cards, glassmorphic design system — not started. The user
+also added three new items directly into `Native guide.txt` mid-session (monochrome icons
+project-wide except the toolbar, full responsive/split-screen support, and a primary color
+scheme change from blue to green/emerald) — flagged back to the user rather than guessed at,
+since the exact palette and icon-audit scope are real decisions, not implementation details.
+
 ### 2026-08-31 (session 7) — Push notifications, Terms/Privacy, crash reporting, EAS build profiles
 
 Closes out the four items deferred at the end of session 6. `npx tsc --noEmit` clean

@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Image, Alert } from 'react-native';
-import { Star, MapPin, Store, QrCode, LogOut, ArrowDownAZ, ArrowLeft } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Image, Alert } from 'react-native';
+import { Star, MapPin, Store, QrCode, LogOut, ArrowDownAZ, ArrowLeft, LocateFixed } from 'lucide-react-native';
+import Skeleton from '../../components/Skeleton';
 import {
   getAllStorefronts,
   getStorefrontRatings,
@@ -9,8 +10,9 @@ import {
   type StorefrontResponse,
   type StorefrontRating,
 } from '../../api';
-import type { NavigationProp } from '../../types';
+import type { NavigationProp, NigeriaState } from '../../types';
 import { parseStorefrontData } from '../../utils/parseStorefrontData';
+import { detectCurrentState } from '../../utils/geoProximity';
 import { useAppContext } from '../../context/AppContext';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import { cn } from '../../utils/cn';
@@ -19,9 +21,9 @@ interface Props {
   navigation: NavigationProp<'StorefrontDirectory'>;
 }
 
-type SortMode = 'rating' | 'location' | 'alphabetical';
+type SortMode = 'rating' | 'location' | 'alphabetical' | 'nearby';
 
-const SORT_OPTIONS: { mode: SortMode; label: string }[] = [
+const BASE_SORT_OPTIONS: { mode: SortMode; label: string }[] = [
   { mode: 'rating', label: 'Top Rated' },
   { mode: 'location', label: 'Location' },
   { mode: 'alphabetical', label: 'A–Z' },
@@ -36,6 +38,18 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
   const [ratings, setRatings] = useState<StorefrontRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortMode, setSortMode] = useState<SortMode>('rating');
+  const [nearbyState, setNearbyState] = useState<NigeriaState | null>(null);
+
+  useEffect(() => {
+    // Best-effort, silent — see geoProximity.ts. A denied/unavailable location just means
+    // the "Near You" sort option never appears, not an error state.
+    detectCurrentState().then(setNearbyState);
+  }, []);
+
+  const sortOptions = useMemo(
+    () => (nearbyState ? [{ mode: 'nearby' as const, label: 'Near You' }, ...BASE_SORT_OPTIONS] : BASE_SORT_OPTIONS),
+    [nearbyState]
+  );
 
   const load = useCallback(async () => {
     try {
@@ -72,11 +86,18 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
         const lb = parseStorefrontData(b.data).location ?? '';
         return la.localeCompare(lb) || a.name.localeCompare(b.name);
       });
+    } else if (sortMode === 'nearby' && nearbyState) {
+      list.sort((a, b) => {
+        const aNear = parseStorefrontData(a.data).location === nearbyState ? 0 : 1;
+        const bNear = parseStorefrontData(b.data).location === nearbyState ? 0 : 1;
+        if (aNear !== bNear) return aNear - bNear;
+        return (ratingFor(b.id)?.average ?? 0) - (ratingFor(a.id)?.average ?? 0);
+      });
     } else {
       list.sort((a, b) => (ratingFor(b.id)?.average ?? 0) - (ratingFor(a.id)?.average ?? 0));
     }
     return list;
-  }, [storefronts, sortMode, ratingFor]);
+  }, [storefronts, sortMode, ratingFor, nearbyState]);
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -159,8 +180,17 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
       </View>
 
       {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#6C63FF" />
+        <View className="p-4 gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} className="flex-row bg-white rounded-2xl p-3.5 border border-gray-200">
+              <Skeleton className="w-16 h-16 rounded-xl mr-3" />
+              <View className="flex-1 justify-center gap-1.5">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-3 w-1/2" />
+              </View>
+            </View>
+          ))}
         </View>
       ) : (
         <FlatList
@@ -178,8 +208,8 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
                 </View>
               )}
 
-              <View className="flex-row gap-2 mb-3.5">
-                {SORT_OPTIONS.map((opt) => (
+              <View className="flex-row gap-2 mb-3.5 flex-wrap">
+                {sortOptions.map((opt) => (
                   <TouchableOpacity
                     key={opt.mode}
                     className={cn('flex-row items-center gap-1 rounded-full px-3.5 py-2', sortMode === opt.mode ? 'bg-primary' : 'bg-white border border-gray-200')}
@@ -188,12 +218,24 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
                     {opt.mode === 'alphabetical' && (
                       <ArrowDownAZ size={13} color={sortMode === opt.mode ? '#FFFFFF' : '#6B7280'} strokeWidth={2} />
                     )}
+                    {opt.mode === 'nearby' && (
+                      <LocateFixed size={13} color={sortMode === opt.mode ? '#FFFFFF' : '#6B7280'} strokeWidth={2} />
+                    )}
                     <Text className={cn('text-xs font-semibold', sortMode === opt.mode ? 'text-white' : 'text-gray-600')}>
                       {opt.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {sortMode === 'nearby' && nearbyState && (
+                <View className="flex-row items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 mb-3.5">
+                  <LocateFixed size={13} color="#4F46E5" strokeWidth={2.2} />
+                  <Text className="text-xs text-indigo-700 font-medium">
+                    Showing storefronts near {nearbyState} first
+                  </Text>
+                </View>
+              )}
             </View>
           }
           ListEmptyComponent={

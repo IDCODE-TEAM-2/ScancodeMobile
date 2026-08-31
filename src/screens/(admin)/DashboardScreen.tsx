@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { ShoppingBag, Bell, Settings2, Calendar, Plus, LayoutGrid, Landmark, Compass, Package } from 'lucide-react-native';
 import { getMyStorefronts, deleteToken, type StorefrontResponse } from '../../api';
 import type { NavigationProp } from '../../types';
@@ -7,6 +7,7 @@ import { useAppContext } from '../../context/AppContext';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 // Gated behind __DEV__ below — safe to leave imported, it won't render in production builds.
 import DevTestBanner from '../../components/DevTestBanner';
+import Skeleton from '../../components/Skeleton';
 import { cn } from '../../utils/cn';
 
 interface Props {
@@ -209,8 +210,21 @@ export default function DashboardScreen({ navigation }: Props) {
       {__DEV__ && <DevTestBanner />}
 
       {loading ? (
-        <View className="flex-1 items-center justify-center p-6">
-          <ActivityIndicator size="large" color="#6C63FF" />
+        <View className="p-4 gap-3">
+          {[0, 1, 2].map((i) => (
+            <View key={i} className="bg-white rounded-xl p-4 shadow-sm">
+              <View className="flex-row justify-between items-start mb-2.5">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-16 rounded-full" />
+              </View>
+              <Skeleton className="h-3 w-full mb-1.5" />
+              <Skeleton className="h-3 w-2/3 mb-3" />
+              <View className="flex-row gap-2">
+                <Skeleton className="h-9 flex-1" />
+                <Skeleton className="h-9 flex-1" />
+              </View>
+            </View>
+          ))}
         </View>
       ) : error ? (
         <View className="flex-1 items-center justify-center p-6">

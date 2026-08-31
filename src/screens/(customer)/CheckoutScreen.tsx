@@ -11,8 +11,10 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CheckCircle2 } from 'lucide-react-native';
+import { CheckCircle2, WifiOff } from 'lucide-react-native';
 import { createOrder, getStoreConfig, getStorefrontBySlug, type OrderResponse } from '../../api';
+import * as Haptics from '../../utils/haptics';
+import { isOffline, queueOrder } from '../../utils/offlineQueue';
 import type { CartItem, NavigationProp, RouteProps } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { parseStorefrontData } from '../../utils/parseStorefrontData';
@@ -42,6 +44,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<OrderResponse | null>(null);
+  const [queuedLocally, setQueuedLocally] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -103,27 +106,41 @@ export default function CheckoutScreen({ navigation, route }: Props) {
       return;
     }
 
+    const orderBody = {
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      customerEmail: customerEmail.trim() || undefined,
+      items: cart.map((i) => ({ id: i.id, name: i.name, qty: i.qty, price: i.price })),
+      subtotal,
+      vat,
+      delivery: deliveryFee,
+      total,
+      tableCode: tableCode.trim() || undefined,
+    };
+
     try {
       setIsSubmitting(true);
-      const order = await createOrder(storefrontId, {
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        customerEmail: customerEmail.trim() || undefined,
-        items: cart.map((i) => ({ id: i.id, name: i.name, qty: i.qty, price: i.price })),
-        subtotal,
-        vat,
-        delivery: deliveryFee,
-        total,
-        tableCode: tableCode.trim() || undefined,
-      });
-
+      const order = await createOrder(storefrontId, orderBody);
       setPlacedOrder(order);
       clearCart(storefrontId);
+      Haptics.notifySuccess();
     } catch (err: unknown) {
-      Alert.alert(
-        'Order Failed',
-        err instanceof Error ? err.message : 'Could not place order. Please try again.'
-      );
+      // A real (non-demo) network failure while genuinely offline gets queued for automatic
+      // retry instead of losing the order — see src/utils/offlineQueue.ts. Any other failure
+      // (validation error, server error) surfaces honestly rather than silently retrying.
+      const offline = await isOffline();
+      if (offline) {
+        await queueOrder(storefrontId, orderBody);
+        setQueuedLocally(true);
+        clearCart(storefrontId);
+        Haptics.notifyWarning();
+      } else {
+        Haptics.notifyWarning();
+        Alert.alert(
+          'Order Failed',
+          err instanceof Error ? err.message : 'Could not place order. Please try again.'
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -140,7 +157,26 @@ export default function CheckoutScreen({ navigation, route }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerClassName="p-4 pb-10">
-          {placedOrder ? (
+          {queuedLocally ? (
+            <View className="items-center py-6">
+              <View className="w-16 h-16 rounded-full bg-amber-100 justify-center items-center mb-4">
+                <WifiOff size={30} color="#D97706" strokeWidth={2} />
+              </View>
+              <Text className="text-[22px] font-extrabold text-gray-900 text-center mb-1.5">Order Queued</Text>
+              <Text className="text-sm text-gray-600 text-center mb-6 leading-5">
+                No internet connection right now. Your order for{' '}
+                <Text className="font-bold text-primary">₦{total.toLocaleString()}</Text> has been saved on
+                this device and will be sent automatically as soon as you're back online.
+              </Text>
+
+              <TouchableOpacity
+                className="rounded-xl py-4 items-center mt-2 self-stretch border-[1.5px] border-gray-300"
+                onPress={() => navigation.navigate('Storefront', { slug })}
+              >
+                <Text className="text-gray-600 text-[15px] font-semibold">Return to Storefront</Text>
+              </TouchableOpacity>
+            </View>
+          ) : placedOrder ? (
             <View className="items-center py-6">
               <View className="w-16 h-16 rounded-full bg-emerald-100 justify-center items-center mb-4">
                 <CheckCircle2 size={34} color="#059669" strokeWidth={2} />

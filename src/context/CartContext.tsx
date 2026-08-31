@@ -7,7 +7,7 @@ import type { CartItem, Product } from '../types';
 interface CartContextValue {
   carts: Record<number, CartItem[]>;
   favorites: Record<number, Product[]>;
-  addToCart: (storefrontId: number, product: Product) => boolean;
+  addToCart: (storefrontId: number, product: Product, qty?: number) => boolean;
   updateCartQty: (storefrontId: number, id: string, delta: number) => void;
   removeCartItem: (storefrontId: number, id: string) => void;
   clearCart: (storefrontId: number) => void;
@@ -23,19 +23,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [carts, setCarts] = useState<Record<number, CartItem[]>>({});
   const [favorites, setFavorites] = useState<Record<number, Product[]>>({});
 
-  const addToCart = useCallback((storefrontId: number, product: Product): boolean => {
+  const addToCart = useCallback((storefrontId: number, product: Product, qty: number = 1): boolean => {
     let added = true;
     setCarts((prev) => {
       const current = prev[storefrontId] ?? EMPTY_CART;
       const existing = current.find((item) => item.id === product.id);
       const currentQty = existing ? existing.qty : 0;
-      if (currentQty + 1 > product.stock) {
+      if (currentQty + qty > product.stock) {
         added = false;
         return prev;
       }
       const nextItems = existing
-        ? current.map((item) => (item.id === product.id ? { ...item, qty: item.qty + 1 } : item))
-        : [...current, { id: product.id, name: product.name, price: product.price, qty: 1, stock: product.stock }];
+        ? current.map((item) => (item.id === product.id ? { ...item, qty: item.qty + qty } : item))
+        : [...current, { id: product.id, name: product.name, price: product.price, qty, stock: product.stock }];
       return { ...prev, [storefrontId]: nextItems };
     });
     return added;

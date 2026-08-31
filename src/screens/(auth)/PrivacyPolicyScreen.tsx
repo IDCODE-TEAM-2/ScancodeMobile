@@ -69,7 +69,7 @@ export default function PrivacyPolicyScreen() {
       </Section>
 
       <Section title="10. Contact">
-        Questions about this policy can be sent to privacy@scancode.live.
+        Questions about this policy can be sent to privacy@scancode.ng.
       </Section>
     </ScrollView>
   );

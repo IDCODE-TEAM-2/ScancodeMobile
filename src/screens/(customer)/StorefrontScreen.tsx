@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
     Text,
     View,
@@ -8,7 +8,6 @@ import {
     TouchableOpacity,
     TextInput,
     Alert,
-    ActivityIndicator,
 } from 'react-native';
 import { Heart, Search, ShoppingCart, MapPin, Package, Store } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +23,10 @@ import { useCart, EMPTY_CART, EMPTY_FAVORITES } from '../../context/CartContext'
 import { parseStorefrontData } from '../../utils/parseStorefrontData';
 import type { NavigationProp, RouteProps, Vendor, Product } from '../../types';
 import { cn } from '../../utils/cn';
+import Skeleton from '../../components/Skeleton';
+import BounceBadge from '../../components/BounceBadge';
+import * as Haptics from '../../utils/haptics';
+import ItemDetailsModalScreen, { type ItemDetailsModalHandle } from './ItemDetailsModalScreen';
 
 export type { Vendor, Product } from '../../types';
 
@@ -140,6 +143,7 @@ const DUMMY_PRODUCTS: Product[] = [
 
 export default function StorefrontScreen({ navigation, route }: Props) {
     const { carts, favorites, addToCart: addToCartCtx, toggleFavorite: toggleFavoriteCtx } = useCart();
+    const itemDetailsRef = useRef<ItemDetailsModalHandle>(null);
 
     const rawSlug = route.params?.slug;
     const slug = rawSlug && rawSlug.trim() ? rawSlug.trim() : 'demo';
@@ -241,14 +245,18 @@ export default function StorefrontScreen({ navigation, route }: Props) {
     const favoriteProductsList = favorites[storefrontId] ?? EMPTY_FAVORITES;
     const favoriteIds = useMemo(() => favoriteProductsList.map((p) => p.id), [favoriteProductsList]);
 
-    const addToCart = (product: Product) => {
-        const added = addToCartCtx(storefrontId, product);
-        if (!added) {
+    const addToCart = (product: Product, qty: number = 1) => {
+        const added = addToCartCtx(storefrontId, product, qty);
+        if (added) {
+            Haptics.tapLight();
+        } else {
+            Haptics.notifyWarning();
             Alert.alert("Limit Reached", `Only ${product.stock} items available in stock.`);
         }
     };
 
     const toggleFavorite = (product: Product) => {
+        Haptics.tapLight();
         toggleFavoriteCtx(storefrontId, product);
     };
 
@@ -279,6 +287,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
     }, [products]);
 
     const handleCategoryPress = (category: string) => {
+        Haptics.tapLight();
         setActiveCategory((current) => current === category ? null : category);
     };
 
@@ -299,8 +308,26 @@ export default function StorefrontScreen({ navigation, route }: Props) {
 
     if (isLoading) {
         return (
-            <View className="flex-1 justify-center items-center bg-white">
-                <ActivityIndicator size="large" color="#6C63FF" />
+            <View className="flex-1 bg-white pt-4 px-4">
+                <View className="items-center mb-5">
+                    <Skeleton className="w-[60px] h-[60px] rounded-full mb-2" />
+                    <Skeleton className="h-5 w-40 mb-1.5" />
+                    <Skeleton className="h-3 w-24" />
+                </View>
+                <Skeleton className="h-11 w-full rounded-full mb-5" />
+                <View className="flex-row gap-2.5 mb-5">
+                    {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="w-[76px] h-[76px] rounded-xl" />)}
+                </View>
+                {[0, 1, 2].map((i) => (
+                    <View key={i} className="flex-row bg-white rounded-xl p-3 mb-4 border border-gray-100">
+                        <Skeleton className="w-20 h-20 rounded-lg" />
+                        <View className="flex-1 ml-4 justify-center gap-1.5">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-3 w-full" />
+                            <Skeleton className="h-4 w-1/3" />
+                        </View>
+                    </View>
+                ))}
             </View>
         );
     }
@@ -352,11 +379,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                         accessibilityLabel="Open cart"
                     >
                         <ShoppingCart size={20} color="#065F46" strokeWidth={2} />
-                        {financialSummary.totalQty > 0 && (
-                            <View className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-lg bg-primary justify-center items-center px-1">
-                                <Text className="text-white text-[10px] font-extrabold">{financialSummary.totalQty}</Text>
-                            </View>
-                        )}
+                        <BounceBadge count={financialSummary.totalQty} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -371,11 +394,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                             fill={favoriteIds.length > 0 ? '#EF4444' : 'none'}
                             strokeWidth={2}
                         />
-                        {favoriteIds.length > 0 && (
-                            <View className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-lg bg-primary justify-center items-center px-1">
-                                <Text className="text-white text-[10px] font-extrabold">{favoriteIds.length}</Text>
-                            </View>
-                        )}
+                        <BounceBadge count={favoriteIds.length} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -429,7 +448,11 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                     </View>
                 }
                 renderItem={({ item }) => (
-                    <View className="bg-white rounded-xl flex-row p-3 mb-4 border border-gray-100">
+                    <TouchableOpacity
+                        className="bg-white rounded-xl flex-row p-3 mb-4 border border-gray-100"
+                        activeOpacity={0.8}
+                        onPress={() => itemDetailsRef.current?.present(item)}
+                    >
                         <View className="w-20 h-20 rounded-lg bg-gray-100 justify-center items-center overflow-hidden">
                             {item.media[0] ? (
                                 <Image source={{ uri: item.media[0] }} className="w-full h-full rounded-lg" resizeMode="cover" />
@@ -467,9 +490,11 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                                 </View>
                             </View>
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 )}
             />
+
+            <ItemDetailsModalScreen ref={itemDetailsRef} onAddToCart={addToCart} />
 
             {financialSummary.totalQty > 0 && (
                 <TouchableOpacity

@@ -5,11 +5,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { View, Text, ActivityIndicator } from 'react-native';
 import type { RootStackParamList } from './src/types';
 import { demoEngine } from './src/demo/demoEngine';
 import { getToken, deleteToken, onUnauthorized } from './src/api';
 import { registerForPushNotificationsAsync } from './src/utils/pushNotifications';
+import { initOfflineQueue } from './src/utils/offlineQueue';
 import { AppContext, type AppState } from './src/context/AppContext';
 import { CartProvider } from './src/context/CartContext';
 
@@ -300,6 +303,12 @@ function App() {
     });
   }, []);
 
+  // Flushes any orders queued while offline (see CheckoutScreen/offlineQueue.ts) the moment
+  // connectivity returns — independent of appState, since a queued order can outlive login.
+  useEffect(() => {
+    initOfflineQueue();
+  }, []);
+
   // Request push permission and register the device's Expo push token once the user is
   // actually signed in — never on the loading/logged_out states. Silently no-ops on
   // simulators/emulators, without an EAS project configured, or if permission is denied
@@ -311,6 +320,8 @@ function App() {
   }, [appState]);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+    <BottomSheetModalProvider>
     <AppContext.Provider value={{ appState, setAppState }}>
     <CartProvider>
     <SafeAreaProvider>
@@ -331,6 +342,8 @@ function App() {
     </SafeAreaProvider>
     </CartProvider>
     </AppContext.Provider>
+    </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 }
 

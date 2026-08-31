@@ -6,8 +6,8 @@ SCANCODE MOBILE APP (REACT NATIVE) DEVELOPMENT GUIDE & COMPREHENSIVE ROADMAP
 1. MOBILE SCREEN BREAKDOWN & REPOSITORY PARITY COMPARISON
 --------------------------------------------------------------------------------
 Full Feature Parity Target: 23 Screens
-Currently Implemented in Scancode-React-Native: 21 Screens (91%)
-Remaining Screens to Build: 2 Screens (9%)
+Currently Implemented in Scancode-React-Native: 22 Screens (96%)
+Remaining Screens to Build: 1 Screen (4%)
 
 [2026-08-19 corrections, cumulative:
  (1) ToolbarRequestsAdminScreen was already built but untracked — fixed earlier.
@@ -29,11 +29,11 @@ Summary Comparison Table:
 | Category                 | Total Web Parity   | React Native Implemented  | Remaining Needed  |
 +--------------------------+--------------------+---------------------------+-------------------+
 | Authentication & Account | 5 Screens          | 5 Screens (100%)          | 0 Screens         |
-| Customer Storefront      | 7 Screens          | 6 Screens + Toolbar (86%) | 1 Screen          |
+| Customer Storefront      | 7 Screens          | 7 Screens + Toolbar (100%)| 0 Screens         |
 | Merchant / Admin         | 10 Screens         | 10 Screens (100%)         | 0 Screens         |
 | Superadmin               | 1 Screen           | 0 Screens (0%)            | 1 Screen          |
 +--------------------------+--------------------+---------------------------+-------------------+
-| TOTAL                    | 23 Screens         | 21 Screens Implemented    | 2 Screens         |
+| TOTAL                    | 23 Screens         | 22 Screens Implemented    | 1 Screen          |
 +--------------------------+--------------------+---------------------------+-------------------+
 
 [2026-08-31 — scope beyond the original 23-screen parity target: this session added a
@@ -65,10 +65,15 @@ Implemented Screens (20):
 - OrderReceiptTracker (src/screens/(customer)/OrderReceiptTrackerScreen.tsx) [COMPLETED]
 - EventsManager (src/screens/(admin)/EventsManagerScreen.tsx) [COMPLETED]
 - ProductCatalogEditor (src/screens/(admin)/ProductCatalogEditorScreen.tsx) [COMPLETED]
+- ItemDetailsModal (src/screens/(customer)/ItemDetailsModalScreen.tsx) [COMPLETED 2026-08-31]
+  Real @gorhom/bottom-sheet (not a plain Modal) — tap a product card to customize quantity
+  and add to cart in one motion, closes out heading 4 item 7 (Native Modal Bottom Sheets)
+  at the same time.
 
-Remaining Screens Needed (2):
-- ItemDetailsModalScreen (Dish customization & options bottom sheet)
-- SuperadminConsoleScreen (Superadmin dashboard for platform metrics & vendor management)
+Remaining Screens Needed (1):
+- SuperadminConsoleScreen (Superadmin dashboard for platform metrics & vendor management —
+  deferred; needs a new 'superadmin' appState + navigator + demo account, a real scope
+  decision the user chose to skip for this pass)
 
 
 --------------------------------------------------------------------------------
@@ -137,77 +142,107 @@ PHASE 3: Large Size & High Complexity (Advanced Modules — Build Last)
 4. MOBILE-NATIVE UNIQUE SCREENS & HARDWARE FEATURES [CHECK]
 --------------------------------------------------------------------------------
 
-1. Native Camera QR & Barcode Scanner (CameraQRScannerScreen):
-   - Direct integration using 'expo-camera'.
-   - Features continuous auto-focus, haptic vibration on successful scan, LED flash toggle, 
-     manual code input fallback, and auto-navigation to table storefronts.
+1. Native Camera QR & Barcode Scanner (CameraQRScannerScreen): [CORE COMPLETE]
+   - Direct integration using 'expo-camera', manual code fallback, auto-navigation to table
+     storefronts all built. Haptic-vibration-on-scan and an LED flash toggle were not
+     verified/added in the 2026-08-31 pass — not confirmed present.
 
-2. Push Notifications & Background Order Audio Alarms (audioAlert & FCM):
-   - Integration with FCM / Expo Notifications & Web Audio synthesis.
-   - Triggers continuous loud audio alarms when a new order arrives, even when the app 
-     is running in the background or the screen is locked.
+2. Push Notifications & Background Order Audio Alarms (audioAlert & FCM): [PARTIAL]
+   - Push notification CLIENT plumbing (permission + Expo push token registration) built
+     2026-08-31 — see AGENTS.md session 7. Foreground order alarms (audioAlert.ts) were
+     already built (session 2). Still missing: an actual push-sending backend (none exists
+     in this repo) and true background/locked-screen alarm delivery, which needs a backend
+     to trigger the push in the first place.
 
-3. ESC/POS Thermal Receipt Printer Integration (PrintReceiptScreen):
-   - Direct Bluetooth / USB POS thermal receipt printing for kitchen order tickets (KOT) 
-     and customer receipts straight from mobile devices.
+3. ESC/POS Thermal Receipt Printer Integration (PrintReceiptScreen): [NOT STARTED]
+   - Deliberately skipped 2026-08-31 (user's call) — needs real printer hardware to
+     integrate against and test; building blind against no hardware was judged not worth
+     the risk of shipping something untestable.
 
-4. Biometric Quick Login & Staff Switch (LocalAuthScreen):
-   - Quick unlock using 'expo-local-authentication' (Face ID / Touch ID / Fingerprint) 
-     for fast staff context switching on shared POS tablets/phones.
+4. Biometric Quick Login & Staff Switch (LocalAuthScreen): [NOT STARTED]
 
-5. Native Camera & Photo Picker for Menu Editing (expo-image-picker):
-   - Direct camera photo capture and device photo library picker for merchants uploading 
-     dish images directly to ProductCatalogEditorScreen.
+5. Native Camera & Photo Picker for Menu Editing (expo-image-picker): [COMPLETED]
+   - Built as part of ProductCatalogEditorScreen (session 6).
 
-6. Haptic Feedback & Micro-Interactions (expo-haptics):
-   - Tactile vibration triggers on button taps, order updates, success events, and swipe actions.
+6. Haptic Feedback & Micro-Interactions (expo-haptics): [COMPLETED 2026-08-31]
+   - src/utils/haptics.ts (safe no-op on web). Wired into: add-to-cart, favorite toggle,
+     category selection, checkout success/failure (StorefrontScreen/CheckoutScreen), and
+     order confirm/reject/complete/cancel + sound toggle + test alarm
+     (LiveOrdersManagerScreen).
 
-7. Native Modal Bottom Sheets (@gorhom/bottom-sheet):
-   - Slide-up bottom sheets replacing web dialog popups for item customization options, 
-     quick cart drawer previews, and category filters.
+7. Native Modal Bottom Sheets (@gorhom/bottom-sheet): [COMPLETED 2026-08-31]
+   - ItemDetailsModalScreen (see Section 1) — real BottomSheetModal with backdrop, not a
+     plain Modal. GestureHandlerRootView + BottomSheetModalProvider wired at App.tsx's
+     root. Verified live: content, backdrop, and gesture-drag-to-open all work correctly;
+     the auto-open spring animation on first present() didn't fire in the web preview
+     (a known react-native-web + Reanimated timing quirk) — expected to work correctly on
+     native (iOS/Android) where Reanimated's native driver handles it, not verifiable
+     further in this environment.
 
-8. Swipe-to-Action Order Cards (SwipeableOrderCard):
-   - Gesture-driven swipe right (Confirm) and swipe left (Reject) actions for incoming orders.
+8. Swipe-to-Action Order Cards (SwipeableOrderCard): [NOT STARTED]
 
-9. Offline Mode & Local Storage Sync (SQLite / AsyncStorage):
-   - Caching menu items and queueing offline order actions when network connectivity drops 
-     in busy venue dead zones.
+9. Offline Mode & Local Storage Sync (SQLite / AsyncStorage): [PARTIAL — COMPLETED 2026-08-31]
+   - Scoped to order placement only (the customer-facing action most likely to hit spotty
+     venue WiFi), not admin actions. src/utils/offlineQueue.ts: AsyncStorage-backed queue,
+     @react-native-community/netinfo detects reconnect and auto-flushes. CheckoutScreen
+     queues on a genuine offline failure instead of showing "Order Failed."
 
-10. Geofencing & Location-Based Store Auto-Detection (expo-location):
-    - Uses GPS/Geofencing to auto-detect when a customer enters a venue and launch the 
-      storefront menu automatically without requiring a manual QR scan.
+10. Geofencing & Location-Based Store Auto-Detection (expo-location): [PARTIAL — COMPLETED 2026-08-31]
+    - Deliberately scoped to state-level proximity, not true meters-level geofencing —
+      storefronts only capture a Nigerian state (no map/coordinate picker exists), so
+      real per-venue geofencing isn't achievable honestly without building that first
+      (a real scope decision the user made). src/utils/geoProximity.ts detects the
+      customer's nearest state via expo-location + a NIGERIA_STATE_CENTROIDS lookup
+      (state-capital coordinates as a stand-in), surfaces a "Near You" sort option on
+      StorefrontDirectoryScreen. No background task / TaskManager — foreground-only,
+      one-shot detection on screen load.
 
 
 --------------------------------------------------------------------------------
 5. RECOMMENDED MOBILE UX & AESTHETIC ENHANCEMENTS FOR FUTURE IMPLEMENTATION [CHECK]
 --------------------------------------------------------------------------------
 
-1. Glassmorphic Cards & Elevated Depth Design System:
-   - Implement semi-transparent frosted glass cards (rgba(255, 255, 255, 0.85) with backdropBlur) 
+1. Glassmorphic Cards & Elevated Depth Design System: [NOT STARTED]
+   - Implement semi-transparent frosted glass cards (rgba(255, 255, 255, 0.85) with backdropBlur)
      for checkout summaries, order status cards, and float action bars.
    - Use soft dual-tone gradients (#6C63FF to #4F46E5) for active buttons and accent elements.
+     Note: this references the old blue primary (#6C63FF) being replaced per item 6 below —
+     will need revisiting against whatever green/emerald palette item 6 lands on.
 
-2. High-Contrast OLED Dark Mode for Kitchen & POS Terminals:
-   - allow toggling to Dark Mode: an OLED pitch-black dark theme (#09090B card background, #18181B borders) 
-     to eliminate screen glare and reduce battery draw.
+2. High-Contrast OLED Dark Mode for Kitchen & POS Terminals: [COMPLETED 2026-08-31 — scoped]
+   - Built as a LiveOrdersManagerScreen-local toggle (Moon/Sun icon in the header), not a
+     global app theme — the rest of the app has no dark: variants designed for it yet, so a
+     global NativeWind colorScheme switch would have darkened screens never designed for
+     it. Uses the exact #09090B / #18181B values specified. If a true app-wide dark mode is
+     wanted later, that's a distinct, larger piece of work — flagging rather than silently
+     scope-creeping this toggle into one.
 
-3. Micro-Animations & Fluid Spring Transitions:
-   - Add spring physics (using react-native-reanimated) when items are added to the cart, 
-     causing the cart floating badge to bounce dynamically.
-   - Animated status badge state transitions (Pending amber glow pulse -> Confirmed green pop).
-   - Remove coloring from all icons except the toolbar, keep the rest minimalist and monochrome (BW).
-   - make sure everything, from the poages to the icons, buttons etc, are well responsive and screen adaptable, especially for phones capable of doing split-screen and pop-up modes
+3. Micro-Animations & Fluid Spring Transitions: [COMPLETED 2026-08-31]
+   - BounceBadge component (src/components/BounceBadge.tsx) — spring pop on cart/favorites
+     count change, used in StorefrontScreen. StatusBadge gained the same spring pop on every
+     status transition (LiveOrdersManagerScreen, DashboardScreen, etc. — anywhere it's used).
+   - Remove coloring from all icons except the toolbar, keep the rest minimalist and monochrome (BW). [NOT STARTED — see note below]
+   - make sure everything, from the poages to the icons, buttons etc, are well responsive and screen adaptable, especially for phones capable of doing split-screen and pop-up modes [NOT STARTED — see note below]
 
-4. Skeleton Loading Shimmers:
-   - Replace standard ActivityIndicator spinners on Storefront and Dashboard with animated 
-     skeleton loading card shimmers to make loading feel instant.
+4. Skeleton Loading Shimmers: [PARTIAL — COMPLETED 2026-08-31]
+   - src/components/Skeleton.tsx (Reanimated pulse). Wired into DashboardScreen,
+     StorefrontScreen, and StorefrontDirectoryScreen's loading states — the three highest-
+     traffic list-shaped loads. Other screens (CartDrawer, Wishlist, OrderReceiptTracker,
+     etc.) still use ActivityIndicator — not swept project-wide this pass.
 
-5. Tactile Haptic Pulses:
+5. Tactile Haptic Pulses: [COMPLETED 2026-08-31 — see heading 4 item 6 for the full list]
    - Trigger heavy haptic vibration on incoming new order alarms, medium haptic tap on order
      confirmation, and light haptic tick on category selection.
 
-6. Color Scheme:
+6. Color Scheme: [NOT STARTED — see note below]
    - Scancode's Primary colors are Scanciode green, Emerald and white. Get rid of that blue coloring and adjust the entire application's primary theme, keep in mind the dark mode feature so that both blend seamlessly
+
+[2026-08-31 note: items 3's monochrome-icons/responsive lines and item 6 (color scheme) were
+ added directly to this file by the user mid-session, after this session's scoping questions
+ had already been asked and answered. Deliberately not attempted blind — see the chat
+ response for the questions this needs answered first (exact green/emerald hex values, and
+ how far the icon-monochrome pass should reach) before touching tailwind.config.js's
+ `primary` color or auditing every icon `color` prop project-wide.]
 
 --------------------------------------------------------------------------------
 6. POST-PARITY FEATURE ADDITIONS (beyond the original 23-screen web-parity target)

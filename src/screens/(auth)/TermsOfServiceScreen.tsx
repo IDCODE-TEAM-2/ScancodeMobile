@@ -83,7 +83,7 @@ export default function TermsOfServiceScreen() {
       </Section>
 
       <Section title="11. Contact">
-        Questions about these terms can be sent to support@scancode.live.
+        Questions about these terms can be sent to support@scancode.ng.
       </Section>
     </ScrollView>
   );
