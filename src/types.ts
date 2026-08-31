@@ -165,7 +165,7 @@ export type RootStackParamList = {
   Register: undefined;
   VerifyOtp: { email: string };
   Dashboard: undefined;
-  CreateStorefront: undefined;
+  CreateStorefront: { editStorefrontId: number } | undefined;
   Storefront: { slug: string; name?: string; tableCode?: string };
   Wishlist: { slug: string; storefrontId: number; name?: string };
   CartDrawer: { slug: string; storefrontId: number; name?: string; table?: string };

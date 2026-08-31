@@ -301,6 +301,13 @@ export function createStorefront(body: CreateStorefrontBody) {
   return request<StorefrontResponse>('POST', '/api/business/storefronts', body);
 }
 
+export function updateStorefront(storefrontId: number, body: Partial<CreateStorefrontBody>) {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.updateStorefront(storefrontId, body);
+  }
+  return request<StorefrontResponse>('PUT', `/api/business/storefronts/${storefrontId}`, body);
+}
+
 export function getMyStorefronts() {
   if (ENABLE_DEMO_MODE) {
     return demoEngine.getMyStorefronts();

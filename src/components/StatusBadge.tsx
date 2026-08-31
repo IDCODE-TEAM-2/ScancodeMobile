@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Text } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withSpring } from 'react-native-reanimated';
 import { cn } from '../utils/cn';
 
@@ -37,6 +37,9 @@ export default function StatusBadge({ status, label }: StatusBadgeProps) {
     }
   }, [status, scale]);
 
+  // Position/transform only — NativeWind does not process `className` on Reanimated's
+  // Animated.View (confirmed live: it silently drops every Tailwind class). All visual
+  // styling lives on the plain inner View below instead.
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   const bgTextClasses = SUCCESS.includes(normalized)
@@ -45,14 +48,17 @@ export default function StatusBadge({ status, label }: StatusBadgeProps) {
       ? 'bg-amber-100 text-amber-800'
       : DANGER.includes(normalized)
         ? 'bg-red-100 text-red-800'
-        : 'bg-emerald-100 text-emerald-800';
+        // Neutral, not emerald — an unrecognized status shouldn't visually read as "success".
+        : 'bg-gray-100 text-gray-700';
 
   const [bgClass, textClass] = bgTextClasses.split(' ');
   const displayLabel = label || status;
 
   return (
-    <Animated.View className={cn('rounded-full px-2.5 py-[3px] self-start', bgClass)} style={animatedStyle}>
-      <Text className={cn('text-xs font-semibold', textClass)}>{displayLabel}</Text>
+    <Animated.View style={animatedStyle}>
+      <View className={cn('rounded-full px-2.5 py-[3px] self-start', bgClass)}>
+        <Text className={cn('text-xs font-semibold', textClass)}>{displayLabel}</Text>
+      </View>
     </Animated.View>
   );
 }

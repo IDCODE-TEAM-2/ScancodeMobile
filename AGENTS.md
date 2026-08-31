@@ -27,10 +27,117 @@ memory regression) — do not assume a training-data cutoff knows the right APIs
 - **`expo-camera`'s current API** (`useCameraPermissions`, `CameraView`, `onBarcodeScanned`,
   `barcodeScannerSettings.barcodeTypes`) matches what `CameraQRScannerScreen.tsx` already
   uses. Verified against docs — no action needed there.
+- **NativeWind does not process `className` on `react-native-reanimated`'s `Animated.View`**
+  in this project's dependency versions. Confirmed live via DOM inspection (2026-08-31,
+  session 10): every Tailwind utility class was silently dropped — only the animated `style`
+  object came through, leaving the element with none of its intended position/size/color.
+  This broke `BounceBadge`, `StatusBadge`, and `Skeleton` (all built session 8) without any
+  build or type error — they looked fine in `tsc` and in the accessibility tree, just not on
+  screen. **Never put `className` directly on `Animated.View`/`Animated.Text`.** The fix:
+  give the outer `Animated.View` only the animated `style` (transform/opacity/position),
+  and nest a plain `View`/`Text` inside carrying the `className`. See any of those three
+  components for the pattern.
 
 ## Change Log
 
 Most recent first. Add an entry here for every fix so changes stay traceable across sessions.
+
+### 2026-08-31 (session 10) — Back button, storefront collapsing header, edit storefront, notification badges, toolbar payment/copy/centering, bottom scroll padding
+
+User reported a batch of bugs and requests, all reproduced and verified live (`expo start
+--web`) rather than fixed blind. `npx tsc --noEmit` clean throughout.
+
+**Back button invisible on every screen — real bug, not a color/contrast issue.** DOM
+inspection found React Navigation's default web back-button icon renders as a genuinely
+zero-size element (`width: 0px; height: 0px`) via an SVG-filter tint mechanism that isn't
+resolving correctly in this dependency combination — no color would have fixed it, there was
+no paintable area at all. The click handler itself worked fine (confirmed: dispatching a
+click on the invisible element still navigated back), so this was purely a rendering bug, not
+a broken feature. Fixed by no longer using React Navigation's built-in back button at all:
+new `src/components/HeaderBackButton.tsx` (plain Lucide `ArrowLeft` + `useNavigation().
+goBack()`) wired as `headerLeft` in `App.tsx`'s `sharedScreenOptions`, applying to every
+native-stack screen at once. Verified live: 22×22 real icon, `#111827` on the app's one
+white header background (full contrast, matching the "black on white / white on black"
+request — every current header is white, so black is universally correct today; the
+component takes an optional `dark` prop for if a screen ever sets a dark headerStyle).
+
+**Systemic bug found while investigating the "weird-looking favorites badge" report:**
+`BounceBadge`'s `Animated.View` was combining `className` with an animated `style` — per the
+new AGENTS.md fact above, NativeWind silently drops every Tailwind class in that combination.
+The badge was rendering with zero positioning/background, just a bare "1" floating outside
+the button. Same bug found (by inspection, without needing separate reports) in `StatusBadge`
+and `Skeleton` — all three built in session 8, all three visually broken since then despite
+passing `tsc` and looking fine in the accessibility tree. Fixed all three using the
+outer-Animated.View-style-only / inner-plain-View-className pattern now documented above.
+Also fixed in passing: `StatusBadge`'s unmatched-status fallback had been swept from indigo
+to emerald by session 9's color sweep, making an unrecognized status look like "success" —
+changed to neutral gray.
+
+**`StorefrontScreen` restructured into a collapsing header.** Per the request ("header should
+end after the search bar," "categories should move with scroll," "minimise into a line"):
+the vendor block (logo/name/tagline/table badge), search bar, and Categories row all moved
+into the product `FlatList`'s `ListHeaderComponent` — they now scroll normally as part of the
+content, including Categories (previously a separate fixed element above the list). An
+`onScroll` handler tracks the scroll offset via a ref-backed threshold (150px, avoiding a
+`useState` write on every scroll tick) and toggles a compact pinned bar — small circular logo
++ business name + cart icon — absolutely positioned over the top of the list once the full
+header has scrolled out of view. Deliberately implemented as a plain threshold-based show/hide
+rather than a Reanimated scroll-driven interpolation, given the `Animated.View`/`className`
+bug found in the same session — a smooth crossfade is a reasonable future enhancement but
+adds real risk that wasn't worth it here. Verified live via direct scroll-offset injection:
+confirmed the full header's name element moves to a negative `top` (scrolled off-screen)
+while the compact bar's name renders at a fixed position near the top — exactly the intended
+effect.
+
+**Merchants can now edit an existing storefront**, not just create new ones.
+`CreateStorefrontScreen` gained an `editStorefrontId` route param (`CreateStorefront: {
+editStorefrontId: number } | undefined` in `types.ts`); when present it fetches the existing
+storefront via `getMyStorefronts()`, pre-fills every field (including images, categories, and
+location — parsed via the existing `parseStorefrontData` helper), and calls a new
+`updateStorefront(storefrontId, body)` (added to `api.ts` + `demoEngine.ts`, PUT
+`/api/business/storefronts/:id`) instead of `createStorefront` on submit. `demoEngine`'s
+implementation merges the free-form `data` blob rather than replacing it, so editing e.g. the
+phone number doesn't wipe out `location`/`weeklyEvents` living in the same JSON field.
+`DashboardScreen` gained a small pencil-icon button on each storefront card's header row;
+`App.tsx`'s screen title switches between "New Storefront" and "Edit Storefront". Verified
+live: editing Lagos Grill correctly showed "Edit Your Business Page," pre-filled every field
+(confirmed the Nigeria-state picker's actual DOM `<select>` value, not just its visible
+label), and swapped the submit button to "Save Changes."
+
+**Notification badges on `DashboardScreen`.** For each storefront, fetches pending-order count
+(`getOrders`, filtered `status === 'PENDING'`) and pending-activity count (unacknowledged
+waiter calls + store requests + tips, via the existing `getStorefrontWaiterCalls`/
+`getStorefrontRequests`/`getStorefrontTips` + their `status: 'PENDING' | 'ACKNOWLEDGED'`
+field — this data already existed, it just wasn't surfaced on the dashboard) — fetched after
+the storefront list itself resolves, so badges pop in without gating the whole screen's
+loading state, and a failed count fetch for one storefront (caught per-storefront) doesn't
+disrupt the rest. Small red count badges land on the "Orders" and "Activity" ops-row buttons
+per card, plus a small red dot next to the business name as an at-a-glance summary when a
+vendor has multiple storefronts. Verified live with real demo data (Lagos Grill: Orders 1,
+Activity 6; Metropolitan Bistro: Activity 2; Neon Karaoke: Activity 1).
+
+**`StorefrontToolbar` fixes:**
+- Paid Request types (Shoutout/Song, not Karaoke) now show the same "Payment account" block
+  the Tip popup already had — extracted into a shared `PaymentAccountBlock` sub-component to
+  avoid duplicating the JSX, verified live (SHOUTOUT shows the block with bank details;
+  switching to KARAOKE correctly hides both the Amount field and the payment block).
+- "Tap to copy" text replaced with a `Copy` icon (`lucide-react-native`, `#059669`) next to
+  the account number; the post-copy "Copied!" checkmark state is unchanged. Applies to both
+  the Tip and Request popups since they now share the one component.
+- Feedback popup's star row centered (`justify-center` on the row, `text-center` on its
+  label) — was left-aligned by default.
+
+**Bottom scroll padding audited project-wide** for every screen with a floating/absolute
+button or toolbar overlapping scrollable content (grepped `absolute bottom-` across
+`src/screens`). `DashboardScreen`'s `FlatList` had no extra bottom padding at all against its
+floating "New Storefront" button (`p-4` only, i.e. 16px, against an ~80px floating button) —
+the real bug, fixed to `pb-28`. `ProductCatalogEditorScreen` and `AccessPageManagerScreen`'s
+list views already had `pb-24` against their own floating buttons (already adequate) but
+bumped to `pb-28` for a larger safety margin per the request's emphasis. `StorefrontScreen`
+already had `pb-[110px]`, confirmed sufficient, left as-is. Screens with a static (non-
+floating) bottom button — `CartDrawerScreen`, `CheckoutScreen` — were confirmed to have no
+overlap risk in the first place (the button is a normal flex sibling, not `position:
+absolute`), so nothing there needed changing.
 
 ### 2026-08-31 (session 9) — Color scheme: blue → emerald, icon monochrome pass, gradient CTAs, responsive verification
 

@@ -12,22 +12,28 @@ import {
   Image,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { Camera, X, Plus, Info, Rocket, MapPin } from 'lucide-react-native';
+import { Camera, X, Plus, Info, Rocket, MapPin, Save } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { createStorefront, API_BASE, getToken } from '../../api';
-import { NIGERIA_STATES, type NavigationProp } from '../../types';
+import { createStorefront, updateStorefront, getMyStorefronts, API_BASE, getToken } from '../../api';
+import { NIGERIA_STATES, type NavigationProp, type RouteProps } from '../../types';
+import { parseStorefrontData } from '../../utils/parseStorefrontData';
 import * as FileSystem from 'expo-file-system/legacy';
 import { cn } from '../../utils/cn';
 
 interface Props {
   navigation: NavigationProp<'CreateStorefront'>;
+  route: RouteProps<'CreateStorefront'>;
 }
 
 const MAX_IMAGES = 5;
 const BUSINESS_TYPES = ['PRODUCT', 'HOTEL'] as const;
 type BusinessType = (typeof BUSINESS_TYPES)[number];
 
-export default function CreateStorefrontScreen({ navigation }: Props) {
+export default function CreateStorefrontScreen({ navigation, route }: Props) {
+  const editStorefrontId = route.params?.editStorefrontId;
+  const isEditMode = editStorefrontId !== undefined;
+  const [loadingExisting, setLoadingExisting] = useState(isEditMode);
+
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -79,6 +85,43 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!isEditMode) return;
+    (async () => {
+      try {
+        const mine = await getMyStorefronts();
+        const existing = mine.find((s) => s.id === editStorefrontId);
+        if (!existing) {
+          Alert.alert('Not Found', 'Could not load this storefront for editing.');
+          navigation.goBack();
+          return;
+        }
+        const parsed = parseStorefrontData(existing.data);
+        setLogoUri(existing.logoUrl ?? null);
+        setImageUris(parsed.images ?? []);
+        setName(existing.name);
+        setDescription(existing.description ?? '');
+        setPhone(parsed.phone ?? '');
+        setEmail(parsed.email ?? '');
+        setBankName(parsed.bankName ?? '');
+        setAccountNumber(parsed.accountNumber ?? '');
+        setLocation(parsed.location ?? '');
+        if (existing.businessType === 'PRODUCT' || existing.businessType === 'HOTEL') {
+          setBusinessType(existing.businessType);
+        }
+        const rawData = existing.data as { categories?: { name: string }[] } | null;
+        if (Array.isArray(rawData?.categories)) {
+          setCategories(rawData.categories.map((c) => c.name).filter(Boolean));
+        }
+      } catch (e: unknown) {
+        Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load storefront details.');
+        navigation.goBack();
+      } finally {
+        setLoadingExisting(false);
+      }
+    })();
+  }, [isEditMode, editStorefrontId, navigation]);
 
   const handlePickLogo = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -141,7 +184,7 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
     setCategories((prev) => prev.filter((c) => c !== cat));
   };
 
-  const handleCreate = async () => {
+  const handleSubmit = async () => {
     if (!logoUri) {
       setLogoError('Please upload a business logo before continuing.');
       return;
@@ -166,7 +209,7 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
         name: cat,
         icon: '',
       }));
-      await createStorefront({
+      const body = {
         businessType,
         name: name.trim(),
         description: description.trim(),
@@ -184,14 +227,27 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
           logoUrl: logoUri,
           location,
         },
-      });
+      };
+      if (isEditMode) {
+        await updateStorefront(editStorefrontId, body);
+      } else {
+        await createStorefront(body);
+      }
       navigation.goBack();
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : 'Failed to create storefront. Please try again.');
+      setFormError(err instanceof Error ? err.message : `Failed to ${isEditMode ? 'save changes' : 'create storefront'}. Please try again.`);
     } finally {
       setLoading(false);
     }
   };
+
+  if (loadingExisting) {
+    return (
+      <View className="flex-1 bg-gray-50 items-center justify-center">
+        <ActivityIndicator size="large" color="#059669" />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -203,9 +259,11 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text className="text-[22px] font-bold text-gray-900 text-center mb-1.5">Create Your Business Page</Text>
+        <Text className="text-[22px] font-bold text-gray-900 text-center mb-1.5">
+          {isEditMode ? 'Edit Your Business Page' : 'Create Your Business Page'}
+        </Text>
         <Text className="text-sm text-gray-500 text-center mb-6 leading-5">
-          Set up your storefront and payment receiving details
+          {isEditMode ? 'Update your storefront and payment receiving details' : 'Set up your storefront and payment receiving details'}
         </Text>
 
         {formError && (
@@ -427,21 +485,28 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
           />
         </View>
 
-        <View className="bg-emerald-50 rounded-xl p-3.5 mb-6 border border-emerald-200 flex-row items-start gap-2">
-          <Info size={16} color="#374151" strokeWidth={2.2} />
-          <Text className="text-emerald-800 text-[13px] leading-[19px] flex-1">
-            After creating your storefront you'll need to activate your QR code.
-          </Text>
-        </View>
+        {!isEditMode && (
+          <View className="bg-emerald-50 rounded-xl p-3.5 mb-6 border border-emerald-200 flex-row items-start gap-2">
+            <Info size={16} color="#374151" strokeWidth={2.2} />
+            <Text className="text-emerald-800 text-[13px] leading-[19px] flex-1">
+              After creating your storefront you'll need to activate your QR code.
+            </Text>
+          </View>
+        )}
 
         <TouchableOpacity
           className={cn('rounded-2xl py-4.5 items-center flex-row justify-center gap-2', loading ? 'bg-primary/55' : 'bg-primary')}
-          onPress={handleCreate}
+          onPress={handleSubmit}
           disabled={loading}
           activeOpacity={0.85}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
+          ) : isEditMode ? (
+            <>
+              <Text className="text-white text-base font-bold tracking-wide">Save Changes</Text>
+              <Save size={17} color="#FFFFFF" strokeWidth={2.2} />
+            </>
           ) : (
             <>
               <Text className="text-white text-base font-bold tracking-wide">Launch Storefront</Text>

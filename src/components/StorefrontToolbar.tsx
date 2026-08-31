@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, CalendarDays, HandCoins, Music2, Star, X, Check } from 'lucide-react-native';
+import { Bell, CalendarDays, HandCoins, Music2, Star, X, Check, Copy } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import {
   ActivityIndicator,
@@ -398,6 +398,8 @@ export default function StorefrontToolbar({
                         keyboardType="numeric"
                       />
                       <Text className="text-gray-500 text-[11px] mt-1 mb-0.5">Minimum ₦5,000</Text>
+
+                      <PaymentAccountBlock vendor={vendor} copied={copiedAccount} onCopy={handleCopyAccount} />
                     </>
                   )}
 
@@ -452,28 +454,7 @@ export default function StorefrontToolbar({
                     ))}
                   </View>
 
-                  {!!vendor?.bankName && !!vendor?.accountNumber && (
-                    <View className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 mt-3.5 gap-0.5">
-                      <Text className="text-emerald-800 text-[11px] font-extrabold uppercase">Payment account</Text>
-                      <Text className="text-gray-700 text-[13px] font-semibold">{vendor.bankName}</Text>
-                      <Text className="text-gray-700 text-[13px] font-semibold">{vendor.name}</Text>
-                      <TouchableOpacity
-                        onPress={handleCopyAccount}
-                        activeOpacity={0.65}
-                        className="flex-row items-center justify-between mt-0.5"
-                      >
-                        <Text className="text-emerald-800 text-base font-black">{vendor.accountNumber}</Text>
-                        {copiedAccount ? (
-                          <View className="flex-row items-center gap-1">
-                            <Check size={12} color="#059669" strokeWidth={2.5} />
-                            <Text className="text-emerald-600 text-[11px] font-bold">Copied!</Text>
-                          </View>
-                        ) : (
-                          <Text className="text-emerald-600 text-[11px] font-bold">Tap to copy</Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                  <PaymentAccountBlock vendor={vendor} copied={copiedAccount} onCopy={handleCopyAccount} />
 
                   <SubmitButton label="Submit Tip" loading={isSubmitting} onPress={submitTip} />
                 </>
@@ -481,8 +462,8 @@ export default function StorefrontToolbar({
 
               {activePopup === 'feedback' && (
                 <>
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Stars rating</Text>
-                  <View className="flex-row gap-3.5">
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase text-center">Stars rating</Text>
+                  <View className="flex-row justify-center gap-3.5">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <TouchableOpacity key={star} onPress={() => setRating(star)}>
                         <Star
@@ -544,6 +525,41 @@ export default function StorefrontToolbar({
         </Pressable>
       </Modal>
     </>
+  );
+}
+
+function PaymentAccountBlock({
+  vendor,
+  copied,
+  onCopy,
+}: {
+  vendor?: { name?: string; bankName?: string; accountNumber?: string } | null;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  if (!vendor?.bankName || !vendor?.accountNumber) return null;
+
+  return (
+    <View className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 mt-3.5 gap-0.5">
+      <Text className="text-emerald-800 text-[11px] font-extrabold uppercase">Payment account</Text>
+      <Text className="text-gray-700 text-[13px] font-semibold">{vendor.bankName}</Text>
+      <Text className="text-gray-700 text-[13px] font-semibold">{vendor.name}</Text>
+      <TouchableOpacity
+        onPress={onCopy}
+        activeOpacity={0.65}
+        className="flex-row items-center justify-between mt-0.5"
+      >
+        <Text className="text-emerald-800 text-base font-black">{vendor.accountNumber}</Text>
+        {copied ? (
+          <View className="flex-row items-center gap-1">
+            <Check size={14} color="#059669" strokeWidth={2.5} />
+            <Text className="text-emerald-600 text-[11px] font-bold">Copied!</Text>
+          </View>
+        ) : (
+          <Copy size={16} color="#059669" strokeWidth={2.2} />
+        )}
+      </TouchableOpacity>
+    </View>
   );
 }
 

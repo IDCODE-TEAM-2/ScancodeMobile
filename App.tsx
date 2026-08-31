@@ -15,6 +15,7 @@ import { registerForPushNotificationsAsync } from './src/utils/pushNotifications
 import { initOfflineQueue } from './src/utils/offlineQueue';
 import { AppContext, type AppState } from './src/context/AppContext';
 import { CartProvider } from './src/context/CartContext';
+import HeaderBackButton from './src/components/HeaderBackButton';
 
 // Auth Stack Screens
 import SplashScreen from './src/screens/(auth)/SplashScreen';
@@ -58,7 +59,6 @@ const CustomerStack = createNativeStackNavigator<RootStackParamList>();
 
 // Shared Configuration Defaults
 const hiddenHeader: NativeStackNavigationOptions = { headerShown: false };
-const newStorefrontOptions: NativeStackNavigationOptions = { title: 'New Storefront', headerBackTitle: 'Back' };
 const checkoutOptions: NativeStackNavigationOptions = { title: 'Checkout', headerBackTitle: 'Back' };
 const wishlistOptions: NativeStackNavigationOptions = { title: 'Wishlist', headerBackTitle: 'Back' };
 const cartOptions: NativeStackNavigationOptions = { title: 'Your Cart', headerBackTitle: 'Back' };
@@ -70,6 +70,8 @@ const sharedScreenOptions: NativeStackNavigationOptions = {
   headerTintColor: '#059669',
   headerTitleStyle: { fontWeight: '700' },
   contentStyle: { backgroundColor: '#F3F4F6' },
+  headerLeft: ({ canGoBack }) => <HeaderBackButton canGoBack={canGoBack} />,
+  headerBackButtonDisplayMode: 'minimal',
 };
 
 // ==========================================
@@ -130,7 +132,10 @@ function AdminNavigator() {
       <AdminStack.Screen
         name="CreateStorefront"
         component={CreateStorefrontScreen}
-        options={newStorefrontOptions}
+        options={({ route }) => ({
+          title: route.params?.editStorefrontId !== undefined ? 'Edit Storefront' : 'New Storefront',
+          headerBackTitle: 'Back',
+        })}
       />
       <AdminStack.Screen
         name="ActivateQR"

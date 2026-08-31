@@ -1,7 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
-import { ShoppingBag, Bell, Settings2, Calendar, Plus, LayoutGrid, Landmark, Compass, Package } from 'lucide-react-native';
-import { getMyStorefronts, deleteToken, type StorefrontResponse } from '../../api';
+import { ShoppingBag, Bell, Settings2, Calendar, Plus, LayoutGrid, Landmark, Compass, Package, Pencil } from 'lucide-react-native';
+import {
+  getMyStorefronts,
+  deleteToken,
+  getOrders,
+  getStorefrontWaiterCalls,
+  getStorefrontRequests,
+  getStorefrontTips,
+  type StorefrontResponse,
+} from '../../api';
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
@@ -14,12 +22,52 @@ interface Props {
   navigation: NavigationProp<'Dashboard'>;
 }
 
+interface NotifCounts {
+  orders: number;
+  activity: number;
+}
+
+const EMPTY_NOTIF_COUNTS: NotifCounts = { orders: 0, activity: 0 };
+
 export default function DashboardScreen({ navigation }: Props) {
   const { setAppState } = useAppContext();
   const [storefronts, setStorefronts] = useState<StorefrontResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fetched separately, after the storefront list itself resolves — badges pop in once
+  // ready rather than gating the whole screen's loading state on N extra requests.
+  const [notifCounts, setNotifCounts] = useState<Record<number, NotifCounts>>({});
+
+  const loadNotifCounts = useCallback(async (list: StorefrontResponse[]) => {
+    const entries = await Promise.all(
+      list.map(async (s): Promise<[number, NotifCounts]> => {
+        try {
+          const [orders, calls, requests, tips] = await Promise.all([
+            getOrders(s.id),
+            getStorefrontWaiterCalls(s.id),
+            getStorefrontRequests(s.id),
+            getStorefrontTips(s.id),
+          ]);
+          return [
+            s.id,
+            {
+              orders: orders.filter((o) => o.status === 'PENDING').length,
+              activity:
+                calls.filter((c) => c.status === 'PENDING').length +
+                requests.filter((r) => r.status === 'PENDING').length +
+                tips.filter((t) => t.status === 'PENDING').length,
+            },
+          ];
+        } catch {
+          // A notification badge is a nice-to-have — a failed count fetch for one
+          // storefront shouldn't disrupt the rest of the dashboard.
+          return [s.id, EMPTY_NOTIF_COUNTS];
+        }
+      })
+    );
+    setNotifCounts(Object.fromEntries(entries));
+  }, []);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -28,6 +76,7 @@ export default function DashboardScreen({ navigation }: Props) {
     try {
       const data = await getMyStorefronts();
       setStorefronts(data);
+      loadNotifCounts(data);
     } catch (err: unknown) {
       // A 401 here is already handled globally (see App.tsx's onUnauthorized
       // subscription, which logs the user out) — this just surfaces anything else.
@@ -36,7 +85,7 @@ export default function DashboardScreen({ navigation }: Props) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [loadNotifCounts]);
 
   useFocusRefresh(load);
 
@@ -56,14 +105,30 @@ export default function DashboardScreen({ navigation }: Props) {
 
   function renderStorefront({ item }: { item: StorefrontResponse }) {
     const published = item.isPublished;
+    const counts = notifCounts[item.id] ?? EMPTY_NOTIF_COUNTS;
+    const hasNotifications = counts.orders + counts.activity > 0;
     return (
       <View className="bg-white rounded-xl p-4 shadow-sm">
         <View className="flex-row justify-between items-start mb-1.5">
-          <Text className="text-base font-bold text-gray-900 flex-1 mr-2">{item.name}</Text>
-          <View className={cn('rounded-full px-2.5 py-[3px]', published ? 'bg-emerald-100' : 'bg-amber-100')}>
-            <Text className={cn('text-xs font-semibold', published ? 'text-emerald-800' : 'text-amber-800')}>
-              {published ? 'Published' : 'QR Locked'}
-            </Text>
+          <View className="flex-row items-center flex-1 mr-2 gap-1.5">
+            {hasNotifications && (
+              <View className="w-2 h-2 rounded-full bg-red-500" accessibilityLabel="New notifications" />
+            )}
+            <Text className="text-base font-bold text-gray-900 flex-1">{item.name}</Text>
+          </View>
+          <View className="flex-row items-center gap-2">
+            <View className={cn('rounded-full px-2.5 py-[3px]', published ? 'bg-emerald-100' : 'bg-amber-100')}>
+              <Text className={cn('text-xs font-semibold', published ? 'text-emerald-800' : 'text-amber-800')}>
+                {published ? 'Published' : 'QR Locked'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CreateStorefront', { editStorefrontId: item.id })}
+              className="w-7 h-7 rounded-full bg-gray-100 items-center justify-center"
+              accessibilityLabel={`Edit ${item.name}`}
+            >
+              <Pencil size={13} color="#374151" strokeWidth={2.2} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -111,7 +176,7 @@ export default function DashboardScreen({ navigation }: Props) {
         {/* Operations row — always visible */}
         <View className="flex-row gap-2 mt-2">
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
             onPress={() =>
               navigation.navigate('LiveOrdersManager', {
                 storefrontId: item.id,
@@ -123,9 +188,10 @@ export default function DashboardScreen({ navigation }: Props) {
           >
             <ShoppingBag size={13} color="#374151" strokeWidth={2.2} />
             <Text className="text-emerald-600 font-semibold text-xs">Orders</Text>
+            <NotifCountBadge count={counts.orders} />
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
             onPress={() =>
               navigation.navigate('ToolbarRequestsAdmin', {
                 storefrontId: item.id,
@@ -137,6 +203,7 @@ export default function DashboardScreen({ navigation }: Props) {
           >
             <Bell size={13} color="#374151" strokeWidth={2.2} />
             <Text className="text-emerald-600 font-semibold text-xs">Activity</Text>
+            <NotifCountBadge count={counts.activity} />
           </TouchableOpacity>
           <TouchableOpacity
             className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
@@ -238,7 +305,7 @@ export default function DashboardScreen({ navigation }: Props) {
           data={storefronts}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderStorefront}
-          contentContainerClassName={cn('p-4 gap-3', storefronts.length === 0 && 'flex-1')}
+          contentContainerClassName={cn('p-4 pb-28 gap-3', storefronts.length === 0 && 'flex-1')}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -272,6 +339,15 @@ export default function DashboardScreen({ navigation }: Props) {
         <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
         <Text className="text-white text-base font-bold">New Storefront</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function NotifCountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <View className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-lg bg-red-500 justify-center items-center px-1">
+      <Text className="text-white text-[10px] font-extrabold">{count > 9 ? '9+' : count}</Text>
     </View>
   );
 }

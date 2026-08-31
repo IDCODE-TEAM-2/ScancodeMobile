@@ -8,6 +8,8 @@ import {
     TouchableOpacity,
     TextInput,
     Alert,
+    type NativeSyntheticEvent,
+    type NativeScrollEvent,
 } from 'react-native';
 import { Heart, Search, ShoppingCart, MapPin, Package, Store } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,6 +61,10 @@ function mapProduct(product: ProductResponse): Product {
 function getCategoryIcon(category: string) {
     return category.trim().slice(0, 1).toUpperCase() || '#';
 }
+
+// Roughly the height of the vendor block + search bar — once scrolled past this, the full
+// header has scrolled out of view and the compact pinned bar takes over.
+const HEADER_COLLAPSE_THRESHOLD = 150;
 
 const DUMMY_VENDOR: Vendor = {
     name: "ScanCode Lounge & Bistro",
@@ -160,6 +166,10 @@ export default function StorefrontScreen({ navigation, route }: Props) {
     const [vatRate, setVatRate] = useState<number>(0.075);
     const [deliveryFee, setDeliveryFee] = useState<number>(2000);
     const [isDeliveryEnabled, setIsDeliveryEnabled] = useState<boolean>(true);
+    // Once scrolled past the vendor block + search bar, they're replaced by a compact
+    // pinned bar (small logo + name) so the store's identity stays visible while browsing.
+    const [headerCollapsed, setHeaderCollapsed] = useState(false);
+    const headerCollapsedRef = useRef(false);
 
     const applyDummyData = () => {
         setStorefront({
@@ -291,6 +301,15 @@ export default function StorefrontScreen({ navigation, route }: Props) {
         setActiveCategory((current) => current === category ? null : category);
     };
 
+    const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const y = e.nativeEvent.contentOffset.y;
+        const shouldCollapse = y > HEADER_COLLAPSE_THRESHOLD;
+        if (shouldCollapse !== headerCollapsedRef.current) {
+            headerCollapsedRef.current = shouldCollapse;
+            setHeaderCollapsed(shouldCollapse);
+        }
+    };
+
     const financialSummary = useMemo(() => {
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
         const appliedDelivery = isDeliveryEnabled && subtotal > 0 ? deliveryFee : 0;
@@ -341,105 +360,131 @@ export default function StorefrontScreen({ navigation, route }: Props) {
 
     return (
         <SafeAreaView className="flex-1 bg-white">
-            <View className="items-center pt-4 pb-3 bg-white">
-                <View className="w-[60px] h-[60px] rounded-full bg-gray-900 justify-center items-center overflow-hidden mb-2">
-                    {vendor?.logoUrl ? (
-                        <Image source={{ uri: vendor.logoUrl }} className="w-full h-full" resizeMode="cover" />
-                    ) : (
-                        <View className="justify-center items-center">
-                            <Store size={26} color="#FFFFFF" strokeWidth={1.8} />
-                        </View>
-                    )}
-                </View>
-                <Text className="text-xl font-bold text-gray-900">{vendor?.name || "The Test"}</Text>
-                <Text className="text-xs text-gray-400 mt-0.5">...by ScanCode.ng</Text>
-                {scannedTableCode && (
-                    <View className="bg-amber-100 self-start py-1 px-2.5 rounded-full mt-2.5 flex-row items-center gap-1">
-                        <MapPin size={11} color="#D97706" strokeWidth={2.2} />
-                        <Text className="text-amber-600 text-xs font-semibold">Table: {scannedTableCode}</Text>
+            {headerCollapsed && (
+                <View className="absolute top-0 left-0 right-0 z-30 flex-row items-center px-4 py-2.5 bg-white border-b border-gray-100 shadow-sm">
+                    <View className="w-9 h-9 rounded-full bg-gray-900 justify-center items-center overflow-hidden mr-2.5">
+                        {vendor?.logoUrl ? (
+                            <Image source={{ uri: vendor.logoUrl }} className="w-full h-full" resizeMode="cover" />
+                        ) : (
+                            <Store size={16} color="#FFFFFF" strokeWidth={1.8} />
+                        )}
                     </View>
-                )}
-            </View>
-
-            <View className="flex-row items-center px-4 my-3">
-                <View className="flex-1 flex-row items-center bg-gray-50 border border-gray-200 rounded-[25px] pl-4 pr-1.5 h-[46px]">
-                    <Search size={16} color="#9CA3AF" className="mr-1.5" />
-                    <TextInput
-                        className="flex-1 text-sm text-gray-800 py-0"
-                        placeholder="Search for dishes..."
-                        placeholderTextColor="#9CA3AF"
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-
+                    <Text className="text-base font-bold text-gray-900 flex-1" numberOfLines={1}>{vendor?.name || "The Test"}</Text>
                     <TouchableOpacity
-                        className="w-[34px] h-[34px] rounded-full bg-white border border-gray-200 justify-center items-center ml-1.5 relative"
+                        className="w-8 h-8 rounded-full bg-white border border-gray-200 justify-center items-center relative"
                         activeOpacity={0.7}
                         onPress={() => navigation.navigate('CartDrawer', { slug, storefrontId, name: vendor?.name, table: scannedTableCode })}
                         accessibilityLabel="Open cart"
                     >
-                        <ShoppingCart size={20} color="#374151" strokeWidth={2} />
+                        <ShoppingCart size={16} color="#374151" strokeWidth={2} />
                         <BounceBadge count={financialSummary.totalQty} />
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                        className="w-[34px] h-[34px] rounded-full bg-white border border-gray-200 justify-center items-center ml-1.5 relative"
-                        activeOpacity={0.7}
-                        onPress={() => navigation.navigate('Wishlist', { slug, storefrontId, name: vendor?.name })}
-                        accessibilityLabel="Open favorites"
-                    >
-                        <Heart
-                            size={20}
-                            color={favoriteIds.length > 0 ? '#EF4444' : '#6B7280'}
-                            fill={favoriteIds.length > 0 ? '#EF4444' : 'none'}
-                            strokeWidth={2}
-                        />
-                        <BounceBadge count={favoriteIds.length} />
-                    </TouchableOpacity>
                 </View>
-            </View>
-
-            <Text className="text-base font-bold text-gray-900 px-4 mt-4 mb-3">Categories</Text>
-
-            <View className="bg-white">
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-4 pb-1">
-                    {categories.length > 0 ? categories.map((cat) => {
-                        const isSelected = activeCategory === cat.name;
-                        return (
-                            <TouchableOpacity
-                                key={cat.id}
-                                className={cn(
-                                    'w-[76px] bg-white border rounded-xl p-2 items-center mr-2.5',
-                                    isSelected ? 'border-primary bg-emerald-50' : 'border-gray-200'
-                                )}
-                                activeOpacity={0.8}
-                                onPress={() => handleCategoryPress(cat.name)}
-                            >
-                                <View className="w-11 h-11 rounded-lg bg-gray-100 justify-center items-center mb-1.5">
-                                    <Text className="text-[22px]">{cat.icon}</Text>
-                                </View>
-                                <Text className={cn('text-[11px] text-center', isSelected ? 'text-primary font-semibold' : 'text-gray-600 font-medium')}>
-                                    {cat.name}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    }) : (
-                        <View className="py-3 px-2">
-                            <Text className="text-[13px] text-gray-500 text-center">Categories will appear when products are added.</Text>
-                        </View>
-                    )}
-                </ScrollView>
-            </View>
+            )}
 
             <FlatList
                 className="flex-1"
-                contentContainerClassName="px-4 pt-1 pb-[110px]"
+                contentContainerClassName="pb-[110px]"
                 data={filteredProducts}
                 keyExtractor={(item) => item.id}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
                 ListHeaderComponent={
-                    <Text className="text-base font-bold text-gray-900 mt-4 mb-3">
-                        {activeCategory ? `${activeCategory} Products` : 'All Products'}
-                    </Text>
+                    <View>
+                        <View className="items-center pt-4 pb-3 bg-white">
+                            <View className="w-[60px] h-[60px] rounded-full bg-gray-900 justify-center items-center overflow-hidden mb-2">
+                                {vendor?.logoUrl ? (
+                                    <Image source={{ uri: vendor.logoUrl }} className="w-full h-full" resizeMode="cover" />
+                                ) : (
+                                    <View className="justify-center items-center">
+                                        <Store size={26} color="#FFFFFF" strokeWidth={1.8} />
+                                    </View>
+                                )}
+                            </View>
+                            <Text className="text-xl font-bold text-gray-900">{vendor?.name || "The Test"}</Text>
+                            <Text className="text-xs text-gray-400 mt-0.5">...by ScanCode.ng</Text>
+                            {scannedTableCode && (
+                                <View className="bg-amber-100 self-start py-1 px-2.5 rounded-full mt-2.5 flex-row items-center gap-1">
+                                    <MapPin size={11} color="#D97706" strokeWidth={2.2} />
+                                    <Text className="text-amber-600 text-xs font-semibold">Table: {scannedTableCode}</Text>
+                                </View>
+                            )}
+                        </View>
+
+                        <View className="flex-row items-center px-4 my-3">
+                            <View className="flex-1 flex-row items-center bg-gray-50 border border-gray-200 rounded-[25px] pl-4 pr-1.5 h-[46px]">
+                                <Search size={16} color="#9CA3AF" className="mr-1.5" />
+                                <TextInput
+                                    className="flex-1 text-sm text-gray-800 py-0"
+                                    placeholder="Search for dishes..."
+                                    placeholderTextColor="#9CA3AF"
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                />
+
+                                <TouchableOpacity
+                                    className="w-[34px] h-[34px] rounded-full bg-white border border-gray-200 justify-center items-center ml-1.5 relative"
+                                    activeOpacity={0.7}
+                                    onPress={() => navigation.navigate('CartDrawer', { slug, storefrontId, name: vendor?.name, table: scannedTableCode })}
+                                    accessibilityLabel="Open cart"
+                                >
+                                    <ShoppingCart size={20} color="#374151" strokeWidth={2} />
+                                    <BounceBadge count={financialSummary.totalQty} />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    className="w-[34px] h-[34px] rounded-full bg-white border border-gray-200 justify-center items-center ml-1.5 relative"
+                                    activeOpacity={0.7}
+                                    onPress={() => navigation.navigate('Wishlist', { slug, storefrontId, name: vendor?.name })}
+                                    accessibilityLabel="Open favorites"
+                                >
+                                    <Heart
+                                        size={20}
+                                        color={favoriteIds.length > 0 ? '#EF4444' : '#6B7280'}
+                                        fill={favoriteIds.length > 0 ? '#EF4444' : 'none'}
+                                        strokeWidth={2}
+                                    />
+                                    <BounceBadge count={favoriteIds.length} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <Text className="text-base font-bold text-gray-900 px-4 mt-4 mb-3">Categories</Text>
+
+                        <View className="bg-white">
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-4 pb-1">
+                                {categories.length > 0 ? categories.map((cat) => {
+                                    const isSelected = activeCategory === cat.name;
+                                    return (
+                                        <TouchableOpacity
+                                            key={cat.id}
+                                            className={cn(
+                                                'w-[76px] bg-white border rounded-xl p-2 items-center mr-2.5',
+                                                isSelected ? 'border-primary bg-emerald-50' : 'border-gray-200'
+                                            )}
+                                            activeOpacity={0.8}
+                                            onPress={() => handleCategoryPress(cat.name)}
+                                        >
+                                            <View className="w-11 h-11 rounded-lg bg-gray-100 justify-center items-center mb-1.5">
+                                                <Text className="text-[22px]">{cat.icon}</Text>
+                                            </View>
+                                            <Text className={cn('text-[11px] text-center', isSelected ? 'text-primary font-semibold' : 'text-gray-600 font-medium')}>
+                                                {cat.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                }) : (
+                                    <View className="py-3 px-2">
+                                        <Text className="text-[13px] text-gray-500 text-center">Categories will appear when products are added.</Text>
+                                    </View>
+                                )}
+                            </ScrollView>
+                        </View>
+
+                        <Text className="text-base font-bold text-gray-900 px-4 mt-4 mb-3">
+                            {activeCategory ? `${activeCategory} Products` : 'All Products'}
+                        </Text>
+                    </View>
                 }
                 ListEmptyComponent={
                     <View className="items-center justify-center py-8 px-5">
@@ -449,7 +494,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                 }
                 renderItem={({ item }) => (
                     <TouchableOpacity
-                        className="bg-white rounded-xl flex-row p-3 mb-4 border border-gray-100"
+                        className="bg-white rounded-xl flex-row p-3 mb-4 mx-4 border border-gray-100"
                         activeOpacity={0.8}
                         onPress={() => itemDetailsRef.current?.present(item)}
                     >

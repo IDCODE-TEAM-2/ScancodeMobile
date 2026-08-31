@@ -366,7 +366,7 @@ export default function AccessPageManagerScreen({ route }: Props) {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <ScrollView contentContainerClassName="p-5 pb-24">
+      <ScrollView contentContainerClassName="p-5 pb-28">
         {pages.length === 0 ? (
           <View className="bg-white rounded-2xl p-6 items-center border border-gray-200 mt-4">
             <Text className="text-sm text-gray-500 text-center">No access pages yet. Create one for your next event.</Text>

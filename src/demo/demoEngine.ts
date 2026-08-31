@@ -371,6 +371,24 @@ class DemoEngine {
     return newStore;
   }
 
+  async updateStorefront(storefrontId: number, body: Partial<CreateStorefrontBody>): Promise<StorefrontResponse> {
+    await this.simulateLatency();
+    const idx = this.storefronts.findIndex((s) => s.id === storefrontId);
+    if (idx === -1) throw new Error('Storefront not found');
+    const existing = this.storefronts[idx];
+    const updated: StorefrontResponse = {
+      ...existing,
+      ...body,
+      // A merged data blob, not a replacement — editing (e.g.) the phone number shouldn't
+      // wipe out location/weeklyEvents/etc. that live in the same free-form JSON field.
+      data: body.data ? { ...(existing.data as object ?? {}), ...(body.data as object) } : existing.data,
+      updatedAt: new Date().toISOString(),
+    };
+    this.storefronts[idx] = updated;
+    await AsyncStorage.setItem(KEYS.STOREFRONTS, JSON.stringify(this.storefronts));
+    return updated;
+  }
+
   async getStorefrontEvents(storefrontId: number): Promise<WeeklyEvents> {
     await this.simulateLatency(150);
     const storefront = this.storefronts.find((s) => s.id === storefrontId);
