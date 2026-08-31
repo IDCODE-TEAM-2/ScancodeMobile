@@ -32,6 +32,71 @@ memory regression) — do not assume a training-data cutoff knows the right APIs
 
 Most recent first. Add an entry here for every fix so changes stay traceable across sessions.
 
+### 2026-08-31 (session 6) — Services menu, Access Page subsystem, Storefront Directory, Product Catalog Editor
+
+Closes out the scope note left at the bottom of session 5's entry (Nigeria location dropdown,
+Services menu, Access Page, customer/vendor storefront directory, Product Catalog Editor were
+explicitly deferred there). `npx tsc --noEmit` is clean throughout.
+
+**Data layer built first, screens on top of it.** `demoEngine.ts` gained: `createProduct`/
+`updateProduct`/`deleteProduct`, `getAllStorefronts` (published-only — deliberately distinct
+from the existing `getMyStorefronts`, which is vendor-scoped), `getStorefrontRatings`
+(aggregates a new `feedbacks` store, seeded with 4 demo entries across 3 storefronts), and the
+full Access Page CRUD + guest check-in (`getAccessPages`, `createAccessPage`,
+`updateAccessPage`, `deleteAccessPage`, `getAccessPageBySlug`, `submitAccessPageGuestEntry`,
+`getAccessPageGuests`). `resetDemoState()`/`init()` updated to cover the three new stores
+(`feedbacks`, `accessPages`, `accessPageGuests`) so a demo reset doesn't leave them stale.
+`createStoreFeedback` — previously a pure no-op `Promise.resolve({id: Date.now()})` — now
+actually persists into the feedbacks store, since the new ratings aggregation depends on it.
+
+**Five new screens**, matching the existing `EventsManagerScreen`-style conventions
+(`useFocusRefresh`, `cn()`, lucide icons, NativeWind className throughout):
+- `ServicesScreen` — Create/Add Storefront card (label depends on whether the vendor already
+  has ≥1 storefront) + Access Page card (single storefront → navigates straight through;
+  multiple → inline picker).
+- `ProductCatalogEditorScreen` — product CRUD, single-image upload (same
+  `expo-file-system/legacy` `uploadAsync` pattern `CreateStorefrontScreen` already used),
+  delist/relist toggle. Wired into `DashboardScreen`'s per-storefront ops row.
+- `AccessPageManagerScreen` — event type picker (Custom/Wedding/Conference/Concert); the three
+  presets auto-populate a fixed field set, Custom starts blank with a one-field-at-a-time
+  builder (text/number/date/yesno/dropdown, required flag, dropdown options). Shareable slug
+  copy-to-clipboard, active/inactive toggle, expandable guest list.
+- `AccessPageGuestScreen` — public, unauthenticated guest form + check-in, reveals
+  `exclusiveContent` on success. Registered in all three navigators (Auth/Admin/Customer) —
+  deliberately not gated behind login, same reasoning as the anonymous QR-scan ordering flow.
+- `StorefrontDirectoryScreen` — became `CustomerNavigator`'s initial route (the "screen after
+  successful login" for customers), also reachable from `DashboardScreen`'s new Compass icon
+  for vendors. Lists all published storefronts, sortable by rating/location/alphabetical;
+  a vendor's own storefronts render pinned above the full list.
+
+**Nigeria location picker** — `@react-native-picker/picker` installed, `NIGERIA_STATES` (36
+states + FCT) added to `types.ts`, wired into `CreateStorefrontScreen` as a required field,
+persisted into `storefront.data.location` and read back via `parseStorefrontData` (which
+gained a `location` field). Demo seed data (`mockData.ts`) given real locations (Lagos,
+Abuja, Port Harcourt) so the directory's location sort has something to show immediately.
+
+**Bug found and fixed during live verification, not just written blind:** `StorefrontDirectoryScreen`
+is registered with a hidden native header in `AdminNavigator` (to match `DashboardScreen`'s
+own custom-header pattern), but initially had no back button of its own — a vendor tapping
+the Compass icon from Dashboard would land on the directory with **no way back**. Caught by
+actually clicking through the flow in a live browser session, not by reading the code. Fixed
+with a conditional `navigation.canGoBack()` back arrow in the screen's own header row.
+
+**Verified live**, not just compiled: ran `expo start --web`, logged in as the demo Admin
+account, and clicked through Dashboard → Compass (Directory, confirmed ratings/location/
+vendor-pinned section, then the back-button fix) → LayoutGrid (Services, confirmed correct
+Add-Storefront label since storefronts already existed, and the multi-storefront Access Page
+picker) → Access Page Manager (confirmed the Wedding/Concert presets populate the exact field
+sets defined in code). `ProductCatalogEditorScreen`/`AccessPageGuestScreen` weren't
+interactively clicked through this pass (browser-tool click timeouts partway through the
+session, unrelated to app code — screenshots/text reads kept working throughout) but share
+the same tested API surface and screen conventions as what was verified.
+
+**Still outstanding** (unchanged targets from session 5's deferral, not touched this pass):
+push notification client plumbing (`expo-notifications`, `registerPushToken` wiring — the
+`api.ts` endpoint already exists as a no-op in demo mode), Terms/Privacy screens + Register
+checkbox, crash-reporting scaffold (Sentry), `eas.json` build profiles.
+
 ### 2026-08-19 (session 5) — Full NativeWind migration, back button, icon audit, demo-mode fix
 
 **NativeWind installed and verified working end-to-end**, not just "compiles":

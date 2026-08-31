@@ -36,6 +36,11 @@ import StoreChargesConfigScreen from './src/screens/(admin)/StoreChargesConfigSc
 import LiveOrdersManagerScreen from './src/screens/(admin)/LiveOrdersManagerScreen';
 import ToolbarRequestsAdminScreen from './src/screens/(admin)/ToolbarRequestsAdminScreen';
 import EventsManagerScreen from './src/screens/(admin)/EventsManagerScreen';
+import ServicesScreen from './src/screens/(admin)/ServicesScreen';
+import ProductCatalogEditorScreen from './src/screens/(admin)/ProductCatalogEditorScreen';
+import AccessPageManagerScreen from './src/screens/(admin)/AccessPageManagerScreen';
+import StorefrontDirectoryScreen from './src/screens/(customer)/StorefrontDirectoryScreen';
+import AccessPageGuestScreen from './src/screens/(customer)/AccessPageGuestScreen';
 
 // ==========================================
 // 1. NAVIGATOR DEFINITIONS
@@ -51,6 +56,7 @@ const checkoutOptions: NativeStackNavigationOptions = { title: 'Checkout', heade
 const wishlistOptions: NativeStackNavigationOptions = { title: 'Wishlist', headerBackTitle: 'Back' };
 const cartOptions: NativeStackNavigationOptions = { title: 'Your Cart', headerBackTitle: 'Back' };
 const orderTrackerOptions: NativeStackNavigationOptions = { title: 'Order Status', headerBackTitle: 'Back' };
+const accessPageGuestOptions: NativeStackNavigationOptions = { title: 'Event Check-In', headerBackTitle: 'Back' };
 
 const sharedScreenOptions: NativeStackNavigationOptions = {
   headerStyle: { backgroundColor: '#ffffff' },
@@ -92,6 +98,10 @@ function AuthNavigator() {
       <AuthStack.Screen name="CartDrawer" component={CartDrawerScreen} options={cartOptions} />
       <AuthStack.Screen name="Checkout" component={CheckoutScreen} options={checkoutOptions} />
       <AuthStack.Screen name="OrderReceiptTracker" component={OrderReceiptTrackerScreen} options={orderTrackerOptions} />
+
+      {/* Guest check-in for event Access Pages — public, no login required (e.g. a wedding
+          guest scanning a shared link shouldn't need an account). */}
+      <AuthStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
     </AuthStack.Navigator>
   );
 }
@@ -161,6 +171,29 @@ function AdminNavigator() {
           headerBackTitle: 'Back',
         })}
       />
+      <AdminStack.Screen
+        name="ProductCatalogEditor"
+        component={ProductCatalogEditorScreen}
+        options={({ route }) => ({
+          title: route.params?.name ? `${route.params.name} - Products` : 'Product Catalog',
+          headerBackTitle: 'Back',
+        })}
+      />
+      <AdminStack.Screen name="Services" component={ServicesScreen} options={{ title: 'Services', headerBackTitle: 'Back' }} />
+      <AdminStack.Screen
+        name="StorefrontDirectory"
+        component={StorefrontDirectoryScreen}
+        options={hiddenHeader}
+      />
+      <AdminStack.Screen
+        name="AccessPageManager"
+        component={AccessPageManagerScreen}
+        options={({ route }) => ({
+          title: route.params?.name ? `${route.params.name} - Access Pages` : 'Access Pages',
+          headerBackTitle: 'Back',
+        })}
+      />
+      <AdminStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
 
       {/* Customer Preview & Dev Tool Screens accessible in Admin Context */}
       <AdminStack.Screen
@@ -187,6 +220,10 @@ function AdminNavigator() {
 function CustomerNavigator() {
   return (
     <CustomerStack.Navigator screenOptions={sharedScreenOptions}>
+      {/* Landing screen for a logged-in customer: browse all registered storefronts,
+          sortable by rating/location/alphabetical. Scanning a table QR is still reachable
+          from here (top-right icon) for the anonymous ordering flow. */}
+      <CustomerStack.Screen name="StorefrontDirectory" component={StorefrontDirectoryScreen} options={hiddenHeader} />
       <CustomerStack.Screen
         name="CameraQRScanner"
         component={CameraQRScannerScreen}
@@ -204,6 +241,7 @@ function CustomerNavigator() {
       <CustomerStack.Screen name="CartDrawer" component={CartDrawerScreen} options={cartOptions} />
       <CustomerStack.Screen name="Checkout" component={CheckoutScreen} options={checkoutOptions} />
       <CustomerStack.Screen name="OrderReceiptTracker" component={OrderReceiptTrackerScreen} options={orderTrackerOptions} />
+      <CustomerStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
     </CustomerStack.Navigator>
   );
 }

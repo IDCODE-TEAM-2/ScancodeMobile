@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
-import { ShoppingBag, Bell, Settings2, Calendar, Plus, LayoutGrid, Landmark, Compass } from 'lucide-react-native';
+import { ShoppingBag, Bell, Settings2, Calendar, Plus, LayoutGrid, Landmark, Compass, Package } from 'lucide-react-native';
 import { getMyStorefronts, deleteToken, type StorefrontResponse } from '../../api';
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
@@ -166,6 +166,21 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text className="text-indigo-600 font-semibold text-xs">Events</Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          className="border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
+          onPress={() =>
+            navigation.navigate('ProductCatalogEditor', {
+              storefrontId: item.id,
+              slug: item.slug,
+              name: item.name,
+            })
+          }
+          activeOpacity={0.7}
+        >
+          <Package size={13} color="#4F46E5" strokeWidth={2.2} />
+          <Text className="text-indigo-600 font-semibold text-xs">Product Catalog</Text>
+        </TouchableOpacity>
       </View>
     );
   }

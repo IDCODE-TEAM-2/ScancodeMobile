@@ -6,8 +6,8 @@ SCANCODE MOBILE APP (REACT NATIVE) DEVELOPMENT GUIDE & COMPREHENSIVE ROADMAP
 1. MOBILE SCREEN BREAKDOWN & REPOSITORY PARITY COMPARISON
 --------------------------------------------------------------------------------
 Full Feature Parity Target: 23 Screens
-Currently Implemented in Scancode-React-Native: 20 Screens (87%)
-Remaining Screens to Build: 3 Screens (13%)
+Currently Implemented in Scancode-React-Native: 21 Screens (91%)
+Remaining Screens to Build: 2 Screens (9%)
 
 [2026-08-19 corrections, cumulative:
  (1) ToolbarRequestsAdminScreen was already built but untracked — fixed earlier.
@@ -20,6 +20,8 @@ Remaining Screens to Build: 3 Screens (13%)
  (4) WishlistScreen and CartDrawerScreen promoted from StorefrontScreen modals to real
      dedicated routed screens; OrderReceiptTrackerScreen and EventsManagerScreen built
      (next-two-screens per the phased roadmap). All four now [COMPLETED] below.
+ (5) ProductCatalogEditorScreen built (product CRUD, image upload, delist/relist, wired
+     into DashboardScreen's per-storefront ops row). Now [COMPLETED] below.
  See AGENTS.md for the full technical change log.]
 
 Summary Comparison Table:
@@ -28,11 +30,18 @@ Summary Comparison Table:
 +--------------------------+--------------------+---------------------------+-------------------+
 | Authentication & Account | 5 Screens          | 5 Screens (100%)          | 0 Screens         |
 | Customer Storefront      | 7 Screens          | 6 Screens + Toolbar (86%) | 1 Screen          |
-| Merchant / Admin         | 10 Screens         | 9 Screens (90%)           | 1 Screen          |
+| Merchant / Admin         | 10 Screens         | 10 Screens (100%)         | 0 Screens         |
 | Superadmin               | 1 Screen           | 0 Screens (0%)            | 1 Screen          |
 +--------------------------+--------------------+---------------------------+-------------------+
-| TOTAL                    | 23 Screens         | 20 Screens Implemented    | 3 Screens         |
+| TOTAL                    | 23 Screens         | 21 Screens Implemented    | 2 Screens         |
 +--------------------------+--------------------+---------------------------+-------------------+
+
+[2026-08-31 — scope beyond the original 23-screen parity target: this session added a
+ Services menu, a full Access Page subsystem (event pages, dynamic + preset guest forms,
+ guest check-in, exclusive content unlock), and a customer/vendor Storefront Directory
+ (sortable by rating/location/alphabetical) — 5 new screens total. These aren't part of
+ web-parity tracking (scancode-web has no equivalent), so they're not counted in the table
+ above. See "6. POST-PARITY FEATURE ADDITIONS" below.]
 
 Implemented Screens (20):
 - Splash (src/screens/(auth)/SplashScreen.tsx)
@@ -55,10 +64,10 @@ Implemented Screens (20):
 - CartDrawer (src/screens/(customer)/CartDrawerScreen.tsx) [COMPLETED]
 - OrderReceiptTracker (src/screens/(customer)/OrderReceiptTrackerScreen.tsx) [COMPLETED]
 - EventsManager (src/screens/(admin)/EventsManagerScreen.tsx) [COMPLETED]
+- ProductCatalogEditor (src/screens/(admin)/ProductCatalogEditorScreen.tsx) [COMPLETED]
 
-Remaining Screens Needed (3):
+Remaining Screens Needed (2):
 - ItemDetailsModalScreen (Dish customization & options bottom sheet)
-- ProductCatalogEditorScreen (Add/edit products, stock, prices, photo picker)
 - SuperadminConsoleScreen (Superadmin dashboard for platform metrics & vendor management)
 
 
@@ -83,7 +92,7 @@ StorefrontScreen's in-page modals to dedicated routed screens backed by a new sh
 CartContext (storefront-scoped cart + favorites).
 
 PHASE 3: Large Size & High Complexity (Advanced Modules — Build Last)
-8. ProductCatalogEditorScreen (Large/High): Menu CRUD management, stock updates, category tagger, image uploader via expo-image-picker.
+8. ProductCatalogEditorScreen (Large/High): [COMPLETED] Menu CRUD management, stock updates, category tagger, image uploader via expo-image-picker, delist/relist toggle.
 9. FrontdeskCheckInScreen (Large/High): Hotel & hospitality guest check-in portal.
 10. DigitalSignageExploreScreen (Large/High): Digital promo carousel & venue showcase display.
 11. SuperadminConsoleScreen (Large/High): Superadmin dashboard for platform metrics & vendor management.
@@ -192,8 +201,63 @@ PHASE 3: Large Size & High Complexity (Advanced Modules — Build Last)
      skeleton loading card shimmers to make loading feel instant.
 
 5. Tactile Haptic Pulses:
-   - Trigger heavy haptic vibration on incoming new order alarms, medium haptic tap on order 
+   - Trigger heavy haptic vibration on incoming new order alarms, medium haptic tap on order
      confirmation, and light haptic tick on category selection.
+
+
+--------------------------------------------------------------------------------
+6. POST-PARITY FEATURE ADDITIONS (beyond the original 23-screen web-parity target)
+--------------------------------------------------------------------------------
+Added 2026-08-31. These have no equivalent in scancode-web, so they sit outside the
+parity table in Section 1 — tracked here instead.
+
+1. ServicesScreen (src/screens/(admin)/ServicesScreen.tsx) [COMPLETED]
+   - Entry hub for vendors: "Create Storefront" (no storefronts yet) / "Add Storefront"
+     (already has ≥1) card, plus an "Access Page" card. Tapping Access Page with multiple
+     storefronts opens an inline picker; with exactly one, it navigates straight through.
+
+2. AccessPageManagerScreen (src/screens/(admin)/AccessPageManagerScreen.tsx) [COMPLETED]
+   - Per-storefront event page CRUD. Type picker (Custom / Wedding / Conference-Summit /
+     Concert) — the three presets auto-populate a fixed field set (see demoEngine.ts's
+     presetFields equivalent in the screen itself); Custom starts blank and fields are
+     built one at a time (label, type: text/number/date/yesno/dropdown, required,
+     dropdown options). Each page gets a shareable slug, an active/inactive toggle, a
+     guest list (expandable, shows submitted responses + check-in time), and delete.
+
+3. AccessPageGuestScreen (src/screens/(customer)/AccessPageGuestScreen.tsx) [COMPLETED]
+   - Public, unauthenticated guest-facing screen reached via an access page's slug
+     (`AccessPageGuest: { accessPageSlug }`). Renders the page's dynamic form, submits a
+     guest entry, then reveals `exclusiveContent` (if set) as the check-in reward.
+     Registered in AuthNavigator, AdminNavigator, and CustomerNavigator so it's reachable
+     whether or not the visitor has an account — deliberately not gated behind login,
+     matching how QR-scan ordering is anonymous-only.
+
+4. StorefrontDirectoryScreen (src/screens/(customer)/StorefrontDirectoryScreen.tsx) [COMPLETED]
+   - Post-login landing screen for logged-in customers (CustomerNavigator's initial
+     route) and reachable from the Dashboard's Compass icon for vendors. Lists all
+     published storefronts (getAllStorefronts), sortable by rating (getStorefrontRatings
+     aggregation), location, or alphabetical. When the viewer is a vendor, their own
+     storefronts render pinned above the full list. Has its own back button
+     (navigation.canGoBack()) since it runs with a hidden native header in both
+     navigators it's pushed into.
+
+5. Nigeria location picker (CreateStorefrontScreen.tsx) [COMPLETED]
+   - @react-native-picker/picker, backed by NIGERIA_STATES (36 states + FCT) in types.ts.
+     Required field; persisted into storefront.data.location, read back via
+     parseStorefrontData for both the directory's location sort and card display.
+
+6. demoEngine.ts data layer for all of the above [COMPLETED]
+   - Product CRUD (createProduct/updateProduct/deleteProduct), storefront directory
+     (getAllStorefronts — published-only, distinct from getMyStorefronts), ratings
+     aggregation (getStorefrontRatings, seeded from a new feedbacks store), and full
+     Access Page CRUD + guest check-in, all persisted through AsyncStorage with the same
+     conventions as the rest of the file (KEYS map, simulateLatency, reset/init coverage).
+
+Not yet built (see AGENTS.md for the live outstanding list):
+- Push notification client plumbing (expo-notifications, registerPushToken wiring).
+- Terms/Privacy screens + Register checkbox.
+- Crash-reporting scaffold (Sentry).
+- eas.json build profiles.
 
 ================================================================================
 
