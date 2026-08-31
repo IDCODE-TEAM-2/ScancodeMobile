@@ -1,13 +1,15 @@
+import './global.css';
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 import type { RootStackParamList } from './src/types';
 import { demoEngine } from './src/demo/demoEngine';
-import { getToken } from './src/api';
+import { getToken, deleteToken, onUnauthorized } from './src/api';
 import { AppContext, type AppState } from './src/context/AppContext';
+import { CartProvider } from './src/context/CartContext';
 
 // Auth Stack Screens
 import SplashScreen from './src/screens/(auth)/SplashScreen';
@@ -18,7 +20,10 @@ import VerifyOtpScreen from './src/screens/(auth)/VerifyOtpScreen';
 
 // Customer Storefront & Checkout Screens
 import StorefrontScreen from './src/screens/(customer)/StorefrontScreen';
+import WishlistScreen from './src/screens/(customer)/WishlistScreen';
+import CartDrawerScreen from './src/screens/(customer)/CartDrawerScreen';
 import CheckoutScreen from './src/screens/(customer)/CheckoutScreen';
+import OrderReceiptTrackerScreen from './src/screens/(customer)/OrderReceiptTrackerScreen';
 import CameraQRScannerScreen from './src/screens/(customer)/CameraQRScannerScreen';
 
 // Merchant / Admin Operational Screens
@@ -30,6 +35,7 @@ import QRScreen from './src/screens/(admin)/QRScreen';
 import StoreChargesConfigScreen from './src/screens/(admin)/StoreChargesConfigScreen';
 import LiveOrdersManagerScreen from './src/screens/(admin)/LiveOrdersManagerScreen';
 import ToolbarRequestsAdminScreen from './src/screens/(admin)/ToolbarRequestsAdminScreen';
+import EventsManagerScreen from './src/screens/(admin)/EventsManagerScreen';
 
 // ==========================================
 // 1. NAVIGATOR DEFINITIONS
@@ -42,6 +48,9 @@ const CustomerStack = createNativeStackNavigator<RootStackParamList>();
 const hiddenHeader: NativeStackNavigationOptions = { headerShown: false };
 const newStorefrontOptions: NativeStackNavigationOptions = { title: 'New Storefront', headerBackTitle: 'Back' };
 const checkoutOptions: NativeStackNavigationOptions = { title: 'Checkout', headerBackTitle: 'Back' };
+const wishlistOptions: NativeStackNavigationOptions = { title: 'Wishlist', headerBackTitle: 'Back' };
+const cartOptions: NativeStackNavigationOptions = { title: 'Your Cart', headerBackTitle: 'Back' };
+const orderTrackerOptions: NativeStackNavigationOptions = { title: 'Order Status', headerBackTitle: 'Back' };
 
 const sharedScreenOptions: NativeStackNavigationOptions = {
   headerStyle: { backgroundColor: '#ffffff' },
@@ -63,6 +72,26 @@ function AuthNavigator() {
       <AuthStack.Screen name="VerifyOtp" component={VerifyOtpScreen} options={hiddenHeader} />
       {/* Splash kept for backward compatibility but auth routing is handled in App */}
       <AuthStack.Screen name="Splash" component={SplashScreen} options={hiddenHeader} />
+
+      {/* Customer storefront flow — accessible without signing in. Customers reach the
+          app anonymously by scanning a table QR code; only merchants authenticate. */}
+      <AuthStack.Screen
+        name="CameraQRScanner"
+        component={CameraQRScannerScreen}
+        options={{ title: 'Scan Table QR Code', headerBackTitle: 'Back' }}
+      />
+      <AuthStack.Screen
+        name="Storefront"
+        component={StorefrontScreen}
+        options={({ route }) => ({
+          title: route.params?.name || 'Storefront',
+          headerBackTitle: 'Back',
+        })}
+      />
+      <AuthStack.Screen name="Wishlist" component={WishlistScreen} options={wishlistOptions} />
+      <AuthStack.Screen name="CartDrawer" component={CartDrawerScreen} options={cartOptions} />
+      <AuthStack.Screen name="Checkout" component={CheckoutScreen} options={checkoutOptions} />
+      <AuthStack.Screen name="OrderReceiptTracker" component={OrderReceiptTrackerScreen} options={orderTrackerOptions} />
     </AuthStack.Navigator>
   );
 }
@@ -124,6 +153,14 @@ function AdminNavigator() {
           headerBackTitle: 'Back',
         })}
       />
+      <AdminStack.Screen
+        name="EventsManager"
+        component={EventsManagerScreen}
+        options={({ route }) => ({
+          title: route.params?.name ? `${route.params.name} - Events` : 'Weekly Events',
+          headerBackTitle: 'Back',
+        })}
+      />
 
       {/* Customer Preview & Dev Tool Screens accessible in Admin Context */}
       <AdminStack.Screen
@@ -134,7 +171,10 @@ function AdminNavigator() {
           headerBackTitle: 'Back',
         })}
       />
+      <AdminStack.Screen name="Wishlist" component={WishlistScreen} options={wishlistOptions} />
+      <AdminStack.Screen name="CartDrawer" component={CartDrawerScreen} options={cartOptions} />
       <AdminStack.Screen name="Checkout" component={CheckoutScreen} options={checkoutOptions} />
+      <AdminStack.Screen name="OrderReceiptTracker" component={OrderReceiptTrackerScreen} options={orderTrackerOptions} />
       <AdminStack.Screen
         name="CameraQRScanner"
         component={CameraQRScannerScreen}
@@ -160,7 +200,10 @@ function CustomerNavigator() {
           headerBackTitle: 'Back',
         })}
       />
+      <CustomerStack.Screen name="Wishlist" component={WishlistScreen} options={wishlistOptions} />
+      <CustomerStack.Screen name="CartDrawer" component={CartDrawerScreen} options={cartOptions} />
       <CustomerStack.Screen name="Checkout" component={CheckoutScreen} options={checkoutOptions} />
+      <CustomerStack.Screen name="OrderReceiptTracker" component={OrderReceiptTrackerScreen} options={orderTrackerOptions} />
     </CustomerStack.Navigator>
   );
 }
@@ -170,17 +213,12 @@ function CustomerNavigator() {
 // ==========================================
 function BootScreen() {
   return (
-    <View style={bootStyles.container}>
-      <Text style={bootStyles.brand}>ScanCode</Text>
-      <ActivityIndicator size="large" color="#6C63FF" style={{ marginTop: 24 }} />
+    <View className="flex-1 bg-white items-center justify-center">
+      <Text className="text-[32px] font-bold text-primary tracking-wide">ScanCode</Text>
+      <ActivityIndicator size="large" color="#6C63FF" className="mt-6" />
     </View>
   );
 }
-
-const bootStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
-  brand: { fontSize: 32, fontWeight: '700', color: '#6C63FF', letterSpacing: 1 },
-});
 
 // ==========================================
 // 4. MAIN CONTAINER & STATE GATEKEEPER
@@ -210,8 +248,17 @@ export default function App() {
     bootstrap();
   }, []);
 
+  // Central 401 handler: any authenticated API call that comes back unauthorized logs
+  // the user out from wherever they are, instead of each screen needing its own handling.
+  useEffect(() => {
+    return onUnauthorized(() => {
+      deleteToken().finally(() => setAppState('logged_out'));
+    });
+  }, []);
+
   return (
     <AppContext.Provider value={{ appState, setAppState }}>
+    <CartProvider>
     <SafeAreaProvider>
       <NavigationContainer>
         <StatusBar style="dark" />
@@ -228,6 +275,7 @@ export default function App() {
 
       </NavigationContainer>
     </SafeAreaProvider>
+    </CartProvider>
     </AppContext.Provider>
   );
 }

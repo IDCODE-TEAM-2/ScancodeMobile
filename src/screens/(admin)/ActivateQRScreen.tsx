@@ -1,16 +1,10 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  Alert,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { CheckCircle2, PartyPopper } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { initializePayment, verifyPayment } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
+import { cn } from '../../utils/cn';
 
 interface Props {
   navigation: NavigationProp<'ActivateQR'>;
@@ -19,11 +13,16 @@ interface Props {
 
 type Step = 'idle' | 'initializing' | 'waiting' | 'verifying' | 'success' | 'error';
 
+const FEATURES = [
+  'Unlimited Digital QR Table Codes',
+  'Real-time Order Management',
+  'Paid Customer Requests & Tips',
+];
+
 export default function ActivateQRScreen({ navigation, route }: Props) {
   const { slug, name } = route.params;
   const [step, setStep] = useState<Step>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [txRef, setTxRef] = useState<string | null>(null);
 
   async function handlePay() {
     setErrorMsg(null);
@@ -39,7 +38,6 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
       return;
     }
 
-    setTxRef(initRes.reference);
     setStep('waiting');
 
     try {
@@ -71,8 +69,8 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
     setStep('verifying');
     setErrorMsg(null);
     try {
-      const res: any = await verifyPayment(reference);
-      if (res.paid || res.status === 'SUCCESSFUL' || res.status === 'success') {
+      const res = await verifyPayment(reference);
+      if (res.verified) {
         setStep('success');
       } else {
         setErrorMsg('Payment verification incomplete. If you paid, try verifying again.');
@@ -86,50 +84,59 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.badgeText}>QR ACTIVATION</Text>
-          <Text style={styles.storeName}>{name}</Text>
+    <ScrollView contentContainerClassName="flex-grow">
+      <View className="flex-1 bg-gray-100 p-5 justify-center">
+        <View className="bg-white rounded-2xl p-6 shadow-sm">
+          <Text className="text-[11px] font-extrabold text-primary tracking-wide mb-1">QR ACTIVATION</Text>
+          <Text className="text-[22px] font-extrabold text-gray-900 mb-4">{name}</Text>
 
-          <View style={styles.priceBox}>
-            <Text style={styles.priceLabel}>One-time Activation Fee</Text>
-            <Text style={styles.priceAmount}>₦15,000</Text>
+          <View className="bg-violet-50 rounded-xl p-4 items-center mb-4">
+            <Text className="text-[13px] text-gray-500 mb-0.5">One-time Activation Fee</Text>
+            <Text className="text-[28px] font-extrabold text-primary">₦15,000</Text>
           </View>
 
-          <View style={styles.featureList}>
-            <Text style={styles.featureItem}>✓ Unlimited Digital QR Table Codes</Text>
-            <Text style={styles.featureItem}>✓ Real-time Order Management</Text>
-            <Text style={styles.featureItem}>✓ Paid Customer Requests & Tips</Text>
+          <View className="gap-2 mb-5">
+            {FEATURES.map((feature) => (
+              <View key={feature} className="flex-row items-center gap-2">
+                <CheckCircle2 size={16} color="#374151" strokeWidth={2.2} />
+                <Text className="text-sm text-gray-700 font-medium">{feature}</Text>
+              </View>
+            ))}
           </View>
 
           {errorMsg ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{errorMsg}</Text>
+            <View className="bg-red-100 rounded-lg p-3 mb-4">
+              <Text className="text-red-600 text-[13px]">{errorMsg}</Text>
             </View>
           ) : null}
 
           {step === 'success' ? (
-            <View style={styles.successBox}>
-              <Text style={styles.successTitle}>🎉 QR Code Activated!</Text>
-              <Text style={styles.successSub}>Your storefront is now live and published.</Text>
+            <View className="bg-emerald-100 rounded-xl p-4 items-center">
+              <View className="flex-row items-center gap-2 mb-1">
+                <PartyPopper size={18} color="#065F46" strokeWidth={2.2} />
+                <Text className="text-lg font-extrabold text-emerald-800">QR Code Activated!</Text>
+              </View>
+              <Text className="text-[13px] text-emerald-700 mb-3">Your storefront is now live and published.</Text>
               <TouchableOpacity
-                style={styles.btn}
+                className="bg-primary rounded-xl py-3.5 items-center w-full"
                 onPress={() => navigation.navigate('QR', { slug, name })}
               >
-                <Text style={styles.btnText}>View QR Code</Text>
+                <Text className="text-white text-base font-bold">View QR Code</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity
-              style={[styles.btn, (step === 'initializing' || step === 'verifying') && styles.btnDisabled]}
+              className={cn(
+                'bg-primary rounded-xl py-3.5 items-center',
+                (step === 'initializing' || step === 'verifying') && 'opacity-60'
+              )}
               onPress={handlePay}
               disabled={step === 'initializing' || step === 'verifying'}
             >
               {step === 'initializing' || step === 'verifying' ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.btnText}>
+                <Text className="text-white text-base font-bold">
                   {step === 'waiting' ? 'Verify Payment' : 'Pay ₦15,000 with Paystack'}
                 </Text>
               )}
@@ -140,24 +147,3 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  container: { flex: 1, backgroundColor: '#F3F4F6', padding: 20, justifyContent: 'center' },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 24, elevation: 2 },
-  badgeText: { fontSize: 11, fontWeight: '800', color: '#6C63FF', letterSpacing: 1, marginBottom: 4 },
-  storeName: { fontSize: 22, fontWeight: '800', color: '#111827', marginBottom: 16 },
-  priceBox: { backgroundColor: '#F5F3FF', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 16 },
-  priceLabel: { fontSize: 13, color: '#6B7280', marginBottom: 2 },
-  priceAmount: { fontSize: 28, fontWeight: '800', color: '#6C63FF' },
-  featureList: { gap: 8, marginBottom: 20 },
-  featureItem: { fontSize: 14, color: '#374151', fontWeight: '500' },
-  errorBox: { backgroundColor: '#FEE2E2', borderRadius: 8, padding: 12, marginBottom: 16 },
-  errorText: { color: '#DC2626', fontSize: 13 },
-  successBox: { backgroundColor: '#D1FAE5', borderRadius: 12, padding: 16, alignItems: 'center' },
-  successTitle: { fontSize: 18, fontWeight: '800', color: '#065F46', marginBottom: 4 },
-  successSub: { fontSize: 13, color: '#047857', marginBottom: 12 },
-  btn: { backgroundColor: '#6C63FF', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-});

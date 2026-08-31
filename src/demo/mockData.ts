@@ -1,6 +1,4 @@
 import type {
-  AuthResponse,
-  MeResponse,
   StorefrontResponse,
   ProductResponse,
   StoreConfigResponse,
@@ -54,6 +52,7 @@ export const DEMO_STOREFRONTS: StorefrontResponse[] = [
     data: {
       theme: 'dark',
       currency: 'NGN',
+      location: 'Lagos',
       weeklyEvents: {
         Friday: [
           { id: 'lg-ev-1', time: '8:00 PM', name: 'Afrobeats & DJ Night', description: 'Live DJ set by DJ Spin & cocktail specials.' },
@@ -85,6 +84,7 @@ export const DEMO_STOREFRONTS: StorefrontResponse[] = [
     data: {
       theme: 'light',
       currency: 'NGN',
+      location: 'Abuja',
       weeklyEvents: {
         Wednesday: [
           { id: 'mb-ev-1', time: '11:00 AM', name: 'Latte Art Workshop', description: 'Learn latte art from our master barista.' },
@@ -112,6 +112,7 @@ export const DEMO_STOREFRONTS: StorefrontResponse[] = [
     data: {
       theme: 'neon',
       currency: 'NGN',
+      location: 'Port Harcourt',
       weeklyEvents: {
         Thursday: [
           { id: 'nk-ev-1', time: '7:00 PM', name: 'Karaoke Battle Night', description: 'Compete for prizes — best voice wins a free booth session!' },
@@ -135,7 +136,7 @@ export const DEMO_STORE_CONFIGS: Record<number, StoreConfigResponse> = {
   1: {
     id: 101,
     storefrontId: 1,
-    vatRate: 7.5,
+    vatRate: 0.075,
     deliveryFee: 1500,
     waiterPhone: '+2348012345678',
     callEntities: ['Waiter / Service', 'Manager On Duty', 'Bill / Check Request', 'Security'],
@@ -145,7 +146,7 @@ export const DEMO_STORE_CONFIGS: Record<number, StoreConfigResponse> = {
   2: {
     id: 102,
     storefrontId: 2,
-    vatRate: 7.5,
+    vatRate: 0.075,
     deliveryFee: 1000,
     waiterPhone: '+2348098765432',
     callEntities: ['Barista', 'Server', 'Bill Request'],
@@ -155,7 +156,7 @@ export const DEMO_STORE_CONFIGS: Record<number, StoreConfigResponse> = {
   3: {
     id: 103,
     storefrontId: 3,
-    vatRate: 7.5,
+    vatRate: 0.075,
     deliveryFee: 2000,
     waiterPhone: '+2348055556666',
     callEntities: ['VIP Host', 'DJ Shoutout', 'Bouncer'],
@@ -314,7 +315,7 @@ export const DEMO_INITIAL_ORDERS: OrderResponse[] = [
     total: 20962.5,
     tableCode: 'VIP-01',
     tableLabel: 'VIP Lounge Table 1',
-    status: 'PREPARING',
+    status: 'CONFIRMED',
     createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
     updatedAt: new Date(Date.now() - 15 * 60000).toISOString(),
   },

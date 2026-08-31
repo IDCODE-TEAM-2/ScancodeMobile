@@ -1,16 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { ArrowLeft, Flashlight, FlashlightOff, Zap } from 'lucide-react-native';
 import type { NavigationProp, RouteProps } from '../../types';
-import CustomButton from '../../components/CustomButton';
 import ErrorBanner from '../../components/ErrorBanner';
+import { cn } from '../../utils/cn';
 
 let CameraView: any = null;
 let useCameraPermissions: any = null;
@@ -27,7 +20,7 @@ interface Props {
   route: RouteProps<'CameraQRScanner'>;
 }
 
-export default function CameraQRScannerScreen({ navigation, route }: Props) {
+export default function CameraQRScannerScreen({ navigation }: Props) {
   const cameraHook = useCameraPermissions ? useCameraPermissions() : [null, () => {}];
   const permission = cameraHook[0];
   const requestPermission = cameraHook[1];
@@ -119,14 +112,14 @@ export default function CameraQRScannerScreen({ navigation, route }: Props) {
           onBarcodeScanned={scanned ? undefined : ({ data }: { data: string }) => processQrData(data)}
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         >
-          <View style={styles.overlay}>
-            <View style={styles.targetFrame}>
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
+          <View className="flex-1 bg-black/45 items-center justify-center">
+            <View className="w-60 h-60 relative justify-between">
+              <View className="absolute w-8 h-8 border-primary top-0 left-0 border-t-4 border-l-4" />
+              <View className="absolute w-8 h-8 border-primary top-0 right-0 border-t-4 border-r-4" />
+              <View className="absolute w-8 h-8 border-primary bottom-0 left-0 border-b-4 border-l-4" />
+              <View className="absolute w-8 h-8 border-primary bottom-0 right-0 border-b-4 border-r-4" />
             </View>
-            <Text style={styles.instructionText}>
+            <Text className="text-white text-sm font-semibold mt-5 bg-black/60 px-4 py-2 rounded-full overflow-hidden">
               Align physical table QR code inside the frame
             </Text>
           </View>
@@ -135,68 +128,89 @@ export default function CameraQRScannerScreen({ navigation, route }: Props) {
     }
 
     return (
-      <View style={[StyleSheet.absoluteFill, styles.simulatedViewfinder]}>
-        <View style={styles.targetFrame}>
-          <View style={[styles.corner, styles.topLeft]} />
-          <View style={[styles.corner, styles.topRight]} />
-          <View style={[styles.corner, styles.bottomLeft]} />
-          <View style={[styles.corner, styles.bottomRight]} />
+      <View className="absolute inset-0 bg-indigo-950 items-center justify-center">
+        <View className="w-60 h-60 relative justify-between">
+          <View className="absolute w-8 h-8 border-primary top-0 left-0 border-t-4 border-l-4" />
+          <View className="absolute w-8 h-8 border-primary top-0 right-0 border-t-4 border-r-4" />
+          <View className="absolute w-8 h-8 border-primary bottom-0 left-0 border-b-4 border-l-4" />
+          <View className="absolute w-8 h-8 border-primary bottom-0 right-0 border-b-4 border-r-4" />
         </View>
-        <Text style={styles.instructionText}>
+        <Text className="text-white text-sm font-semibold mt-5 bg-black/60 px-4 py-2 rounded-full overflow-hidden">
           {permission && !permission.granted
             ? 'Camera permission denied'
             : 'Camera Viewfinder Active (Simulator Mode)'}
         </Text>
-        <TouchableOpacity style={styles.mockScanBtn} onPress={handleTestMockScan}>
-          <Text style={styles.mockScanText}>⚡ Simulate QR Scan (Sample Bistro)</Text>
+        <TouchableOpacity
+          className="mt-[18px] bg-primary px-4.5 py-2.5 rounded-full flex-row items-center gap-1.5"
+          onPress={handleTestMockScan}
+        >
+          <Zap size={14} color="#FFFFFF" strokeWidth={2.2} />
+          <Text className="text-white font-bold text-[13px]">Simulate QR Scan (Sample Bistro)</Text>
         </TouchableOpacity>
       </View>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.cameraContainer}>{renderCameraViewfinder()}</View>
+    <View className="flex-1 bg-black">
+      <View className="flex-[2] relative">
+        {renderCameraViewfinder()}
 
-      <View style={styles.controlsPanel}>
+        <TouchableOpacity
+          className="absolute left-4 w-10 h-10 rounded-full bg-black/55 items-center justify-center"
+          style={{ top: 16 }}
+          onPress={() => navigation.goBack()}
+          accessibilityLabel="Go back"
+          activeOpacity={0.8}
+        >
+          <ArrowLeft size={20} color="#FFFFFF" strokeWidth={2.4} />
+        </TouchableOpacity>
+      </View>
+
+      <View className="bg-white rounded-t-3xl p-5">
         {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
 
-        <View style={styles.actionRow}>
+        <View className="flex-row items-center justify-between mb-4 gap-3">
           <TouchableOpacity
-            style={[styles.torchBtn, torch && styles.torchBtnActive]}
+            className={cn('rounded-[10px] py-2.5 px-4 flex-row items-center gap-2', torch ? 'bg-amber-100' : 'bg-gray-100')}
             onPress={() => setTorch(!torch)}
           >
-            <Text style={[styles.torchText, torch && styles.torchTextActive]}>
-              {torch ? '🔦 Flash On' : '💡 Flash Off'}
+            {torch ? (
+              <Flashlight size={16} color="#92400E" strokeWidth={2.2} />
+            ) : (
+              <FlashlightOff size={16} color="#374151" strokeWidth={2.2} />
+            )}
+            <Text className={cn('font-semibold text-sm', torch ? 'text-amber-800' : 'text-gray-700')}>
+              {torch ? 'Flash On' : 'Flash Off'}
             </Text>
           </TouchableOpacity>
 
           {scanned && (
-            <TouchableOpacity style={styles.rescanBtn} onPress={() => setScanned(false)}>
-              <Text style={styles.rescanText}>Tap to Scan Again</Text>
+            <TouchableOpacity className="bg-primary rounded-[10px] py-2.5 px-4" onPress={() => setScanned(false)}>
+              <Text className="text-white font-bold text-sm">Tap to Scan Again</Text>
             </TouchableOpacity>
           )}
 
           {permission && !permission.granted && (
-            <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
-              <Text style={styles.permText}>Grant Camera</Text>
+            <TouchableOpacity className="bg-red-500 rounded-[10px] py-2.5 px-3.5" onPress={requestPermission}>
+              <Text className="text-white font-bold text-[13px]">Grant Camera</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <View style={styles.manualCard}>
-          <Text style={styles.manualTitle}>Or Enter Store Code Manually</Text>
-          <View style={styles.inputRow}>
+        <View className="bg-gray-50 rounded-xl p-3.5 border border-gray-200">
+          <Text className="text-[13px] font-semibold text-gray-600 mb-2">Or Enter Store Code Manually</Text>
+          <View className="flex-row gap-2">
             <TextInput
-              style={styles.manualInput}
+              className="flex-1 bg-white border-[1.5px] border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
               value={manualCode}
               onChangeText={setManualCode}
               placeholder="e.g. sample-bistro"
               placeholderTextColor="#9CA3AF"
               autoCapitalize="none"
             />
-            <TouchableOpacity style={styles.goBtn} onPress={handleManualSubmit}>
-              <Text style={styles.goBtnText}>Go</Text>
+            <TouchableOpacity className="bg-primary rounded-lg px-4.5 justify-center items-center" onPress={handleManualSubmit}>
+              <Text className="text-white font-bold text-sm">Go</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -204,45 +218,3 @@ export default function CameraQRScannerScreen({ navigation, route }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
-  cameraContainer: { flex: 2, position: 'relative' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.45)', alignItems: 'center', justifyContent: 'center' },
-  simulatedViewfinder: { backgroundColor: '#1E1B4B', alignItems: 'center', justifyContent: 'center' },
-  targetFrame: { width: 240, height: 240, position: 'relative', justifyContent: 'space-between' },
-  corner: { position: 'absolute', width: 32, height: 32, borderColor: '#6C63FF' },
-  topLeft: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4 },
-  topRight: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4 },
-  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4 },
-  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4 },
-  instructionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 20,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  mockScanBtn: { marginTop: 18, backgroundColor: '#6C63FF', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20 },
-  mockScanText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  controlsPanel: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 },
-  actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 },
-  torchBtn: { backgroundColor: '#F3F4F6', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16 },
-  torchBtnActive: { backgroundColor: '#FEF3C7' },
-  torchText: { color: '#374151', fontWeight: '600', fontSize: 14 },
-  torchTextActive: { color: '#92400E' },
-  rescanBtn: { backgroundColor: '#6C63FF', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16 },
-  rescanText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-  permBtn: { backgroundColor: '#EF4444', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14 },
-  permText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  manualCard: { backgroundColor: '#F9FAFB', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' },
-  manualTitle: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginBottom: 8 },
-  inputRow: { flexDirection: 'row', gap: 8 },
-  manualInput: { flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: '#111827' },
-  goBtn: { backgroundColor: '#6C63FF', borderRadius: 8, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center' },
-  goBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-});

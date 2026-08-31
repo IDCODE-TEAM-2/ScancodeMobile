@@ -1,11 +1,34 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { X } from 'lucide-react-native';
+import { cn } from '../utils/cn';
 
 export interface ErrorBannerProps {
   message: string | null;
   type?: 'error' | 'success' | 'warning' | 'info';
   onDismiss?: () => void;
 }
+
+const BOX_CLASSES: Record<NonNullable<ErrorBannerProps['type']>, string> = {
+  error: 'bg-red-100 border-red-300',
+  success: 'bg-emerald-100 border-emerald-300',
+  warning: 'bg-amber-100 border-amber-300',
+  info: 'bg-indigo-100 border-indigo-300',
+};
+
+const TEXT_CLASSES: Record<NonNullable<ErrorBannerProps['type']>, string> = {
+  error: 'text-red-600',
+  success: 'text-emerald-800',
+  warning: 'text-amber-800',
+  info: 'text-indigo-800',
+};
+
+const ICON_COLORS: Record<NonNullable<ErrorBannerProps['type']>, string> = {
+  error: '#DC2626',
+  success: '#065F46',
+  warning: '#92400E',
+  info: '#3730A3',
+};
 
 export default function ErrorBanner({
   message,
@@ -14,73 +37,14 @@ export default function ErrorBanner({
 }: ErrorBannerProps) {
   if (!message) return null;
 
-  const isSuccess = type === 'success';
-  const isWarning = type === 'warning';
-  const isInfo = type === 'info';
-
-  const boxStyle = [
-    styles.box,
-    isSuccess && styles.successBox,
-    isWarning && styles.warningBox,
-    isInfo && styles.infoBox,
-  ];
-
-  const textStyle = [
-    styles.text,
-    isSuccess && styles.successText,
-    isWarning && styles.warningText,
-    isInfo && styles.infoText,
-  ];
-
   return (
-    <View style={boxStyle}>
-      <Text style={textStyle}>{message}</Text>
+    <View className={cn('border rounded-lg p-3 mb-4 flex-row items-center justify-between', BOX_CLASSES[type])}>
+      <Text className={cn('text-sm font-medium flex-1', TEXT_CLASSES[type])}>{message}</Text>
       {onDismiss ? (
         <TouchableOpacity onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={textStyle}>✕</Text>
+          <X size={16} color={ICON_COLORS[type]} strokeWidth={2.5} />
         </TouchableOpacity>
       ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  box: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#FCA5A5',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  successBox: {
-    backgroundColor: '#D1FAE5',
-    borderColor: '#6EE7B7',
-  },
-  warningBox: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FCD34D',
-  },
-  infoBox: {
-    backgroundColor: '#E0E7FF',
-    borderColor: '#A5B4FC',
-  },
-  text: {
-    color: '#DC2626',
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-  },
-  successText: {
-    color: '#065F46',
-  },
-  warningText: {
-    color: '#92400E',
-  },
-  infoText: {
-    color: '#3730A3',
-  },
-});

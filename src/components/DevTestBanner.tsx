@@ -4,11 +4,13 @@
 // =========================================================================
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Briefcase, ShoppingCart, Lock, Camera, Bell, Store, RotateCcw } from 'lucide-react-native';
 import type { RootStackParamList } from '../types';
 import { demoEngine } from '../demo/demoEngine';
+import { cn } from '../utils/cn';
 
 interface Props {
   onRoleChange?: (role: 'admin' | 'customer' | 'logged_out') => void;
@@ -51,178 +53,80 @@ export default function DevTestBanner({ onRoleChange }: Props) {
     Alert.alert('Reset Complete', 'Demo data has been restored to default values.');
   }
 
+  const ROLE_OPTIONS: { role: 'admin' | 'customer' | 'logged_out'; label: string; icon: typeof Briefcase }[] = [
+    { role: 'admin', label: 'Admin', icon: Briefcase },
+    { role: 'customer', label: 'Customer', icon: ShoppingCart },
+    { role: 'logged_out', label: 'Logged Out', icon: Lock },
+  ];
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.badge}>DEMO CONTROL PANEL</Text>
-        <TouchableOpacity style={styles.modeToggle} onPress={toggleDemoMode}>
-          <Text style={styles.modeToggleText}>
-            Mode: <Text style={{ fontWeight: '900', color: isDemo ? '#34D399' : '#F87171' }}>{isDemo ? 'DEMO (MOCK)' : 'LIVE API'}</Text>
+    <View className="bg-indigo-950 rounded-xl p-3.5 mx-4 my-2.5 border border-indigo-700">
+      <View className="flex-row items-center justify-between mb-2.5">
+        <Text className="bg-red-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded">DEMO CONTROL PANEL</Text>
+        <TouchableOpacity className="bg-indigo-900 px-2 py-1 rounded-md" onPress={toggleDemoMode}>
+          <Text className="text-indigo-100 text-[11px] font-semibold">
+            Mode: <Text className={cn('font-black', isDemo ? 'text-emerald-400' : 'text-red-400')}>{isDemo ? 'DEMO (MOCK)' : 'LIVE API'}</Text>
           </Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionLabel}>Active Role Switcher:</Text>
-      <View style={styles.roleRow}>
-        <TouchableOpacity
-          style={[styles.roleBtn, activeRole === 'admin' && styles.roleBtnActive]}
-          onPress={() => switchRole('admin')}
-        >
-          <Text style={[styles.roleBtnText, activeRole === 'admin' && styles.roleBtnTextActive]}>
-            👔 Admin
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.roleBtn, activeRole === 'customer' && styles.roleBtnActive]}
-          onPress={() => switchRole('customer')}
-        >
-          <Text style={[styles.roleBtnText, activeRole === 'customer' && styles.roleBtnTextActive]}>
-            🛒 Customer
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.roleBtn, activeRole === 'logged_out' && styles.roleBtnActive]}
-          onPress={() => switchRole('logged_out')}
-        >
-          <Text style={[styles.roleBtnText, activeRole === 'logged_out' && styles.roleBtnTextActive]}>
-            🔒 Logged Out
-          </Text>
-        </TouchableOpacity>
+      <Text className="text-indigo-300 text-[11px] font-bold mt-1 mb-1.5 uppercase">Active Role Switcher:</Text>
+      <View className="flex-row gap-1.5 mb-2.5">
+        {ROLE_OPTIONS.map(({ role, label, icon: Icon }) => {
+          const isActive = activeRole === role;
+          return (
+            <TouchableOpacity
+              key={role}
+              className={cn('flex-1 py-1.5 rounded-md items-center flex-row justify-center gap-1', isActive ? 'bg-primary' : 'bg-indigo-900')}
+              onPress={() => switchRole(role)}
+            >
+              <Icon size={12} color={isActive ? '#FFFFFF' : '#C7D2FE'} strokeWidth={2.2} />
+              <Text className={cn('text-[11px]', isActive ? 'text-white font-extrabold' : 'text-indigo-200 font-semibold')}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <Text style={styles.sectionLabel}>Quick Test Actions:</Text>
-      <View style={styles.row}>
+      <Text className="text-indigo-300 text-[11px] font-bold mt-1 mb-1.5 uppercase">Quick Test Actions:</Text>
+      <View className="flex-row gap-1.5">
         <TouchableOpacity
-          style={[styles.btn, styles.cameraBtn]}
+          className="flex-1 py-2 rounded-md items-center bg-indigo-600 gap-1"
           onPress={() => navigation.navigate('CameraQRScanner')}
           activeOpacity={0.8}
         >
-          <Text style={styles.btnText}>📷 Scanner</Text>
+          <Camera size={13} color="#FFFFFF" strokeWidth={2.2} />
+          <Text className="text-white text-[11px] font-bold">Scanner</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.btn, styles.ordersBtn]}
+          className="flex-1 py-2 rounded-md items-center bg-emerald-600 gap-1"
           onPress={() => navigation.navigate('LiveOrdersManager', { storefrontId: 1, name: 'Lagos Grill' })}
           activeOpacity={0.8}
         >
-          <Text style={styles.btnText}>🔔 Live Orders</Text>
+          <Bell size={13} color="#FFFFFF" strokeWidth={2.2} />
+          <Text className="text-white text-[11px] font-bold">Live Orders</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.btn, styles.storeBtn]}
+          className="flex-1 py-2 rounded-md items-center bg-amber-600 gap-1"
           onPress={() => navigation.navigate('Storefront', { slug: 'lagos-grill', name: 'Lagos Grill' })}
           activeOpacity={0.8}
         >
-          <Text style={styles.btnText}>🛍️ Storefront</Text>
+          <Store size={13} color="#FFFFFF" strokeWidth={2.2} />
+          <Text className="text-white text-[11px] font-bold">Storefront</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.btn, styles.resetBtn]}
+          className="flex-1 py-2 rounded-md items-center bg-red-600 gap-1"
           onPress={handleResetData}
           activeOpacity={0.8}
         >
-          <Text style={styles.btnText}>🔄 Reset</Text>
+          <RotateCcw size={13} color="#FFFFFF" strokeWidth={2.2} />
+          <Text className="text-white text-[11px] font-bold">Reset</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#1E1B4B',
-    borderRadius: 12,
-    padding: 14,
-    marginHorizontal: 16,
-    marginVertical: 10,
-    borderWidth: 1,
-    borderColor: '#4338CA',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  badge: {
-    backgroundColor: '#EF4444',
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  modeToggle: {
-    backgroundColor: '#312E81',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  modeToggleText: {
-    color: '#E0E7FF',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  sectionLabel: {
-    color: '#A5B4FC',
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 4,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  roleRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 10,
-  },
-  roleBtn: {
-    flex: 1,
-    backgroundColor: '#312E81',
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  roleBtnActive: {
-    backgroundColor: '#6C63FF',
-  },
-  roleBtnText: {
-    color: '#C7D2FE',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  roleBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  btn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  cameraBtn: {
-    backgroundColor: '#4F46E5',
-  },
-  ordersBtn: {
-    backgroundColor: '#059669',
-  },
-  storeBtn: {
-    backgroundColor: '#D97706',
-  },
-  resetBtn: {
-    backgroundColor: '#DC2626',
-  },
-  btnText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-});

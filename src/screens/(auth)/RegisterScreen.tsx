@@ -2,24 +2,29 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
-import { register } from '../../api';
-// import { CommonActions } from '@react-navigation/native';
-// import { register, saveToken } from '../api';
+import { Briefcase, ShoppingCart } from 'lucide-react-native';
+import { register, type AccountRole } from '../../api';
 import type { NavigationProp } from '../../types';
+import CustomInput from '../../components/CustomInput';
+import CustomButton from '../../components/CustomButton';
+import { cn } from '../../utils/cn';
 
 interface Props {
   navigation: NavigationProp<'Register'>;
 }
 
+const ROLE_OPTIONS: { role: AccountRole; label: string; icon: typeof Briefcase }[] = [
+  { role: 'vendor', label: 'Vendor', icon: Briefcase },
+  { role: 'customer', label: 'Customer', icon: ShoppingCart },
+];
+
 export default function RegisterScreen({ navigation }: Props) {
+  const [role, setRole] = useState<AccountRole>('vendor');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,13 +39,7 @@ export default function RegisterScreen({ navigation }: Props) {
     setError(null);
     setLoading(true);
     try {
-      // const res = await register(username.trim(), email.trim(), password);
-      // await saveToken(res.token);
-      // // Reset the entire stack so back button cannot return to Register/Login
-      // navigation.dispatch(
-      //   CommonActions.reset({ index: 0, routes: [{ name: 'Dashboard' }] }),
-      // );
-      await register(username.trim(), email.trim(), password);
+      await register(username.trim(), email.trim(), password, role);
       // Server sends an OTP to the email — navigate to the verify screen
       navigation.navigate('VerifyOtp', { email: email.trim().toLowerCase() });
     } catch (err: unknown) {
@@ -52,146 +51,88 @@ export default function RegisterScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      className="flex-1"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.container}>
-          <Text style={styles.brand}>ScanCode</Text>
-          <Text style={styles.subtitle}>Create your account</Text>
+      <ScrollView contentContainerClassName="flex-grow" keyboardShouldPersistTaps="handled">
+        <View className="flex-1 bg-white px-6 justify-center py-12">
+          <Text className="text-[34px] font-extrabold text-primary text-center mb-1.5">ScanCode</Text>
+          <Text className="text-base text-gray-500 text-center mb-8">Create your account</Text>
+
+          <View className="flex-row gap-2.5 mb-6">
+            {ROLE_OPTIONS.map((option) => {
+              const isActive = role === option.role;
+              const Icon = option.icon;
+              return (
+                <TouchableOpacity
+                  key={option.role}
+                  className={cn(
+                    'flex-1 flex-row items-center justify-center gap-2 rounded-xl border-[1.5px] py-3.5',
+                    isActive ? 'bg-primary/10 border-primary' : 'bg-white border-gray-300'
+                  )}
+                  onPress={() => setRole(option.role)}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                >
+                  <Icon size={16} color={isActive ? '#6C63FF' : '#6B7280'} strokeWidth={2.2} />
+                  <Text className={cn('text-sm font-bold', isActive ? 'text-primary' : 'text-gray-500')}>
+                    Register as {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
           {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View className="bg-red-100 rounded-lg p-3 mb-4">
+              <Text className="text-red-600 text-sm">{error}</Text>
             </View>
           )}
 
-          <View style={styles.form}>
-            <Text style={styles.label}>Username</Text>
-            <TextInput
-              style={styles.input}
+          <View className="gap-2">
+            <CustomInput
+              label="Username"
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
               autoComplete="username"
               placeholder="johndoe"
-              placeholderTextColor="#9CA3AF"
               editable={!loading}
             />
 
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
+            <CustomInput
+              label="Email"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
               placeholder="you@example.com"
-              placeholderTextColor="#9CA3AF"
               editable={!loading}
             />
 
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
+            <CustomInput
+              label="Password"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               placeholder="••••••••"
-              placeholderTextColor="#9CA3AF"
               editable={!loading}
             />
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleRegister}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Create Account</Text>
-              )}
-            </TouchableOpacity>
+            <CustomButton title="Create Account" onPress={handleRegister} loading={loading} />
           </View>
 
           <TouchableOpacity
-            style={styles.linkRow}
+            className="flex-row justify-center mt-6"
             onPress={() => navigation.navigate('Login')}
             disabled={loading}
           >
-            <Text style={styles.linkText}>Already have an account?</Text>
-            <Text style={[styles.linkText, styles.linkAccent]}> Sign in</Text>
+            <Text className="text-sm text-gray-500">Already have an account?</Text>
+            <Text className="text-sm text-primary font-semibold"> Sign in</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-    paddingVertical: 48,
-  },
-  brand: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#6C63FF',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  errorBox: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#DC2626', fontSize: 14 },
-  form: { gap: 8 },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 2,
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-    marginBottom: 12,
-  },
-  button: {
-    backgroundColor: '#6C63FF',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  linkRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  linkText: { fontSize: 14, color: '#6B7280' },
-  linkAccent: { color: '#6C63FF', fontWeight: '600' },
-});

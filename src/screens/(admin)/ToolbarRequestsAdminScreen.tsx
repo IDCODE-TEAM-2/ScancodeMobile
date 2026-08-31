@@ -1,17 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  Alert,
-} from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { Bell, Music2, Banknote, Megaphone, Mic2, MapPin, Check } from 'lucide-react-native';
 import type { NavigationProp, RouteProps } from '../../types';
 import ErrorBanner from '../../components/ErrorBanner';
+import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import {
   getStorefrontWaiterCalls,
   getStorefrontRequests,
@@ -23,6 +15,7 @@ import {
   type StoreRequestRecord,
   type TipRecord,
 } from '../../api';
+import { cn } from '../../utils/cn';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,12 +41,19 @@ function formatMoney(amount: number): string {
   return `₦${amount.toLocaleString()}`;
 }
 
-function requestTypeLabel(type: StoreRequestRecord['requestType']): string {
-  switch (type) {
-    case 'SHOUTOUT': return '📢 Shoutout';
-    case 'SONG':     return '🎵 Song';
-    case 'KARAOKE':  return '🎤 Karaoke';
-  }
+function RequestTypeLabel({ type }: { type: StoreRequestRecord['requestType'] }) {
+  const config = {
+    SHOUTOUT: { icon: Megaphone, label: 'Shoutout' },
+    SONG: { icon: Music2, label: 'Song' },
+    KARAOKE: { icon: Mic2, label: 'Karaoke' },
+  }[type];
+  const Icon = config.icon;
+  return (
+    <View className="flex-row items-center gap-1.5">
+      <Icon size={14} color="#111827" strokeWidth={2.2} />
+      <Text className="text-[15px] font-extrabold text-gray-900">{config.label}</Text>
+    </View>
+  );
 }
 
 function recipientLabel(tip: TipRecord): string {
@@ -66,9 +66,14 @@ function recipientLabel(tip: TipRecord): string {
 function StatusPill({ status }: { status: 'PENDING' | 'ACKNOWLEDGED' }) {
   const isPending = status === 'PENDING';
   return (
-    <View style={[styles.pill, isPending ? styles.pillPending : styles.pillAck]}>
-      <Text style={[styles.pillText, isPending ? styles.pillTextPending : styles.pillTextAck]}>
-        {isPending ? '🔔 Pending' : '✓ Acknowledged'}
+    <View className={cn('rounded-full px-2 py-[3px] flex-row items-center gap-1', isPending ? 'bg-amber-100' : 'bg-emerald-100')}>
+      {isPending ? (
+        <Bell size={10} color="#92400E" strokeWidth={2.5} />
+      ) : (
+        <Check size={10} color="#065F46" strokeWidth={2.5} />
+      )}
+      <Text className={cn('text-[11px] font-bold', isPending ? 'text-amber-800' : 'text-emerald-800')}>
+        {isPending ? 'Pending' : 'Acknowledged'}
       </Text>
     </View>
   );
@@ -112,11 +117,7 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
     }
   }, [storefrontId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadAll();
-    }, [loadAll])
-  );
+  useFocusRefresh(loadAll);
 
   // ─── Acknowledge Handlers ───────────────────────────────────────────────────
 
@@ -198,90 +199,101 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
   const pendingRequests = requests.filter((r) => r.status === 'PENDING').length;
   const pendingTips     = tips.filter((t) => t.status === 'PENDING').length;
 
-  const TAB_CONFIG: { key: Tab; label: string; emoji: string; count: number }[] = [
-    { key: 'WAITER_CALLS', label: 'Calls',    emoji: '🔔', count: pendingCalls },
-    { key: 'REQUESTS',     label: 'Requests', emoji: '🎵', count: pendingRequests },
-    { key: 'TIPS',         label: 'Tips',     emoji: '💸', count: pendingTips },
+  const TAB_CONFIG: { key: Tab; label: string; icon: typeof Bell; count: number }[] = [
+    { key: 'WAITER_CALLS', label: 'Calls',    icon: Bell,     count: pendingCalls },
+    { key: 'REQUESTS',     label: 'Requests', icon: Music2,   count: pendingRequests },
+    { key: 'TIPS',         label: 'Tips',     icon: Banknote, count: pendingTips },
   ];
 
   // ─── Render Functions ───────────────────────────────────────────────────────
 
   const renderCallCard = ({ item }: { item: WaiterCallRecord }) => (
-    <View style={[styles.card, item.status === 'PENDING' && styles.cardPending]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardHeaderLeft}>
-          <Text style={styles.cardTitle}>📍 {item.tableNumber}</Text>
-          <Text style={styles.cardSubtitle}>{item.callTarget}</Text>
+    <View className={cn('bg-white rounded-2xl p-4 gap-2.5 shadow-sm', item.status === 'PENDING' && 'border-l-4 border-amber-500')}>
+      <View className="flex-row justify-between items-start">
+        <View className="flex-1 gap-0.5">
+          <View className="flex-row items-center gap-1.5">
+            <MapPin size={13} color="#111827" strokeWidth={2.2} />
+            <Text className="text-[15px] font-extrabold text-gray-900">{item.tableNumber}</Text>
+          </View>
+          <Text className="text-[13px] text-gray-500 font-medium">{item.callTarget}</Text>
         </View>
-        <View style={styles.cardHeaderRight}>
-          <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
+        <View className="items-end gap-1.5">
+          <Text className="text-[11px] text-gray-400">{formatTime(item.createdAt)}</Text>
           <StatusPill status={item.status} />
         </View>
       </View>
 
-      <Text style={styles.cardBody}>{item.message}</Text>
+      <Text className="text-sm text-gray-700 leading-5">{item.message}</Text>
 
       {item.status === 'PENDING' && (
         <TouchableOpacity
-          style={styles.ackBtn}
+          className="bg-indigo-600 rounded-[10px] py-2.5 items-center flex-row justify-center gap-1.5"
           onPress={() => handleAckCall(item)}
           activeOpacity={0.8}
         >
-          <Text style={styles.ackBtnText}>✓ Mark as Acknowledged</Text>
+          <Check size={14} color="#FFFFFF" strokeWidth={2.5} />
+          <Text className="text-white text-[13px] font-bold">Mark as Acknowledged</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 
   const renderRequestCard = ({ item }: { item: StoreRequestRecord }) => (
-    <View style={[styles.card, item.status === 'PENDING' && styles.cardPending]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardHeaderLeft}>
-          <Text style={styles.cardTitle}>{requestTypeLabel(item.requestType)}</Text>
+    <View className={cn('bg-white rounded-2xl p-4 gap-2.5 shadow-sm', item.status === 'PENDING' && 'border-l-4 border-amber-500')}>
+      <View className="flex-row justify-between items-start">
+        <View className="flex-1 gap-1.5">
+          <RequestTypeLabel type={item.requestType} />
           {item.amount > 0 && (
-            <Text style={styles.amountChip}>{formatMoney(item.amount)}</Text>
+            <Text className="self-start bg-emerald-50 text-emerald-600 text-[13px] font-extrabold px-2 py-0.5 rounded-lg overflow-hidden">
+              {formatMoney(item.amount)}
+            </Text>
           )}
         </View>
-        <View style={styles.cardHeaderRight}>
-          <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
+        <View className="items-end gap-1.5">
+          <Text className="text-[11px] text-gray-400">{formatTime(item.createdAt)}</Text>
           <StatusPill status={item.status} />
         </View>
       </View>
 
-      <Text style={styles.cardBody}>{item.details}</Text>
+      <Text className="text-sm text-gray-700 leading-5">{item.details}</Text>
 
       {item.status === 'PENDING' && (
         <TouchableOpacity
-          style={styles.ackBtn}
+          className="bg-indigo-600 rounded-[10px] py-2.5 items-center flex-row justify-center gap-1.5"
           onPress={() => handleAckRequest(item)}
           activeOpacity={0.8}
         >
-          <Text style={styles.ackBtnText}>✓ Mark as Acknowledged</Text>
+          <Check size={14} color="#FFFFFF" strokeWidth={2.5} />
+          <Text className="text-white text-[13px] font-bold">Mark as Acknowledged</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 
   const renderTipCard = ({ item }: { item: TipRecord }) => (
-    <View style={[styles.card, item.status === 'PENDING' && styles.cardPending]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardHeaderLeft}>
-          <Text style={styles.cardTitle}>💸 {formatMoney(item.amount)}</Text>
-          <Text style={styles.cardSubtitle}>For: {recipientLabel(item)}</Text>
+    <View className={cn('bg-white rounded-2xl p-4 gap-2.5 shadow-sm', item.status === 'PENDING' && 'border-l-4 border-amber-500')}>
+      <View className="flex-row justify-between items-start">
+        <View className="flex-1 gap-0.5">
+          <View className="flex-row items-center gap-1.5">
+            <Banknote size={14} color="#111827" strokeWidth={2.2} />
+            <Text className="text-[15px] font-extrabold text-gray-900">{formatMoney(item.amount)}</Text>
+          </View>
+          <Text className="text-[13px] text-gray-500 font-medium">For: {recipientLabel(item)}</Text>
         </View>
-        <View style={styles.cardHeaderRight}>
-          <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
+        <View className="items-end gap-1.5">
+          <Text className="text-[11px] text-gray-400">{formatTime(item.createdAt)}</Text>
           <StatusPill status={item.status} />
         </View>
       </View>
 
       {item.status === 'PENDING' && (
         <TouchableOpacity
-          style={[styles.ackBtn, styles.ackBtnTip]}
+          className="bg-emerald-600 rounded-[10px] py-2.5 items-center flex-row justify-center gap-1.5"
           onPress={() => handleAckTip(item)}
           activeOpacity={0.8}
         >
-          <Text style={styles.ackBtnText}>✓ Confirm Tip Received</Text>
+          <Check size={14} color="#FFFFFF" strokeWidth={2.5} />
+          <Text className="text-white text-[13px] font-bold">Confirm Tip Received</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -299,37 +311,48 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
+  const EmptyIcon = activeTab === 'WAITER_CALLS' ? Bell : activeTab === 'REQUESTS' ? Music2 : Banknote;
+
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-gray-100">
       {/* Header */}
-      <View style={styles.header}>
+      <View className="flex-row justify-between items-center px-5 py-3.5 bg-white border-b border-gray-200">
         <View>
-          <Text style={styles.headerTitle}>{storefrontName}</Text>
-          <Text style={styles.headerSubtitle}>
-            {pendingCalls + pendingRequests + pendingTips > 0
-              ? `${pendingCalls + pendingRequests + pendingTips} pending item(s) need attention`
-              : 'All activity acknowledged ✓'}
-          </Text>
+          <Text className="text-lg font-bold text-gray-900">{storefrontName}</Text>
+          <View className="flex-row items-center gap-1 mt-0.5">
+            {pendingCalls + pendingRequests + pendingTips > 0 ? (
+              <Text className="text-[13px] text-gray-500">
+                {pendingCalls + pendingRequests + pendingTips} pending item(s) need attention
+              </Text>
+            ) : (
+              <View className="flex-row items-center gap-1">
+                <Text className="text-[13px] text-gray-500">All activity acknowledged</Text>
+                <Check size={12} color="#6B7280" strokeWidth={2.5} />
+              </View>
+            )}
+          </View>
         </View>
       </View>
 
       {/* Tab Bar */}
-      <View style={styles.tabBar}>
+      <View className="flex-row bg-white px-4 py-2 gap-2 border-b border-gray-200">
         {TAB_CONFIG.map((tab) => {
           const isActive = activeTab === tab.key;
+          const Icon = tab.icon;
           return (
             <TouchableOpacity
               key={tab.key}
-              style={[styles.tabItem, isActive && styles.tabItemActive]}
+              className={cn('flex-1 flex-row items-center justify-center py-2 rounded-[10px] gap-1', isActive ? 'bg-primary' : 'bg-gray-100')}
               onPress={() => setActiveTab(tab.key)}
               activeOpacity={0.75}
             >
-              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                {tab.emoji} {tab.label}
+              <Icon size={13} color={isActive ? '#FFFFFF' : '#4B5563'} strokeWidth={2.2} />
+              <Text className={cn('text-xs font-bold', isActive ? 'text-white' : 'text-gray-600')}>
+                {tab.label}
               </Text>
               {tab.count > 0 && (
-                <View style={styles.tabBadge}>
-                  <Text style={styles.tabBadgeText}>{tab.count}</Text>
+                <View className="bg-red-500 rounded-full min-w-[18px] h-[18px] items-center justify-center px-1">
+                  <Text className="text-white text-[10px] font-extrabold">{tab.count}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -340,19 +363,16 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {loading ? (
-        <View style={styles.center}>
+        <View className="flex-1 items-center justify-center p-6">
           <ActivityIndicator size="large" color="#6C63FF" />
-          <Text style={styles.loadingText}>Loading activity...</Text>
+          <Text className="mt-2.5 text-sm text-gray-500">Loading activity...</Text>
         </View>
       ) : (
         <FlatList
           data={currentData as any[]}
           keyExtractor={(item: any) => String(item.id)}
           renderItem={renderItem as any}
-          contentContainerStyle={[
-            styles.list,
-            currentData.length === 0 && styles.listEmpty,
-          ]}
+          contentContainerClassName={cn('p-4 gap-3', currentData.length === 0 && 'flex-1')}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -361,12 +381,12 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>
-                {activeTab === 'WAITER_CALLS' ? '🔔' : activeTab === 'REQUESTS' ? '🎵' : '💸'}
+            <View className="flex-1 items-center justify-center p-10">
+              <EmptyIcon size={44} color="#D1D5DB" strokeWidth={1.5} />
+              <Text className="text-[17px] font-bold text-gray-700 mt-3 mb-1.5">
+                No {activeTab === 'WAITER_CALLS' ? 'calls' : activeTab === 'REQUESTS' ? 'requests' : 'tips'} yet
               </Text>
-              <Text style={styles.emptyTitle}>No {activeTab === 'WAITER_CALLS' ? 'calls' : activeTab === 'REQUESTS' ? 'requests' : 'tips'} yet</Text>
-              <Text style={styles.emptySubtitle}>
+              <Text className="text-[13px] text-gray-400 text-center leading-[19px]">
                 Customer activity from the Storefront Toolbar will appear here.
               </Text>
             </View>
@@ -376,127 +396,3 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
     </View>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  headerSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-
-  // Tabs
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  tabItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    gap: 4,
-  },
-  tabItemActive: { backgroundColor: '#6C63FF' },
-  tabLabel: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
-  tabLabelActive: { color: '#FFFFFF' },
-  tabBadge: {
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  tabBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
-
-  // List
-  list: { padding: 16, gap: 12 },
-  listEmpty: { flex: 1 },
-
-  // Cards
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 4,
-    elevation: 2,
-    gap: 10,
-  },
-  cardPending: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  cardHeaderLeft: { flex: 1, gap: 3 },
-  cardHeaderRight: { alignItems: 'flex-end', gap: 6 },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: '#111827' },
-  cardSubtitle: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  cardBody: { fontSize: 14, color: '#374151', lineHeight: 20 },
-  timeText: { fontSize: 11, color: '#9CA3AF' },
-
-  amountChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#ECFDF5',
-    color: '#059669',
-    fontSize: 13,
-    fontWeight: '800',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-
-  // Status pills
-  pill: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
-  pillPending: { backgroundColor: '#FEF3C7' },
-  pillAck: { backgroundColor: '#D1FAE5' },
-  pillText: { fontSize: 11, fontWeight: '700' },
-  pillTextPending: { color: '#92400E' },
-  pillTextAck: { color: '#065F46' },
-
-  // Acknowledge button
-  ackBtn: {
-    backgroundColor: '#4F46E5',
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  ackBtnTip: { backgroundColor: '#059669' },
-  ackBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-
-  // States
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { marginTop: 10, fontSize: 14, color: '#6B7280' },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: '#374151', marginBottom: 6 },
-  emptySubtitle: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 19 },
-});

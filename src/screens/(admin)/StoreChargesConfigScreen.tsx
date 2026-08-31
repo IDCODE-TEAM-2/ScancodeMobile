@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet,
   View,
   Text,
   TextInput,
@@ -13,9 +12,11 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { Settings2 } from 'lucide-react-native';
 import type { NavigationProp, RouteProps } from '../../types';
 import { getStoreConfig, updateStoreConfig } from '../../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { cn } from '../../utils/cn';
 
 export default function StoreChargesConfigScreen() {
   const navigation = useNavigation<NavigationProp<'StoreChargesConfig'>>();
@@ -99,8 +100,8 @@ export default function StoreChargesConfigScreen() {
       setTimeout(() => {
         navigation.goBack();
       }, 1200);
-    } catch (err: any) {
-      setFeedbackMsg({ type: 'error', text: err.message || 'Failed to save store settings.' });
+    } catch (err: unknown) {
+      setFeedbackMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save store settings.' });
     } finally {
       setIsSaving(false);
     }
@@ -108,72 +109,74 @@ export default function StoreChargesConfigScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
+      <View className="flex-1 justify-center items-center bg-gray-50">
         <ActivityIndicator size="large" color="#6C63FF" />
-        <Text style={styles.loadingText}>Loading store charges configuration...</Text>
+        <Text className="mt-3 text-sm text-gray-600">Loading store charges configuration...</Text>
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-gray-50"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.headerCard}>
-          <Text style={styles.headerIcon}>⚙️</Text>
-          <Text style={styles.headerTitle}>Store Charges & Tax Settings</Text>
-          <Text style={styles.headerSub}>
+      <ScrollView contentContainerClassName="p-5" keyboardShouldPersistTaps="handled">
+        <View className="bg-white rounded-[20px] p-5 mb-4 items-center shadow-sm">
+          <View className="w-12 h-12 rounded-full bg-indigo-50 items-center justify-center mb-2">
+            <Settings2 size={22} color="#6C63FF" strokeWidth={2} />
+          </View>
+          <Text className="text-[17px] font-bold text-gray-900 mb-1">Store Charges & Tax Settings</Text>
+          <Text className="text-[13px] text-gray-500 text-center leading-[18px]">
             Configure VAT rates and delivery/logistics fees applied during customer checkout and receipts.
           </Text>
         </View>
 
         {feedbackMsg && (
           <View
-            style={[
-              styles.feedbackBox,
-              feedbackMsg.type === 'success' ? styles.feedbackSuccess : styles.feedbackError,
-            ]}
+            className={cn(
+              'p-3.5 rounded-xl mb-4 border',
+              feedbackMsg.type === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
+            )}
           >
             <Text
-              style={[
-                styles.feedbackText,
-                feedbackMsg.type === 'success' ? styles.feedbackSuccessText : styles.feedbackErrorText,
-              ]}
+              className={cn(
+                'text-[13px] font-semibold text-center',
+                feedbackMsg.type === 'success' ? 'text-emerald-900' : 'text-red-900'
+              )}
             >
               {feedbackMsg.text}
             </Text>
           </View>
         )}
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Value Added Tax (VAT)</Text>
+        <View className="bg-white rounded-[20px] p-5 mb-4 shadow-sm">
+          <Text className="text-[15px] font-bold text-gray-900 mb-2">Value Added Tax (VAT)</Text>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>VAT Percentage (%)</Text>
-            <View style={styles.inputWrapper}>
+          <View className="mb-1">
+            <Text className="text-[13px] font-semibold text-gray-700 mb-1.5">VAT Percentage (%)</Text>
+            <View className="relative justify-center">
               <TextInput
-                style={styles.input}
+                className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-3 text-sm text-gray-900"
                 value={vatRateInput}
                 onChangeText={setVatRateInput}
                 placeholder="7.5"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="decimal-pad"
               />
-              <Text style={styles.unitText}>%</Text>
+              <Text className="absolute right-3.5 text-sm font-bold text-gray-500">%</Text>
             </View>
-            <Text style={styles.fieldHelp}>
+            <Text className="text-xs text-gray-500 mt-1.5 leading-4">
               Standard VAT rate (e.g. 7.5%). Enter 0 to disable VAT calculation.
             </Text>
           </View>
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.toggleHeaderRow}>
-            <View style={styles.toggleLabelContainer}>
-              <Text style={styles.sectionTitle}>Delivery / Logistics Fee</Text>
-              <Text style={styles.fieldHelp}>
+        <View className="bg-white rounded-[20px] p-5 mb-4 shadow-sm">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 mr-3">
+              <Text className="text-[15px] font-bold text-gray-900 mb-2">Delivery / Logistics Fee</Text>
+              <Text className="text-xs text-gray-500 leading-4">
                 Enable for delivery orders, or disable for hotels, bars, and dine-in venues.
               </Text>
             </View>
@@ -186,12 +189,12 @@ export default function StoreChargesConfigScreen() {
           </View>
 
           {deliveryEnabled && (
-            <View style={[styles.fieldGroup, { marginTop: 16 }]}>
-              <Text style={styles.label}>Default Delivery Fee (₦)</Text>
-              <View style={styles.inputWrapper}>
-                <Text style={styles.currencyPrefix}>₦</Text>
+            <View className="mt-4">
+              <Text className="text-[13px] font-semibold text-gray-700 mb-1.5">Default Delivery Fee (₦)</Text>
+              <View className="relative justify-center">
+                <Text className="absolute left-3.5 z-10 text-sm font-bold text-gray-500">₦</Text>
                 <TextInput
-                  style={[styles.input, { paddingLeft: 32 }]}
+                  className="bg-gray-50 border border-gray-200 rounded-xl py-3 pr-3.5 pl-8 text-sm text-gray-900"
                   value={logisticsFeeInput}
                   onChangeText={setLogisticsFeeInput}
                   placeholder="2000"
@@ -204,7 +207,7 @@ export default function StoreChargesConfigScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
+          className={cn('rounded-2xl py-4 items-center justify-center mt-2', isSaving ? 'bg-gray-400' : 'bg-primary')}
           onPress={handleSave}
           disabled={isSaving}
           activeOpacity={0.8}
@@ -212,41 +215,10 @@ export default function StoreChargesConfigScreen() {
           {isSaving ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.saveBtnText}>Save Store Charges</Text>
+            <Text className="text-white text-[15px] font-bold">Save Store Charges</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#4B5563' },
-  scrollContent: { padding: 20 },
-  headerCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, marginBottom: 16, alignItems: 'center', elevation: 2 },
-  headerIcon: { fontSize: 32, marginBottom: 8 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  headerSub: { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 18 },
-  feedbackBox: { padding: 14, borderRadius: 12, marginBottom: 16 },
-  feedbackSuccess: { backgroundColor: '#DEF7EC', borderColor: '#BCF0DA', borderWidth: 1 },
-  feedbackError: { backgroundColor: '#FDE8E8', borderColor: '#FBD5D5', borderWidth: 1 },
-  feedbackText: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  feedbackSuccessText: { color: '#03543F' },
-  feedbackErrorText: { color: '#9B1C1C' },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, marginBottom: 16, elevation: 2 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  fieldGroup: { marginBottom: 4 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  inputWrapper: { position: 'relative', justifyContent: 'center' },
-  input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#111827' },
-  unitText: { position: 'absolute', right: 14, fontSize: 14, fontWeight: '700', color: '#6B7280' },
-  currencyPrefix: { position: 'absolute', left: 14, zIndex: 1, fontSize: 14, fontWeight: '700', color: '#6B7280' },
-  fieldHelp: { fontSize: 12, color: '#6B7280', marginTop: 6, lineHeight: 16 },
-  toggleHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  toggleLabelContainer: { flex: 1, marginRight: 12 },
-  saveBtn: { backgroundColor: '#6C63FF', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  saveBtnDisabled: { backgroundColor: '#9CA3AF' },
-  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-});

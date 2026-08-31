@@ -1,19 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-  Alert,
-} from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { MapPin, ShoppingBag, Bell, Zap, Volume2, VolumeX, Music2, Check } from 'lucide-react-native';
 import type { NavigationProp, RouteProps } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import ErrorBanner from '../../components/ErrorBanner';
-import CustomButton from '../../components/CustomButton';
 import { playOrderAlarmSound, playStatusChangeSound, getCustomAlarmUri, setCustomAlarmUri, initAudioAlert } from '../../utils/audioAlert';
+import { useFocusRefresh } from '../../hooks/useFocusRefresh';
+import { getOrders, updateOrderStatus, type OrderResponse } from '../../api';
+import { cn } from '../../utils/cn';
 
 export interface OrderItem {
   id: number;
@@ -29,7 +23,10 @@ export interface LiveOrder {
   tableNumber?: string;
   customerName?: string;
   totalAmount: number;
-  status: 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED';
+  // Real backend orders can carry statuses (e.g. PREPARING, COMPLETED) beyond
+  // the four this screen's UI actively manages — kept as `string` so we don't
+  // drop/mis-map data we don't have an action for yet.
+  status: string;
   createdAt: string;
   items: OrderItem[];
 }
@@ -39,51 +36,39 @@ interface Props {
   route: RouteProps<'LiveOrdersManager'>;
 }
 
-const MOCK_INITIAL_ORDERS: LiveOrder[] = [
-  {
-    id: 101,
-    orderNumber: 'ORD-8821',
-    tableNumber: 'Table 04',
-    customerName: 'Alex Johnson',
-    totalAmount: 42.50,
-    status: 'PENDING',
-    createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    items: [
-      { id: 1, name: 'Truffle Burger Special', quantity: 2, price: 16.00, options: 'Extra Cheese' },
-      { id: 2, name: 'Craft IPA Beer', quantity: 2, price: 5.25 },
-    ],
-  },
-  {
-    id: 102,
-    orderNumber: 'ORD-8822',
-    tableNumber: 'Table 12',
-    customerName: 'Sarah Smith',
-    totalAmount: 18.00,
-    status: 'CONFIRMED',
-    createdAt: new Date(Date.now() - 15 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    items: [
-      { id: 3, name: 'Margherita Pizza', quantity: 1, price: 14.00 },
-      { id: 4, name: 'Sparkling Water', quantity: 1, price: 4.00 },
-    ],
-  },
-  {
-    id: 103,
-    orderNumber: 'ORD-8820',
-    tableNumber: 'Takeout',
-    customerName: 'Michael Brown',
-    totalAmount: 29.90,
-    status: 'REJECTED',
-    createdAt: new Date(Date.now() - 30 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    items: [
-      { id: 5, name: 'Chef Salad Bowl', quantity: 2, price: 14.95 },
-    ],
-  },
-];
+function parseOrderItems(raw: string): OrderItem[] {
+  try {
+    const parsed = JSON.parse(raw) as { id: string; name: string; qty: number; price: number }[];
+    return parsed.map((item, idx) => ({
+      id: Number(item.id) || idx,
+      name: item.name,
+      quantity: item.qty,
+      price: item.price,
+    }));
+  } catch {
+    return [];
+  }
+}
 
-export default function LiveOrdersManagerScreen({ navigation, route }: Props) {
+function mapOrder(order: OrderResponse): LiveOrder {
+  return {
+    id: order.id,
+    orderNumber: `ORD-${order.id}`,
+    tableNumber: order.tableLabel ?? order.tableCode ?? undefined,
+    customerName: order.customerName,
+    totalAmount: order.total,
+    status: order.status,
+    createdAt: new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    items: parseOrderItems(order.orderItems),
+  };
+}
+
+export default function LiveOrdersManagerScreen({ route }: Props) {
   const storefrontName = route.params?.name || 'Storefront';
-  const [orders, setOrders] = useState<LiveOrder[]>(MOCK_INITIAL_ORDERS);
-  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'REJECTED'>('ALL');
+  const storefrontId = route.params?.storefrontId;
+  const [orders, setOrders] = useState<LiveOrder[]>([]);
+  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'REJECTED'>('ALL');
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [customToneUri, setCustomToneUri] = useState<string | null>(null);
@@ -153,31 +138,43 @@ export default function LiveOrdersManagerScreen({ navigation, route }: Props) {
       orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
       tableNumber: `Table ${Math.floor(1 + Math.random() * 15)}`,
       customerName: 'Incoming Guest',
-      totalAmount: 34.50,
+      totalAmount: 12500,
       status: 'PENDING',
       createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       items: [
-        { id: newId + 1, name: 'Chef BBQ Ribs', quantity: 1, price: 26.50 },
-        { id: newId + 2, name: 'Fresh Iced Tea', quantity: 2, price: 4.00 },
+        { id: newId + 1, name: 'Chef BBQ Ribs', quantity: 1, price: 9500 },
+        { id: newId + 2, name: 'Fresh Iced Tea', quantity: 2, price: 1500 },
       ],
     };
     setOrders((prev) => [newOrder, ...prev]);
   }
 
   const fetchOrders = useCallback(async (isRefresh = false) => {
+    if (!storefrontId) {
+      setLoading(false);
+      return;
+    }
     if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      const data = await getOrders(storefrontId);
+      setOrders(data.map(mapOrder));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Could not refresh orders.');
+      setError(err instanceof Error ? err.message : 'Could not load orders.');
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [storefrontId]);
 
-  function handleUpdateStatus(orderId: number, newStatus: 'CONFIRMED' | 'REJECTED' | 'CANCELLED') {
+  useFocusRefresh(fetchOrders);
+
+  function handleUpdateStatus(orderId: number, newStatus: 'CONFIRMED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED') {
     const actionLabel =
-      newStatus === 'CONFIRMED' ? 'Confirm' : newStatus === 'REJECTED' ? 'Reject' : 'Cancel';
+      newStatus === 'CONFIRMED' ? 'Confirm' :
+      newStatus === 'COMPLETED' ? 'Complete' :
+      newStatus === 'REJECTED' ? 'Reject' : 'Cancel';
 
     Alert.alert(
       `${actionLabel} Order`,
@@ -186,14 +183,21 @@ export default function LiveOrdersManagerScreen({ navigation, route }: Props) {
         { text: 'Back', style: 'cancel' },
         {
           text: actionLabel,
-          style: newStatus === 'CONFIRMED' ? 'default' : 'destructive',
-          onPress: () => {
-            if (soundEnabled) {
-              playStatusChangeSound();
+          style: newStatus === 'CONFIRMED' || newStatus === 'COMPLETED' ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              if (storefrontId) {
+                await updateOrderStatus(storefrontId, orderId, newStatus);
+              }
+              if (soundEnabled) {
+                playStatusChangeSound();
+              }
+              setOrders((prev) =>
+                prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+              );
+            } catch {
+              Alert.alert('Error', 'Failed to update order status. Please try again.');
             }
-            setOrders((prev) =>
-              prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-            );
           },
         },
       ]
@@ -211,108 +215,135 @@ export default function LiveOrdersManagerScreen({ navigation, route }: Props) {
     const isPending = item.status === 'PENDING';
 
     return (
-      <View style={[styles.card, isPending && styles.pendingCardBorder]}>
-        <View style={styles.cardHeader}>
+      <View className={cn('bg-white rounded-xl p-4 shadow-sm', isPending && 'border-l-4 border-amber-500')}>
+        <View className="flex-row justify-between items-start mb-3">
           <View>
-            <View style={styles.orderNumberRow}>
-              <Text style={styles.orderNumber}>{item.orderNumber}</Text>
+            <View className="flex-row items-center gap-2">
+              <Text className="text-base font-extrabold text-gray-900">{item.orderNumber}</Text>
               <StatusBadge status={item.status} />
             </View>
-            <Text style={styles.orderSub}>
-              {item.tableNumber ? `📍 ${item.tableNumber}` : '🛍️ Delivery / Takeout'}
-              {item.customerName ? ` • ${item.customerName}` : ''}
-            </Text>
+            <View className="flex-row items-center gap-1 mt-0.5">
+              {item.tableNumber ? (
+                <>
+                  <MapPin size={11} color="#6B7280" strokeWidth={2.2} />
+                  <Text className="text-[13px] text-gray-500">{item.tableNumber}</Text>
+                </>
+              ) : (
+                <>
+                  <ShoppingBag size={11} color="#6B7280" strokeWidth={2.2} />
+                  <Text className="text-[13px] text-gray-500">Delivery / Takeout</Text>
+                </>
+              )}
+              {item.customerName ? <Text className="text-[13px] text-gray-500"> • {item.customerName}</Text> : null}
+            </View>
           </View>
-          <Text style={styles.timeText}>{item.createdAt}</Text>
+          <Text className="text-xs text-gray-400">{item.createdAt}</Text>
         </View>
 
-        <View style={styles.itemsList}>
+        <View className="border-t border-b border-gray-100 py-2 my-2 gap-1.5">
           {item.items.map((it) => (
-            <View key={it.id} style={styles.itemRow}>
-              <Text style={styles.itemQty}>{it.quantity}x</Text>
-              <View style={styles.itemDetails}>
-                <Text style={styles.itemName}>{it.name}</Text>
-                {it.options ? <Text style={styles.itemOpt}>{it.options}</Text> : null}
+            <View key={it.id} className="flex-row items-center">
+              <Text className="font-bold text-primary w-7 text-[13px]">{it.quantity}x</Text>
+              <View className="flex-1">
+                <Text className="text-sm text-gray-900 font-medium">{it.name}</Text>
+                {it.options ? <Text className="text-xs text-gray-500">{it.options}</Text> : null}
               </View>
-              <Text style={styles.itemPrice}>${(it.price * it.quantity).toFixed(2)}</Text>
+              <Text className="text-[13px] font-semibold text-indigo-800">₦{(it.price * it.quantity).toLocaleString()}</Text>
             </View>
           ))}
         </View>
 
-        <View style={styles.cardFooter}>
-          <Text style={styles.totalLabel}>
-            Total: <Text style={styles.totalValue}>${item.totalAmount.toFixed(2)}</Text>
+        <View className="mt-1">
+          <Text className="text-sm text-gray-500 mb-3">
+            Total: <Text className="text-base font-extrabold text-gray-900">₦{item.totalAmount.toLocaleString()}</Text>
           </Text>
 
           {isPending ? (
-            <View style={styles.actionRow}>
+            <View className="flex-row gap-2.5">
               <TouchableOpacity
-                style={[styles.btnAction, styles.rejectBtn]}
+                className="flex-1 rounded-lg py-2.5 items-center bg-red-100"
                 onPress={() => handleUpdateStatus(item.id, 'REJECTED')}
               >
-                <Text style={styles.rejectText}>Reject</Text>
+                <Text className="text-red-600 font-bold text-sm">Reject</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.btnAction, styles.confirmBtn]}
+                className="flex-1 rounded-lg py-2.5 items-center bg-emerald-600"
                 onPress={() => handleUpdateStatus(item.id, 'CONFIRMED')}
               >
-                <Text style={styles.confirmText}>Confirm Order</Text>
+                <Text className="text-white font-bold text-sm">Confirm Order</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.cancelLink}
-              onPress={() => handleUpdateStatus(item.id, 'CANCELLED')}
-            >
-              <Text style={styles.cancelLinkText}>Cancel Order</Text>
-            </TouchableOpacity>
-          )}
+          ) : item.status === 'CONFIRMED' ? (
+            <View className="flex-row gap-2.5">
+              <TouchableOpacity
+                className="self-end"
+                onPress={() => handleUpdateStatus(item.id, 'CANCELLED')}
+              >
+                <Text className="text-xs text-red-500 font-semibold">Cancel Order</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 rounded-lg py-2.5 items-center bg-emerald-600"
+                onPress={() => handleUpdateStatus(item.id, 'COMPLETED')}
+              >
+                <Text className="text-white font-bold text-sm">Mark Completed</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View className="flex-1 bg-gray-100">
+      <View className="flex-row justify-between items-center px-5 py-3.5 bg-white border-b border-gray-200">
         <View>
-          <Text style={styles.headerTitle}>{storefrontName}</Text>
-          <Text style={styles.headerSubtitle}>
-            {pendingCount > 0
-              ? `🔔 ${pendingCount} Pending Order${pendingCount > 1 ? 's' : ''}`
-              : 'All orders up to date'}
-          </Text>
+          <Text className="text-lg font-bold text-gray-900">{storefrontName}</Text>
+          <View className="flex-row items-center gap-1 mt-0.5">
+            {pendingCount > 0 && <Bell size={12} color="#6B7280" strokeWidth={2.2} />}
+            <Text className="text-[13px] text-gray-500">
+              {pendingCount > 0
+                ? `${pendingCount} Pending Order${pendingCount > 1 ? 's' : ''}`
+                : 'All orders up to date'}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.headerRightControls}>
+        <View className="flex-row items-center gap-2">
           <TouchableOpacity
-            style={styles.testSoundBtn}
+            className="bg-indigo-50 rounded-full px-2.5 py-1.5 border border-indigo-200 flex-row items-center gap-1"
             onPress={handleTriggerTestOrder}
           >
-            <Text style={styles.testSoundText}>⚡ Test Alarm</Text>
+            <Zap size={12} color="#4F46E5" strokeWidth={2.2} />
+            <Text className="text-xs font-bold text-indigo-600">Test Alarm</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.soundBtn, soundEnabled && styles.soundBtnActive]}
+            className={cn('rounded-full px-3 py-1.5 flex-row items-center gap-1', soundEnabled ? 'bg-indigo-100' : 'bg-gray-100')}
             onPress={handleSoundToggle}
           >
-            <Text style={styles.soundText}>{soundEnabled ? '🔊 Sound On' : '🔇 Muted'}</Text>
+            {soundEnabled ? (
+              <Volume2 size={12} color="#3730A3" strokeWidth={2.2} />
+            ) : (
+              <VolumeX size={12} color="#3730A3" strokeWidth={2.2} />
+            )}
+            <Text className="text-xs font-semibold text-indigo-800">{soundEnabled ? 'Sound On' : 'Muted'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.toneBtn}
+            className="bg-amber-100 rounded-full px-2.5 py-1.5 border border-amber-200 flex-row items-center gap-1"
             onPress={customToneUri ? handleClearCustomTone : handlePickCustomTone}
             activeOpacity={0.8}
           >
-            <Text style={styles.toneBtnText}>
-              {customToneUri ? '🎵 Custom ✓' : '🎵 Set Tone'}
-            </Text>
+            <Music2 size={12} color="#92400E" strokeWidth={2.2} />
+            <Text className="text-xs font-bold text-amber-800">{customToneUri ? 'Custom' : 'Set Tone'}</Text>
+            {customToneUri && <Check size={12} color="#92400E" strokeWidth={2.5} />}
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.tabsRow}>
-        {(['ALL', 'PENDING', 'CONFIRMED', 'REJECTED'] as const).map((tab) => {
+      <View className="flex-row bg-white px-4 py-2 gap-2 border-b border-gray-200">
+        {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED'] as const).map((tab) => {
           const active = activeTab === tab;
           const count =
             tab === 'ALL' ? orders.length : orders.filter((o) => o.status === tab).length;
@@ -320,10 +351,10 @@ export default function LiveOrdersManagerScreen({ navigation, route }: Props) {
           return (
             <TouchableOpacity
               key={tab}
-              style={[styles.tabItem, active && styles.tabItemActive]}
+              className={cn('px-3 py-1.5 rounded-lg', active ? 'bg-primary' : 'bg-gray-100')}
               onPress={() => setActiveTab(tab)}
             >
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>
+              <Text className={cn('text-xs font-semibold', active ? 'text-white' : 'text-gray-600')}>
                 {tab} ({count})
               </Text>
             </TouchableOpacity>
@@ -333,117 +364,35 @@ export default function LiveOrdersManagerScreen({ navigation, route }: Props) {
 
       {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
 
-      <FlatList
-        data={filteredOrders}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={renderOrderCard}
-        contentContainerStyle={[styles.list, filteredOrders.length === 0 && styles.listEmpty]}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => fetchOrders(true)}
-            tintColor="#6C63FF"
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No {activeTab.toLowerCase()} orders</Text>
-            <Text style={styles.emptySubtitle}>
-              New incoming customer orders will appear here automatically.
-            </Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <View className="flex-1 items-center justify-center p-6">
+          <ActivityIndicator size="large" color="#6C63FF" />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredOrders}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderOrderCard}
+          contentContainerClassName={cn('p-4 gap-3', filteredOrders.length === 0 && 'flex-1')}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => fetchOrders(true)}
+              tintColor="#6C63FF"
+            />
+          }
+          ListEmptyComponent={
+            <View className="flex-1 items-center justify-center p-8">
+              <Text className="text-base font-bold text-gray-600 mb-1">No {activeTab.toLowerCase()} orders</Text>
+              <Text className="text-[13px] text-gray-400 text-center">
+                {storefrontId
+                  ? 'New incoming customer orders will appear here automatically.'
+                  : 'No storefront was specified for this screen.'}
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  headerSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  headerRightControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  testSoundBtn: {
-    backgroundColor: '#EEF2FF',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
-  },
-  testSoundText: { fontSize: 12, fontWeight: '700', color: '#4F46E5' },
-  toneBtn: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  toneBtnText: { fontSize: 12, fontWeight: '700', color: '#92400E' },
-  soundBtn: { backgroundColor: '#F3F4F6', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  soundBtnActive: { backgroundColor: '#E0E7FF' },
-  soundText: { fontSize: 12, fontWeight: '600', color: '#3730A3' },
-  tabsRow: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  tabItem: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#F3F4F6' },
-  tabItemActive: { backgroundColor: '#6C63FF' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#4B5563' },
-  tabTextActive: { color: '#FFFFFF' },
-  list: { padding: 16, gap: 12 },
-  listEmpty: { flex: 1 },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  pendingCardBorder: { borderLeftWidth: 4, borderLeftColor: '#F59E0B' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  orderNumberRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  orderNumber: { fontSize: 16, fontWeight: '800', color: '#111827' },
-  orderSub: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  timeText: { fontSize: 12, color: '#9CA3AF' },
-  itemsList: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F3F4F6', paddingVertical: 8, marginVertical: 8, gap: 6 },
-  itemRow: { flexDirection: 'row', alignItems: 'center' },
-  itemQty: { fontWeight: '700', color: '#6C63FF', width: 28, fontSize: 13 },
-  itemDetails: { flex: 1 },
-  itemName: { fontSize: 14, color: '#111827', fontWeight: '500' },
-  itemOpt: { fontSize: 12, color: '#6B7280' },
-  itemPrice: { fontSize: 13, fontWeight: '600', color: '#3730A3' },
-  cardFooter: { marginTop: 4 },
-  totalLabel: { fontSize: 14, color: '#6B7280', marginBottom: 12 },
-  totalValue: { fontSize: 16, fontWeight: '800', color: '#111827' },
-  actionRow: { flexDirection: 'row', gap: 10 },
-  btnAction: { flex: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  rejectBtn: { backgroundColor: '#FEE2E2' },
-  rejectText: { color: '#DC2626', fontWeight: '700', fontSize: 14 },
-  confirmBtn: { backgroundColor: '#059669' },
-  confirmText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-  cancelLink: { alignSelf: 'flex-end' },
-  cancelLinkText: { fontSize: 12, color: '#EF4444', fontWeight: '600' },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#4B5563', marginBottom: 4 },
-  emptySubtitle: { fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
-});

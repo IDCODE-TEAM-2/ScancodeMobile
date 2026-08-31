@@ -1,0 +1,220 @@
+================================================================================
+SCANCODE MOBILE APP (REACT NATIVE) DEVELOPMENT GUIDE & COMPREHENSIVE ROADMAP
+================================================================================
+
+--------------------------------------------------------------------------------
+1. MOBILE SCREEN BREAKDOWN & REPOSITORY PARITY COMPARISON
+--------------------------------------------------------------------------------
+Full Feature Parity Target: 23 Screens
+Currently Implemented in Scancode-React-Native: 20 Screens (87%)
+Remaining Screens to Build: 3 Screens (13%)
+
+[2026-08-19 corrections, cumulative:
+ (1) ToolbarRequestsAdminScreen was already built but untracked — fixed earlier.
+ (2) Parity target bumped 22 -> 23: the "Merchant / Admin: 9 Screens" row never actually
+     had room for ProductCatalogEditorScreen once all 9 named admin screens existed —
+     corrected to 10.
+ (3) SuperadminConsoleScreen was counted in the Superadmin summary row but was missing
+     from the itemized "Remaining Screens Needed" list since this file's very first
+     version — added below for consistency.
+ (4) WishlistScreen and CartDrawerScreen promoted from StorefrontScreen modals to real
+     dedicated routed screens; OrderReceiptTrackerScreen and EventsManagerScreen built
+     (next-two-screens per the phased roadmap). All four now [COMPLETED] below.
+ See AGENTS.md for the full technical change log.]
+
+Summary Comparison Table:
++--------------------------+--------------------+---------------------------+-------------------+
+| Category                 | Total Web Parity   | React Native Implemented  | Remaining Needed  |
++--------------------------+--------------------+---------------------------+-------------------+
+| Authentication & Account | 5 Screens          | 5 Screens (100%)          | 0 Screens         |
+| Customer Storefront      | 7 Screens          | 6 Screens + Toolbar (86%) | 1 Screen          |
+| Merchant / Admin         | 10 Screens         | 9 Screens (90%)           | 1 Screen          |
+| Superadmin               | 1 Screen           | 0 Screens (0%)            | 1 Screen          |
++--------------------------+--------------------+---------------------------+-------------------+
+| TOTAL                    | 23 Screens         | 20 Screens Implemented    | 3 Screens         |
++--------------------------+--------------------+---------------------------+-------------------+
+
+Implemented Screens (20):
+- Splash (src/screens/(auth)/SplashScreen.tsx)
+- Login (src/screens/(auth)/LoginScreen.tsx)
+- Register (src/screens/(auth)/RegisterScreen.tsx)
+- ForgotPassword (src/screens/(auth)/ForgotPasswordScreen.tsx)
+- VerifyOtp (src/screens/(auth)/VerifyOtpScreen.tsx)
+- Dashboard (src/screens/(admin)/DashboardScreen.tsx)
+- CreateStorefront (src/screens/(admin)/CreateStorefrontScreen.tsx)
+- Storefront (src/screens/(customer)/StorefrontScreen.tsx + StorefrontToolbar.tsx)
+- Checkout (src/screens/(customer)/CheckoutScreen.tsx)
+- ActivateQR (src/screens/(admin)/ActivateQRScreen.tsx)
+- QR (src/screens/(admin)/QRScreen.tsx)
+- MerchantProfileBank (src/screens/(admin)/MerchantProfileBankScreen.tsx) [COMPLETED]
+- StoreChargesConfig (src/screens/(admin)/StoreChargesConfigScreen.tsx) [COMPLETED]
+- CameraQRScanner (src/screens/(customer)/CameraQRScannerScreen.tsx) [COMPLETED]
+- LiveOrdersManager (src/screens/(admin)/LiveOrdersManagerScreen.tsx) [COMPLETED]
+- ToolbarRequestsAdmin (src/screens/(admin)/ToolbarRequestsAdminScreen.tsx) [COMPLETED]
+- Wishlist (src/screens/(customer)/WishlistScreen.tsx) [COMPLETED]
+- CartDrawer (src/screens/(customer)/CartDrawerScreen.tsx) [COMPLETED]
+- OrderReceiptTracker (src/screens/(customer)/OrderReceiptTrackerScreen.tsx) [COMPLETED]
+- EventsManager (src/screens/(admin)/EventsManagerScreen.tsx) [COMPLETED]
+
+Remaining Screens Needed (3):
+- ItemDetailsModalScreen (Dish customization & options bottom sheet)
+- ProductCatalogEditorScreen (Add/edit products, stock, prices, photo picker)
+- SuperadminConsoleScreen (Superadmin dashboard for platform metrics & vendor management)
+
+
+--------------------------------------------------------------------------------
+2. PHASED EXECUTION ROADMAP (SORTED BY SIZE & COMPLEXITY)
+--------------------------------------------------------------------------------
+
+PHASE 1: Small & Low Complexity (Quick Wins — Build First)
+1. MerchantProfileBankScreen (Small/Low): [COMPLETED] Business bank account details editor.
+2. StoreChargesConfigScreen (Small/Low): [COMPLETED] Form with inputs for VAT rate (7.5%), Logistics Fee, and deliveryEnabled toggle.
+3. CameraQRScannerScreen (Small/Low-Med): [COMPLETED] Hardware camera integration with expo-camera & fallback simulated scanning.
+
+PHASE 2: Medium Size & Moderate Complexity (Core Functionality)
+4. LiveOrdersManagerScreen (Medium): [COMPLETED] Real-time order processing center with Status tabs (Pending/Confirmed/Rejected), Web/Native sound alarms, and action buttons.
+5. ToolbarRequestsAdminScreen (Medium): [COMPLETED] Admin view for acknowledging incoming customer tips, paid transfers, and waiter calls.
+6. OrderReceiptTrackerScreen (Medium): [COMPLETED] Customer order status screen polling getOrderById every 5s, stops polling once the order reaches a terminal status.
+7. EventsManagerScreen (Medium): [COMPLETED] Mon-Sun weekly event schedule manager, CRUD backed by getStorefrontEvents/updateStorefrontEvents, strictly scoped per storefrontId.
+
+Also completed this pass (not originally itemized as their own phase entries, but part of
+the same "next two screens" push): WishlistScreen and CartDrawerScreen, promoted from
+StorefrontScreen's in-page modals to dedicated routed screens backed by a new shared
+CartContext (storefront-scoped cart + favorites).
+
+PHASE 3: Large Size & High Complexity (Advanced Modules — Build Last)
+8. ProductCatalogEditorScreen (Large/High): Menu CRUD management, stock updates, category tagger, image uploader via expo-image-picker.
+9. FrontdeskCheckInScreen (Large/High): Hotel & hospitality guest check-in portal.
+10. DigitalSignageExploreScreen (Large/High): Digital promo carousel & venue showcase display.
+11. SuperadminConsoleScreen (Large/High): Superadmin dashboard for platform metrics & vendor management.
+
+
+--------------------------------------------------------------------------------
+3. MOBILE ARCHITECTURAL & WEB PARITY DOMAIN GROUPING
+--------------------------------------------------------------------------------
+
+1. Web App vs. Mobile App Flow & Grouping Parity:
+   - Web App (scancode-web) groups pages under /login, /store/[slug], /checkout, /admin/dashboard, /frontdesk, and /superadmin.
+   - Mobile Best Practice structures React Native screen files into domain subfolders:
+     * src/screens/(auth)/       <-- Authentication & Onboarding
+     * src/screens/(customer)/   <-- Customer Storefront, Checkout & Scanner
+     * src/screens/(admin)/      <-- Merchant POS, Live Orders, Charges & Bank Settings
+
+2. Mobile UX Rule of 5 & Task-Based Navigation Grouping: [CHECK]
+   Instead of loose screen lists, group merchant services into 4 primary Bottom Navigation Tabs:
+
+   📱 Admin Mobile Navigation Hub (BottomTabNavigator)
+   ├── 🛍️ Tab 1: Orders (HIGH FREQUENCY - Real-time Live Operations)
+   │    ├── Live Incoming Orders (Confirm / Reject / Cancel)
+   │    └── Waiter & Assistance Calls
+   │
+   ├── 🍔 Tab 2: Catalog (MEDIUM FREQUENCY - Daily Stock & Menu)
+   │    ├── Product & Stock Management
+   │    ├── Category Tagger
+   │    └── Store Gallery Photos
+   │
+   ├── 🔔 Tab 3: Activity (MEDIUM FREQUENCY - Customer Engagement)
+   │    ├── Tip & Request Payment Acknowledgements
+   │    ├── Weekly Events Schedule
+   │    └── Customer Ratings & Feedback
+   │
+   └── ⚙️ Tab 4: Settings (LOW FREQUENCY - Setup & Admin)
+        ├── VAT Rate % & Delivery Fee Toggle
+        ├── Table QR Generator & Activation
+        └── Merchant Bank Payout Profile
+
+
+--------------------------------------------------------------------------------
+4. MOBILE-NATIVE UNIQUE SCREENS & HARDWARE FEATURES [CHECK]
+--------------------------------------------------------------------------------
+
+1. Native Camera QR & Barcode Scanner (CameraQRScannerScreen):
+   - Direct integration using 'expo-camera'.
+   - Features continuous auto-focus, haptic vibration on successful scan, LED flash toggle, 
+     manual code input fallback, and auto-navigation to table storefronts.
+
+2. Push Notifications & Background Order Audio Alarms (audioAlert & FCM):
+   - Integration with FCM / Expo Notifications & Web Audio synthesis.
+   - Triggers continuous loud audio alarms when a new order arrives, even when the app 
+     is running in the background or the screen is locked.
+
+3. ESC/POS Thermal Receipt Printer Integration (PrintReceiptScreen):
+   - Direct Bluetooth / USB POS thermal receipt printing for kitchen order tickets (KOT) 
+     and customer receipts straight from mobile devices.
+
+4. Biometric Quick Login & Staff Switch (LocalAuthScreen):
+   - Quick unlock using 'expo-local-authentication' (Face ID / Touch ID / Fingerprint) 
+     for fast staff context switching on shared POS tablets/phones.
+
+5. Native Camera & Photo Picker for Menu Editing (expo-image-picker):
+   - Direct camera photo capture and device photo library picker for merchants uploading 
+     dish images directly to ProductCatalogEditorScreen.
+
+6. Haptic Feedback & Micro-Interactions (expo-haptics):
+   - Tactile vibration triggers on button taps, order updates, success events, and swipe actions.
+
+7. Native Modal Bottom Sheets (@gorhom/bottom-sheet):
+   - Slide-up bottom sheets replacing web dialog popups for item customization options, 
+     quick cart drawer previews, and category filters.
+
+8. Swipe-to-Action Order Cards (SwipeableOrderCard):
+   - Gesture-driven swipe right (Confirm) and swipe left (Reject) actions for incoming orders.
+
+9. Offline Mode & Local Storage Sync (SQLite / AsyncStorage):
+   - Caching menu items and queueing offline order actions when network connectivity drops 
+     in busy venue dead zones.
+
+10. Geofencing & Location-Based Store Auto-Detection (expo-location):
+    - Uses GPS/Geofencing to auto-detect when a customer enters a venue and launch the 
+      storefront menu automatically without requiring a manual QR scan.
+
+
+--------------------------------------------------------------------------------
+5. RECOMMENDED MOBILE UX & AESTHETIC ENHANCEMENTS FOR FUTURE IMPLEMENTATION [CHECK]
+--------------------------------------------------------------------------------
+
+1. Glassmorphic Cards & Elevated Depth Design System:
+   - Implement semi-transparent frosted glass cards (rgba(255, 255, 255, 0.85) with backdropBlur) 
+     for checkout summaries, order status cards, and float action bars.
+   - Use soft dual-tone gradients (#6C63FF to #4F46E5) for active buttons and accent elements.
+
+2. High-Contrast OLED Dark Mode for Kitchen & POS Terminals:
+   - Build an OLED pitch-black dark theme (#09090B card background, #18181B borders) 
+     specifically for kitchen display systems (KDS) to eliminate screen glare and reduce battery draw.
+
+3. Micro-Animations & Fluid Spring Transitions:
+   - Add spring physics (using react-native-reanimated) when items are added to the cart, 
+     causing the cart floating badge to bounce dynamically.
+   - Animated status badge state transitions (Pending amber glow pulse -> Confirmed green pop).
+
+4. Skeleton Loading Shimmers:
+   - Replace standard ActivityIndicator spinners on Storefront and Dashboard with animated 
+     skeleton loading card shimmers to make loading feel instant.
+
+5. Tactile Haptic Pulses:
+   - Trigger heavy haptic vibration on incoming new order alarms, medium haptic tap on order 
+     confirmation, and light haptic tick on category selection.
+
+================================================================================
+
+
+In the reactnative project:
+Fix the VAT                                                            [DONE 2026-08-19]
+Allow Insertion of Custom Notification Tones                           [DONE 2026-08-19]
+Ensure weekly events are specific to the Mariketer/storefront that crafted it.  [DONE 2026-08-19]
+then make this screen ToolbarRequestsAdminScreen andaffix it accordingly and make the necessary adjustements to the entire project to accomodate the new screen according to the guide but ultimately, according to best practice.  [DONE — built earlier this session]
+
+[2026-08-19 — how each of the above was actually resolved, see AGENTS.md change log for full detail:
+ - VAT: StoreConfigResponse.vatRate was stored inconsistently (fraction on save, raw
+   percent in seed/fallback data). CheckoutScreen was the one consumer that didn't
+   normalize it, so it was computing VAT as 750% of subtotal instead of 7.5% on any
+   default/seeded storefront. Fixed the seed/fallback data at the source and added the
+   missing normalization guard to CheckoutScreen.
+ - Custom Notification Tones: the feature was silently dead because it depended on
+   expo-av, which was fully removed from the Expo SDK at version 55 (this project is on
+   57). Migrated src/utils/audioAlert.ts to expo-audio; custom tones now play on native
+   AND web (expo-audio has real web support, unlike the old setup).
+ - Weekly events per storefront: verified (grepped every read/write site) that events
+   were already strictly isolated by storefrontId in both the demo layer and the API
+   contract — no cross-storefront leakage existed. Built EventsManagerScreen as the
+   missing admin CRUD UI on top of that already-correct isolation.]

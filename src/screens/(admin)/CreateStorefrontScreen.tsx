@@ -1,21 +1,23 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
   Image,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import { Camera, X, Plus, Info, Rocket, MapPin } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { createStorefront, API_BASE, getToken } from '../../api';
-import type { NavigationProp } from '../../types';
+import { NIGERIA_STATES, type NavigationProp } from '../../types';
 import * as FileSystem from 'expo-file-system/legacy';
+import { cn } from '../../utils/cn';
 
 interface Props {
   navigation: NavigationProp<'CreateStorefront'>;
@@ -24,15 +26,6 @@ interface Props {
 const MAX_IMAGES = 5;
 const BUSINESS_TYPES = ['PRODUCT', 'HOTEL'] as const;
 type BusinessType = (typeof BUSINESS_TYPES)[number];
-
-const createSlug = (name: string) => {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return slug || `business-${Date.now()}`;
-};
 
 export default function CreateStorefrontScreen({ navigation }: Props) {
   const [logoUri, setLogoUri] = useState<string | null>(null);
@@ -49,6 +42,7 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  const [location, setLocation] = useState('');
   const [businessType, setBusinessType] = useState<BusinessType>('PRODUCT');
   const [categories, setCategories] = useState<string[]>([]);
   const [categoryInput, setCategoryInput] = useState('');
@@ -58,9 +52,6 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
 
   const uploadImageToBackend = async (uri: string): Promise<string> => {
     const token = await getToken();
-
-    const filename = uri.split('/').pop() || 'image.jpg';
-    const ext = /\.([^.]+)$/.exec(filename)?.[1] ?? 'jpg';
 
     const response = await FileSystem.uploadAsync(`${API_BASE}/api/media/upload`, uri, {
       fieldName: 'file',
@@ -103,8 +94,8 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
     try {
       const url = await uploadImageToBackend(result.assets[0].uri);
       setLogoUri(url);
-    } catch (e: any) {
-      setLogoError(e.message ?? 'Logo upload failed.');
+    } catch (e: unknown) {
+      setLogoError(e instanceof Error ? e.message : 'Logo upload failed.');
     } finally {
       setUploadingLogo(false);
     }
@@ -128,8 +119,8 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
     try {
       const uploaded = await Promise.all(picked.map((a) => uploadImageToBackend(a.uri)));
       setImageUris((prev) => [...prev, ...uploaded]);
-    } catch (e: any) {
-      setImageError(e.message ?? 'Image upload failed. Please try again.');
+    } catch (e: unknown) {
+      setImageError(e instanceof Error ? e.message : 'Image upload failed. Please try again.');
     } finally {
       setUploadingImages(false);
     }
@@ -163,6 +154,10 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
       setFormError('Please add a short business description.');
       return;
     }
+    if (!location) {
+      setFormError('Please select your business location.');
+      return;
+    }
     setFormError(null);
     setLoading(true);
     try {
@@ -178,7 +173,6 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
         logoUrl: logoUri,
         bannerUrl: imageUris[0] ?? logoUri,
         data: {
-          slug: createSlug(name),
           name: name.trim(),
           description: description.trim(),
           phone: phone.trim(),
@@ -188,6 +182,7 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
           images: imageUris,
           categories: categoryObjects,
           logoUrl: logoUri,
+          location,
         },
       });
       navigation.goBack();
@@ -200,65 +195,77 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.root}
+      className="flex-1 bg-gray-50"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerClassName="p-5 pb-12"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.heading}>Create Your Business Page</Text>
-        <Text style={styles.subheading}>
+        <Text className="text-[22px] font-bold text-gray-900 text-center mb-1.5">Create Your Business Page</Text>
+        <Text className="text-sm text-gray-500 text-center mb-6 leading-5">
           Set up your storefront and payment receiving details
         </Text>
 
         {formError && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{formError}</Text>
+          <View className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+            <Text className="text-red-600 text-sm leading-5">{formError}</Text>
           </View>
         )}
 
-        <Text style={styles.label}>Business Logo <Text style={styles.required}>*</Text></Text>
-        {logoError && <Text style={styles.fieldError}>{logoError}</Text>}
-        <View style={styles.logoRow}>
-          <TouchableOpacity style={styles.logoCircle} onPress={handlePickLogo} disabled={uploadingLogo || loading}>
+        <Text className="text-sm font-semibold text-gray-700 mb-1.5">Business Logo <Text className="text-red-600">*</Text></Text>
+        {logoError && <Text className="text-red-600 text-[13px] mb-1.5 -mt-1">{logoError}</Text>}
+        <View className="flex-row items-center gap-4 mb-5">
+          <TouchableOpacity
+            className="w-[88px] h-[88px] rounded-full bg-gray-100 border-2 border-gray-300 border-dashed items-center justify-center overflow-hidden"
+            onPress={handlePickLogo}
+            disabled={uploadingLogo || loading}
+          >
             {uploadingLogo ? (
               <ActivityIndicator color="#6C63FF" />
             ) : logoUri ? (
-              <Image source={{ uri: logoUri }} style={styles.logoImage} />
+              <Image source={{ uri: logoUri }} className="w-[88px] h-[88px] rounded-full" />
             ) : (
-              <Text style={styles.logoPlaceholder}>📷</Text>
+              <Camera size={28} color="#9CA3AF" strokeWidth={1.8} />
             )}
           </TouchableOpacity>
-          <View style={styles.logoMeta}>
+          <View className="flex-1">
             <TouchableOpacity
-              style={[styles.outlineBtn, (uploadingLogo || loading) && styles.disabledBtn]}
+              className={cn('border-[1.5px] border-gray-300 rounded-[10px] py-2.5 px-4 self-start', (uploadingLogo || loading) && 'opacity-50')}
               onPress={handlePickLogo}
               disabled={uploadingLogo || loading}
             >
-              <Text style={styles.outlineBtnText}>
+              <Text className="text-sm font-semibold text-gray-700">
                 {uploadingLogo ? 'Uploading…' : logoUri ? 'Change Logo' : 'Upload Logo'}
               </Text>
             </TouchableOpacity>
-            <Text style={styles.hint}>Max image size recommended: 10 MB.</Text>
+            <Text className="text-xs text-gray-400 mb-4 mt-1">Max image size recommended: 10 MB.</Text>
           </View>
         </View>
 
-        <Text style={styles.label}>Storefront Images <Text style={styles.optional}>(up to {MAX_IMAGES}, optional)</Text></Text>
-        {imageError && <Text style={styles.fieldError}>{imageError}</Text>}
-        <View style={styles.imageGrid}>
+        <Text className="text-sm font-semibold text-gray-700 mb-1.5">
+          Storefront Images <Text className="text-gray-400 font-normal text-[13px]">(up to {MAX_IMAGES}, optional)</Text>
+        </Text>
+        {imageError && <Text className="text-red-600 text-[13px] mb-1.5 -mt-1">{imageError}</Text>}
+        <View className="flex-row flex-wrap gap-2.5 mb-5">
           {imageUris.map((uri, idx) => (
-            <View key={idx} style={styles.imageTile}>
-              <Image source={{ uri }} style={styles.imageTileImg} />
-              <TouchableOpacity style={styles.removeBadge} onPress={() => handleRemoveImage(idx)}>
-                <Text style={styles.removeBadgeText}>✕</Text>
+            <View key={idx} className="w-[72px] h-[72px] rounded-[10px] overflow-hidden border border-gray-200">
+              <Image source={{ uri }} className="w-full h-full" />
+              <TouchableOpacity
+                className="absolute top-[3px] right-[3px] bg-black/55 rounded-full w-[18px] h-[18px] items-center justify-center"
+                onPress={() => handleRemoveImage(idx)}
+              >
+                <X size={10} color="#FFFFFF" strokeWidth={3} />
               </TouchableOpacity>
             </View>
           ))}
           {imageUris.length < MAX_IMAGES && (
             <TouchableOpacity
-              style={[styles.addImageTile, (uploadingImages || loading) && styles.disabledBtn]}
+              className={cn(
+                'w-[72px] h-[72px] rounded-[10px] border-2 border-gray-300 border-dashed items-center justify-center bg-gray-50',
+                (uploadingImages || loading) && 'opacity-50'
+              )}
               onPress={handlePickImages}
               disabled={uploadingImages || loading}
             >
@@ -266,17 +273,17 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
                 <ActivityIndicator color="#9CA3AF" />
               ) : (
                 <>
-                  <Text style={styles.addImagePlus}>+</Text>
-                  <Text style={styles.addImageLabel}>Add Image</Text>
+                  <Plus size={22} color="#9CA3AF" strokeWidth={2.2} />
+                  <Text className="text-[10px] text-gray-400 mt-0.5">Add Image</Text>
                 </>
               )}
             </TouchableOpacity>
           )}
         </View>
 
-        <Text style={styles.label}>Business Name <Text style={styles.required}>*</Text></Text>
+        <Text className="text-sm font-semibold text-gray-700 mb-1.5">Business Name <Text className="text-red-600">*</Text></Text>
         <TextInput
-          style={styles.input}
+          className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
           value={name}
           onChangeText={setName}
           placeholder="e.g. Mama Ade's Kitchen"
@@ -285,9 +292,9 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
           maxLength={100}
         />
 
-        <Text style={styles.label}>Business Description <Text style={styles.required}>*</Text></Text>
+        <Text className="text-sm font-semibold text-gray-700 mb-1.5">Business Description <Text className="text-red-600">*</Text></Text>
         <TextInput
-          style={[styles.input, styles.textarea]}
+          className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4 h-[90px]"
           value={description}
           onChangeText={setDescription}
           placeholder="Describe what your business sells or offers…"
@@ -299,11 +306,11 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
           textAlignVertical="top"
         />
 
-        <View style={styles.row}>
-          <View style={styles.halfField}>
-            <Text style={styles.label}>Phone Number</Text>
+        <View className="flex-row gap-3">
+          <View className="flex-1">
+            <Text className="text-sm font-semibold text-gray-700 mb-1.5">Phone Number</Text>
             <TextInput
-              style={styles.input}
+              className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
               value={phone}
               onChangeText={setPhone}
               placeholder="e.g. 08000000000"
@@ -312,10 +319,10 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
               keyboardType="phone-pad"
             />
           </View>
-          <View style={styles.halfField}>
-            <Text style={styles.label}>Email Address</Text>
+          <View className="flex-1">
+            <Text className="text-sm font-semibold text-gray-700 mb-1.5">Email Address</Text>
             <TextInput
-              style={styles.input}
+              className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
               value={email}
               onChangeText={setEmail}
               placeholder="info@company.com"
@@ -327,41 +334,63 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <Text style={styles.label}>Business Type</Text>
-        <View style={styles.typeRow}>
+        <Text className="text-sm font-semibold text-gray-700 mb-1.5">
+          Business Location <Text className="text-red-600">*</Text>
+        </Text>
+        <View className="flex-row items-center border-[1.5px] border-gray-300 rounded-xl bg-white mb-1 px-2">
+          <MapPin size={16} color="#9CA3AF" strokeWidth={2} />
+          <Picker
+            selectedValue={location}
+            onValueChange={(v) => setLocation(String(v))}
+            enabled={!loading}
+            style={{ flex: 1, color: location ? '#111827' : '#9CA3AF' }}
+          >
+            <Picker.Item label="Select a state…" value="" color="#9CA3AF" />
+            {NIGERIA_STATES.map((state) => (
+              <Picker.Item key={state} label={state} value={state} />
+            ))}
+          </Picker>
+        </View>
+        <Text className="text-xs text-gray-400 mb-4 mt-1">Helps customers find your storefront by location.</Text>
+
+        <Text className="text-sm font-semibold text-gray-700 mb-1.5">Business Type</Text>
+        <View className="flex-row gap-2.5 mb-5">
           {BUSINESS_TYPES.map((t) => (
             <TouchableOpacity
               key={t}
-              style={[styles.typeBtn, businessType === t && styles.typeBtnActive]}
+              className={cn(
+                'flex-1 border-[1.5px] rounded-xl py-3 items-center bg-white',
+                businessType === t ? 'border-primary bg-violet-50' : 'border-gray-300'
+              )}
               onPress={() => setBusinessType(t)}
               disabled={loading}
               activeOpacity={0.7}
             >
-              <Text style={[styles.typeBtnText, businessType === t && styles.typeBtnTextActive]}>
+              <Text className={cn('font-semibold text-sm', businessType === t ? 'text-primary' : 'text-gray-500')}>
                 {t === 'PRODUCT' ? 'Product' : 'Hotel'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={styles.label}>
+        <Text className="text-sm font-semibold text-gray-700 mb-1.5">
           {businessType === 'PRODUCT' ? 'What types of goods will you offer?' : 'Room / Service Categories'}
         </Text>
         {categories.length > 0 && (
-          <View style={styles.tagRow}>
+          <View className="flex-row flex-wrap gap-2 mb-2.5">
             {categories.map((cat, idx) => (
-              <View key={idx} style={styles.tag}>
-                <Text style={styles.tagText}>{cat}</Text>
+              <View key={idx} className="flex-row items-center gap-1.5 bg-indigo-100 rounded-full px-3 py-1.5">
+                <Text className="text-indigo-800 text-[13px] font-medium">{cat}</Text>
                 <TouchableOpacity onPress={() => handleRemoveCategory(cat)}>
-                  <Text style={styles.tagRemove}>✕</Text>
+                  <X size={12} color="#6C63FF" strokeWidth={2.5} />
                 </TouchableOpacity>
               </View>
             ))}
           </View>
         )}
-        <View style={styles.categoryInputRow}>
+        <View className="flex-row gap-2 mb-1">
           <TextInput
-            style={styles.categoryInput}
+            className="flex-1 border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white"
             value={categoryInput}
             onChangeText={setCategoryInput}
             placeholder={businessType === 'PRODUCT' ? "e.g. Sneakers" : "e.g. Single Room"}
@@ -369,17 +398,17 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
             editable={!loading}
             onSubmitEditing={handleAddCategory}
           />
-          <TouchableOpacity style={styles.addCatBtn} onPress={handleAddCategory}>
-            <Text style={styles.addCatBtnText}>Add</Text>
+          <TouchableOpacity className="bg-primary rounded-xl px-4.5 justify-center" onPress={handleAddCategory}>
+            <Text className="text-white font-bold text-sm">Add</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.hint}>Tap Add to set up menu categories.</Text>
+        <Text className="text-xs text-gray-400 mb-4 mt-1">Tap Add to set up menu categories.</Text>
 
-        <View style={styles.bankCard}>
-          <Text style={styles.bankCardTitle}>Bank Account Details</Text>
-          <Text style={styles.bankCardSubtitle}>For customer transfers</Text>
+        <View className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-5">
+          <Text className="text-[15px] font-bold text-gray-900 mb-0.5">Bank Account Details</Text>
+          <Text className="text-[13px] text-gray-500 mb-3.5">For customer transfers</Text>
           <TextInput
-            style={[styles.input, styles.bankInput]}
+            className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-3"
             value={bankName}
             onChangeText={setBankName}
             placeholder="Bank Name (e.g. Access Bank)"
@@ -387,7 +416,7 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
             editable={!loading}
           />
           <TextInput
-            style={[styles.input, styles.bankInput]}
+            className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white"
             value={accountNumber}
             onChangeText={(v) => setAccountNumber(v.replace(/\D/g, ''))}
             placeholder="Account Number (10 digits)"
@@ -398,14 +427,15 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
           />
         </View>
 
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            ℹ️  After creating your storefront you'll need to activate your QR code.
+        <View className="bg-indigo-50 rounded-xl p-3.5 mb-6 border border-indigo-200 flex-row items-start gap-2">
+          <Info size={16} color="#3730A3" strokeWidth={2.2} />
+          <Text className="text-indigo-800 text-[13px] leading-[19px] flex-1">
+            After creating your storefront you'll need to activate your QR code.
           </Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
+          className={cn('rounded-2xl py-4.5 items-center flex-row justify-center gap-2', loading ? 'bg-primary/55' : 'bg-primary')}
           onPress={handleCreate}
           disabled={loading}
           activeOpacity={0.85}
@@ -413,66 +443,13 @@ export default function CreateStorefrontScreen({ navigation }: Props) {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Launch Storefront 🚀</Text>
+            <>
+              <Text className="text-white text-base font-bold tracking-wide">Launch Storefront</Text>
+              <Rocket size={17} color="#FFFFFF" strokeWidth={2.2} />
+            </>
           )}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F9FAFB' },
-  scroll: { padding: 20, paddingBottom: 48 },
-  heading: { fontSize: 22, fontWeight: '700', color: '#111827', textAlign: 'center', marginBottom: 6 },
-  subheading: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
-  errorBanner: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 12, padding: 12, marginBottom: 16 },
-  errorBannerText: { color: '#DC2626', fontSize: 14, lineHeight: 20 },
-  fieldError: { color: '#DC2626', fontSize: 13, marginBottom: 6, marginTop: -4 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  required: { color: '#DC2626' },
-  optional: { color: '#9CA3AF', fontWeight: '400', fontSize: 13 },
-  hint: { fontSize: 12, color: '#9CA3AF', marginBottom: 16, marginTop: 4 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
-  logoCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#F3F4F6', borderWidth: 2, borderColor: '#D1D5DB', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  logoImage: { width: 88, height: 88, borderRadius: 44 },
-  logoPlaceholder: { fontSize: 28 },
-  logoMeta: { flex: 1 },
-  outlineBtn: { borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 16, alignSelf: 'flex-start' },
-  outlineBtnText: { fontSize: 14, fontWeight: '600', color: '#374151' },
-  imageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  imageTile: { width: 72, height: 72, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB' },
-  imageTileImg: { width: '100%', height: '100%' },
-  removeBadge: { position: 'absolute', top: 3, right: 3, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
-  removeBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
-  addImageTile: { width: 72, height: 72, borderRadius: 10, borderWidth: 2, borderColor: '#D1D5DB', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB' },
-  addImagePlus: { fontSize: 24, color: '#9CA3AF', lineHeight: 28 },
-  addImageLabel: { fontSize: 10, color: '#9CA3AF' },
-  input: { borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: '#111827', backgroundColor: '#ffffff', marginBottom: 16 },
-  textarea: { height: 90, textAlignVertical: 'top' },
-  row: { flexDirection: 'row', gap: 12 },
-  halfField: { flex: 1 },
-  typeRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  typeBtn: { flex: 1, borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: 12, paddingVertical: 13, alignItems: 'center', backgroundColor: '#ffffff' },
-  typeBtnActive: { borderColor: '#6C63FF', backgroundColor: '#F5F3FF' },
-  typeBtnText: { color: '#6B7280', fontWeight: '600', fontSize: 14 },
-  typeBtnTextActive: { color: '#6C63FF' },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  tag: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#E0E7FF', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
-  tagText: { color: '#3730A3', fontSize: 13, fontWeight: '500' },
-  tagRemove: { color: '#6C63FF', fontSize: 12, fontWeight: '700' },
-  categoryInputRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
-  categoryInput: { flex: 1, borderWidth: 1.5, borderColor: '#D1D5DB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#111827', backgroundColor: '#ffffff' },
-  addCatBtn: { backgroundColor: '#6C63FF', borderRadius: 12, paddingHorizontal: 18, justifyContent: 'center' },
-  addCatBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  bankCard: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 16, padding: 16, marginBottom: 20 },
-  bankCardTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 2 },
-  bankCardSubtitle: { fontSize: 13, color: '#6B7280', marginBottom: 14 },
-  bankInput: { marginBottom: 12 },
-  infoBox: { backgroundColor: '#EEF2FF', borderRadius: 12, padding: 14, marginBottom: 24, borderWidth: 1, borderColor: '#C7D2FE' },
-  infoText: { color: '#3730A3', fontSize: 13, lineHeight: 19 },
-  button: { backgroundColor: '#6C63FF', borderRadius: 14, paddingVertical: 17, alignItems: 'center' },
-  buttonDisabled: { opacity: 0.55 },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
-  disabledBtn: { opacity: 0.5 },
-});

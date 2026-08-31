@@ -1,13 +1,6 @@
 import React from 'react';
-import {
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
-  type StyleProp,
-  type ViewStyle,
-  type TextStyle,
-} from 'react-native';
+import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { cn } from '../utils/cn';
 
 export interface CustomButtonProps {
   title: string;
@@ -15,10 +8,24 @@ export interface CustomButtonProps {
   loading?: boolean;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
-  style?: StyleProp<ViewStyle>;
-  textStyle?: StyleProp<TextStyle>;
+  className?: string;
+  textClassName?: string;
   activeOpacity?: number;
 }
+
+const VARIANT_BUTTON_CLASSES: Record<NonNullable<CustomButtonProps['variant']>, string> = {
+  primary: 'bg-primary',
+  secondary: 'bg-indigo-50',
+  outline: 'bg-transparent border-[1.5px] border-primary',
+  danger: 'bg-red-500',
+};
+
+const VARIANT_TEXT_CLASSES: Record<NonNullable<CustomButtonProps['variant']>, string> = {
+  primary: 'text-white',
+  secondary: 'text-primary',
+  outline: 'text-primary',
+  danger: 'text-white',
+};
 
 export default function CustomButton({
   title,
@@ -26,36 +33,21 @@ export default function CustomButton({
   loading = false,
   disabled = false,
   variant = 'primary',
-  style,
-  textStyle,
+  className,
+  textClassName,
   activeOpacity = 0.8,
 }: CustomButtonProps) {
-  const isOutline = variant === 'outline';
-  const isSecondary = variant === 'secondary';
-  const isDanger = variant === 'danger';
-
-  const buttonStyles = [
-    styles.button,
-    isSecondary && styles.buttonSecondary,
-    isOutline && styles.buttonOutline,
-    isDanger && styles.buttonDanger,
-    (disabled || loading) && styles.buttonDisabled,
-    style,
-  ];
-
-  const textStyles = [
-    styles.text,
-    isSecondary && styles.textSecondary,
-    isOutline && styles.textOutline,
-    isDanger && styles.textDanger,
-    textStyle,
-  ];
-
-  const spinnerColor = isOutline || isSecondary ? '#6C63FF' : '#ffffff';
+  const isOutlineOrSecondary = variant === 'outline' || variant === 'secondary';
+  const spinnerColor = isOutlineOrSecondary ? '#6C63FF' : '#ffffff';
 
   return (
     <TouchableOpacity
-      style={buttonStyles}
+      className={cn(
+        'rounded-[10px] py-3.5 px-4 items-center justify-center',
+        VARIANT_BUTTON_CLASSES[variant],
+        (disabled || loading) && 'opacity-50',
+        className
+      )}
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={activeOpacity}
@@ -63,47 +55,10 @@ export default function CustomButton({
       {loading ? (
         <ActivityIndicator color={spinnerColor} />
       ) : (
-        <Text style={textStyles}>{title}</Text>
+        <Text className={cn('text-base font-bold', VARIANT_TEXT_CLASSES[variant], textClassName)}>
+          {title}
+        </Text>
       )}
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    backgroundColor: '#6C63FF',
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonSecondary: {
-    backgroundColor: '#EEF2FF',
-  },
-  buttonOutline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: '#6C63FF',
-  },
-  buttonDanger: {
-    backgroundColor: '#EF4444',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  text: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  textSecondary: {
-    color: '#6C63FF',
-  },
-  textOutline: {
-    color: '#6C63FF',
-  },
-  textDanger: {
-    color: '#ffffff',
-  },
-});

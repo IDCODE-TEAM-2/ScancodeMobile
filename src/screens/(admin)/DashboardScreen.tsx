@@ -1,20 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  RefreshControl,
-  Alert,
-} from 'react-native';
-import { useFocusEffect, CommonActions } from '@react-navigation/native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { ShoppingBag, Bell, Settings2, Calendar, Plus, LayoutGrid, Landmark, Compass } from 'lucide-react-native';
 import { getMyStorefronts, deleteToken, type StorefrontResponse } from '../../api';
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
-// === DEV TEST PROVISION — REMOVE THIS IMPORT AND <DevTestBanner /> WHEN FINISHED TESTING ===
+import { useFocusRefresh } from '../../hooks/useFocusRefresh';
+// Gated behind __DEV__ below — safe to leave imported, it won't render in production builds.
 import DevTestBanner from '../../components/DevTestBanner';
+import { cn } from '../../utils/cn';
 
 interface Props {
   navigation: NavigationProp<'Dashboard'>;
@@ -35,24 +28,16 @@ export default function DashboardScreen({ navigation }: Props) {
       const data = await getMyStorefronts();
       setStorefronts(data);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load storefronts.';
-      if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
-        await deleteToken();
-        setAppState('logged_out');
-        return;
-      }
-      setError(msg);
+      // A 401 here is already handled globally (see App.tsx's onUnauthorized
+      // subscription, which logs the user out) — this just surfaces anything else.
+      setError(err instanceof Error ? err.message : 'Failed to load storefronts.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [navigation]);
+  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load, navigation]),
-  );
+  useFocusRefresh(load);
 
   async function handleLogout() {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -71,43 +56,43 @@ export default function DashboardScreen({ navigation }: Props) {
   function renderStorefront({ item }: { item: StorefrontResponse }) {
     const published = item.isPublished;
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardName}>{item.name}</Text>
-          <View style={[styles.badge, published ? styles.badgePublished : styles.badgeLocked]}>
-            <Text style={[styles.badgeText, published ? styles.badgeTextPublished : styles.badgeTextLocked]}>
+      <View className="bg-white rounded-xl p-4 shadow-sm">
+        <View className="flex-row justify-between items-start mb-1.5">
+          <Text className="text-base font-bold text-gray-900 flex-1 mr-2">{item.name}</Text>
+          <View className={cn('rounded-full px-2.5 py-[3px]', published ? 'bg-emerald-100' : 'bg-amber-100')}>
+            <Text className={cn('text-xs font-semibold', published ? 'text-emerald-800' : 'text-amber-800')}>
               {published ? 'Published' : 'QR Locked'}
             </Text>
           </View>
         </View>
 
         {item.description ? (
-          <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
+          <Text className="text-[13px] text-gray-500 mb-1.5" numberOfLines={2}>{item.description}</Text>
         ) : null}
 
-        <Text style={styles.cardType}>{item.businessType}</Text>
+        <Text className="text-xs text-gray-400 mb-3 uppercase tracking-wide">{item.businessType}</Text>
 
-        <View style={styles.cardActions}>
+        <View className="flex-row gap-2">
           {published ? (
             <>
               <TouchableOpacity
-                style={styles.actionBtn}
+                className="flex-1 border-[1.5px] border-primary rounded-lg py-2 items-center"
                 onPress={() => navigation.navigate('Storefront', { slug: item.slug, name: item.name })}
                 activeOpacity={0.7}
               >
-                <Text style={styles.actionBtnText}>View Store</Text>
+                <Text className="text-primary font-semibold text-sm">View Store</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.actionBtn}
+                className="flex-1 border-[1.5px] border-primary rounded-lg py-2 items-center"
                 onPress={() => navigation.navigate('QR', { slug: item.slug, name: item.name })}
                 activeOpacity={0.7}
               >
-                <Text style={styles.actionBtnText}>View QR</Text>
+                <Text className="text-primary font-semibold text-sm">View QR</Text>
               </TouchableOpacity>
             </>
           ) : (
             <TouchableOpacity
-              style={[styles.actionBtn, styles.activateBtn]}
+              className="flex-1 border-[1.5px] border-primary bg-primary rounded-lg py-2 items-center"
               onPress={() =>
                 navigation.navigate('ActivateQR', {
                   storefrontId: item.id,
@@ -117,15 +102,15 @@ export default function DashboardScreen({ navigation }: Props) {
               }
               activeOpacity={0.7}
             >
-              <Text style={[styles.actionBtnText, styles.activateBtnText]}>Activate QR</Text>
+              <Text className="text-white font-semibold text-sm">Activate QR</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {/* Operations row — always visible */}
-        <View style={[styles.cardActions, { marginTop: 8 }]}>
+        <View className="flex-row gap-2 mt-2">
           <TouchableOpacity
-            style={[styles.actionBtn, styles.opBtn]}
+            className="flex-1 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('LiveOrdersManager', {
                 storefrontId: item.id,
@@ -135,10 +120,11 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <Text style={[styles.actionBtnText, styles.opBtnText]}>🛍 Orders</Text>
+            <ShoppingBag size={13} color="#4F46E5" strokeWidth={2.2} />
+            <Text className="text-indigo-600 font-semibold text-xs">Orders</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.opBtn]}
+            className="flex-1 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('ToolbarRequestsAdmin', {
                 storefrontId: item.id,
@@ -148,10 +134,11 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <Text style={[styles.actionBtnText, styles.opBtnText]}>🔔 Activity</Text>
+            <Bell size={13} color="#4F46E5" strokeWidth={2.2} />
+            <Text className="text-indigo-600 font-semibold text-xs">Activity</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.opBtn]}
+            className="flex-1 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('StoreChargesConfig', {
                 storefrontId: item.id,
@@ -161,7 +148,22 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <Text style={[styles.actionBtnText, styles.opBtnText]}>⚙ Config</Text>
+            <Settings2 size={13} color="#4F46E5" strokeWidth={2.2} />
+            <Text className="text-indigo-600 font-semibold text-xs">Config</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex-1 border-[1.5px] border-primary/20 bg-violet-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            onPress={() =>
+              navigation.navigate('EventsManager', {
+                storefrontId: item.id,
+                name: item.name,
+                slug: item.slug,
+              })
+            }
+            activeOpacity={0.7}
+          >
+            <Calendar size={13} color="#4F46E5" strokeWidth={2.2} />
+            <Text className="text-indigo-600 font-semibold text-xs">Events</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -169,28 +171,37 @@ export default function DashboardScreen({ navigation }: Props) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Storefronts</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <Text style={styles.logoutText}>Sign Out</Text>
+    <View className="flex-1 bg-gray-100">
+      <View className="flex-row justify-between items-center px-5 py-4 bg-white border-b border-gray-200">
+        <Text className="text-xl font-bold text-gray-900">My Storefronts</Text>
+        <View className="flex-row items-center gap-1">
+          <TouchableOpacity onPress={() => navigation.navigate('StorefrontDirectory')} className="p-2" accessibilityLabel="Discover storefronts">
+            <Compass size={19} color="#4B5563" strokeWidth={2} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Services')} className="p-2" accessibilityLabel="Services menu">
+            <LayoutGrid size={19} color="#4B5563" strokeWidth={2} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('MerchantProfileBank', undefined)} className="p-2" accessibilityLabel="Bank profile">
+            <Landmark size={19} color="#4B5563" strokeWidth={2} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} className="px-2 py-1.5 ml-1">
+            <Text className="text-red-500 font-semibold text-sm">Sign Out</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* DEV TEST PROVISION — REMOVE THIS LINE WHEN FINISHED TESTING */}
-      <DevTestBanner />
+      {/* Dev-only role switcher / test utilities — never rendered in a production build */}
+      {__DEV__ && <DevTestBanner />}
 
       {loading ? (
-        <View style={styles.center}>
+        <View className="flex-1 items-center justify-center p-6">
           <ActivityIndicator size="large" color="#6C63FF" />
         </View>
       ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
-            <Text style={styles.retryText}>Retry</Text>
+        <View className="flex-1 items-center justify-center p-6">
+          <Text className="text-red-600 text-sm text-center mb-4">{error}</Text>
+          <TouchableOpacity className="bg-primary rounded-lg px-5 py-2.5" onPress={() => load()}>
+            <Text className="text-white font-semibold">Retry</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -198,10 +209,7 @@ export default function DashboardScreen({ navigation }: Props) {
           data={storefronts}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderStorefront}
-          contentContainerStyle={[
-            styles.list,
-            storefronts.length === 0 && styles.listEmpty,
-          ]}
+          contentContainerClassName={cn('p-4 gap-3', storefronts.length === 0 && 'flex-1')}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -210,17 +218,17 @@ export default function DashboardScreen({ navigation }: Props) {
             />
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyTitle}>No storefronts yet</Text>
-              <Text style={styles.emptySubtitle}>
+            <View className="flex-1 items-center justify-center p-6">
+              <Text className="text-lg font-bold text-gray-700 mb-1.5">No storefronts yet</Text>
+              <Text className="text-sm text-gray-400 text-center mb-5">
                 Create your first storefront to get started
               </Text>
               <TouchableOpacity
-                style={styles.emptyBtn}
+                className="bg-primary rounded-[10px] px-6 py-3"
                 onPress={() => navigation.navigate('CreateStorefront')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.emptyBtnText}>+ Create Storefront</Text>
+                <Text className="text-white font-bold text-[15px]">+ Create Storefront</Text>
               </TouchableOpacity>
             </View>
           }
@@ -228,100 +236,13 @@ export default function DashboardScreen({ navigation }: Props) {
       )}
 
       <TouchableOpacity
-        style={styles.fab}
+        className="absolute bottom-6 left-5 right-5 bg-primary rounded-xl py-4 items-center flex-row justify-center gap-2 shadow-lg"
         onPress={() => navigation.navigate('CreateStorefront')}
         activeOpacity={0.85}
       >
-        <Text style={styles.fabText}>+ New Storefront</Text>
+        <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+        <Text className="text-white text-base font-bold">New Storefront</Text>
       </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  logoutBtn: { paddingHorizontal: 12, paddingVertical: 6 },
-  logoutText: { color: '#EF4444', fontWeight: '600', fontSize: 14 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  list: { padding: 16, gap: 12 },
-  listEmpty: { flex: 1 },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  cardName: { fontSize: 16, fontWeight: '700', color: '#111827', flex: 1, marginRight: 8 },
-  badge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  badgePublished: { backgroundColor: '#D1FAE5' },
-  badgeLocked: { backgroundColor: '#FEF3C7' },
-  badgeText: { fontSize: 12, fontWeight: '600' },
-  badgeTextPublished: { color: '#065F46' },
-  badgeTextLocked: { color: '#92400E' },
-  cardDesc: { fontSize: 13, color: '#6B7280', marginBottom: 6 },
-  cardType: { fontSize: 12, color: '#9CA3AF', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
-  cardActions: { flexDirection: 'row', gap: 8 },
-  actionBtn: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: '#6C63FF',
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  actionBtnText: { color: '#6C63FF', fontWeight: '600', fontSize: 14 },
-  activateBtn: { backgroundColor: '#6C63FF', borderColor: '#6C63FF' },
-  activateBtnText: { color: '#ffffff' },
-  opBtn: { borderColor: '#6C63FF20', backgroundColor: '#F5F3FF' },
-  opBtnText: { color: '#4F46E5', fontSize: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginBottom: 6 },
-  emptySubtitle: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginBottom: 20 },
-  emptyBtn: {
-    backgroundColor: '#6C63FF',
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  emptyBtnText: { color: '#ffffff', fontWeight: '700', fontSize: 15 },
-  errorText: { color: '#DC2626', fontSize: 14, textAlign: 'center', marginBottom: 16 },
-  retryBtn: { backgroundColor: '#6C63FF', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 },
-  retryText: { color: '#ffffff', fontWeight: '600' },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    left: 20,
-    right: 20,
-    backgroundColor: '#6C63FF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: '#6C63FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  fabText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-});

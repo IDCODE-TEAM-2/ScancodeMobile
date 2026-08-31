@@ -2,17 +2,19 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { QrCode, FlaskConical, Briefcase, ShoppingCart } from 'lucide-react-native';
 import { login, saveToken } from '../../api';
+import { demoEngine } from '../../demo/demoEngine';
+import { DEMO_ACCOUNTS } from '../../demo/mockData';
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
+import CustomInput from '../../components/CustomInput';
+import CustomButton from '../../components/CustomButton';
 
 interface Props {
   navigation: NavigationProp<'Login'>;
@@ -24,18 +26,18 @@ export default function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isDemoMode = demoEngine.isDemoModeEnabled();
 
-  async function handleLogin() {
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter both email and password.');
-      return;
-    }
+  async function performLogin(loginEmail: string, loginPassword: string) {
     setError(null);
     setLoading(true);
     try {
-      const res = await login(email.trim(), password);
+      const res = await login(loginEmail.trim(), loginPassword);
       await saveToken(res.token);
-      setAppState('admin');
+      // Only a merchant account routes to the admin dashboard — everyone else (including
+      // demo "customer" logins) lands in the customer experience. Anonymous customers can
+      // still reach the storefront without an account via "Scan a Table QR Code".
+      setAppState(res.roles.includes('ROLE_MERCHANT') ? 'admin' : 'customer');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed. Try again.');
     } finally {
@@ -43,155 +45,124 @@ export default function LoginScreen({ navigation }: Props) {
     }
   }
 
+  function handleLogin() {
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both email and password.');
+      return;
+    }
+    performLogin(email, password);
+  }
+
+  function handleQuickDemoLogin(role: 'admin' | 'customer') {
+    performLogin(DEMO_ACCOUNTS[role].email, 'demo');
+  }
+
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      className="flex-1"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.container}>
-          <Text style={styles.brand}>ScanCode</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
+      <ScrollView contentContainerClassName="flex-grow" keyboardShouldPersistTaps="handled">
+        <View className="flex-1 bg-white px-6 justify-center">
+          <Text className="text-[34px] font-extrabold text-primary text-center mb-1.5">ScanCode</Text>
+          <Text className="text-base text-gray-500 text-center mb-6">Sign in to your account</Text>
+
+          <TouchableOpacity
+            className="border-[1.5px] border-primary rounded-[10px] py-3.5 items-center flex-row justify-center gap-2"
+            onPress={() => navigation.navigate('CameraQRScanner')}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            <QrCode size={18} color="#6C63FF" strokeWidth={2.2} />
+            <Text className="text-primary text-base font-bold">Scan a Table QR Code</Text>
+          </TouchableOpacity>
+          <Text className="text-xs text-gray-400 text-center mt-2">Just visiting? No account needed.</Text>
+
+          <View className="flex-row items-center gap-2.5 my-6">
+            <View className="flex-1 h-px bg-gray-200" />
+            <Text className="text-xs text-gray-400 font-semibold">Merchant Sign In</Text>
+            <View className="flex-1 h-px bg-gray-200" />
+          </View>
 
           {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View className="bg-red-100 rounded-lg p-3 mb-4">
+              <Text className="text-red-600 text-sm">{error}</Text>
             </View>
           )}
 
-          <View accessibilityRole={"form" as any} style={styles.form}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
+          <View accessibilityRole={"form" as any} className="gap-2">
+            <CustomInput
+              label="Email"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
               placeholder="you@example.com"
-              placeholderTextColor="#9CA3AF"
               editable={!loading}
             />
 
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
+            <CustomInput
+              label="Password"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               autoComplete="current-password"
               textContentType="password"
               placeholder="••••••••"
-              placeholderTextColor="#9CA3AF"
               editable={!loading}
             />
 
             <TouchableOpacity
-              style={styles.forgotRow}
+              className="self-end mb-4 -mt-1"
               onPress={() => navigation.navigate('ForgotPassword')}
               disabled={loading}
             >
-              <Text style={styles.forgotText}>Forgot Password?</Text>
+              <Text className="text-[13px] text-primary font-semibold">Forgot Password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
-              )}
-            </TouchableOpacity>
+            <CustomButton title="Sign In" onPress={handleLogin} loading={loading} />
           </View>
 
+          {isDemoMode && (
+            <View className="bg-violet-50 border border-violet-200 rounded-xl p-3.5 mt-5">
+              <View className="flex-row items-center justify-center gap-1.5 mb-2.5">
+                <FlaskConical size={13} color="#5B21B6" strokeWidth={2.2} />
+                <Text className="text-xs font-bold text-violet-800">Demo Mode — Quick Login</Text>
+              </View>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  className="flex-1 bg-white border border-violet-300 rounded-lg py-2.5 items-center flex-row justify-center gap-1.5"
+                  onPress={() => handleQuickDemoLogin('admin')}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                >
+                  <Briefcase size={14} color="#5B21B6" strokeWidth={2.2} />
+                  <Text className="text-[13px] font-bold text-violet-800">Admin</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 bg-white border border-violet-300 rounded-lg py-2.5 items-center flex-row justify-center gap-1.5"
+                  onPress={() => handleQuickDemoLogin('customer')}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                >
+                  <ShoppingCart size={14} color="#5B21B6" strokeWidth={2.2} />
+                  <Text className="text-[13px] font-bold text-violet-800">Customer</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           <TouchableOpacity
-            style={styles.linkRow}
+            className="flex-row justify-center mt-6"
             onPress={() => navigation.navigate('Register')}
             disabled={loading}
           >
-            <Text style={styles.linkText}>Don't have an account?</Text>
-            <Text style={[styles.linkText, styles.linkAccent]}> Sign up</Text>
+            <Text className="text-sm text-gray-500">Don't have an account?</Text>
+            <Text className="text-sm text-primary font-semibold"> Sign up</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-  },
-  brand: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#6C63FF',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  errorBox: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#DC2626', fontSize: 14 },
-  form: { gap: 8 },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 2,
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-    marginBottom: 12,
-  },
-  button: {
-    backgroundColor: '#6C63FF',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  linkRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  forgotRow: {
-    alignSelf: 'flex-end',
-    marginBottom: 16,
-    marginTop: -4,
-  },
-  forgotText: {
-    fontSize: 13,
-    color: '#6C63FF',
-    fontWeight: '600',
-  },
-  linkText: { fontSize: 14, color: '#6B7280' },
-  linkAccent: { color: '#6C63FF', fontWeight: '600' },
-});

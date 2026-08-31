@@ -1,12 +1,6 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Share,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Share, ScrollView } from 'react-native';
+import { Share2 } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import type { NavigationProp, RouteProps } from '../../types';
 
@@ -31,37 +25,30 @@ export default function QRScreen({ route }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.storeName}>{name}</Text>
-          <Text style={styles.storeSlug}>/store/{slug}</Text>
+    <ScrollView contentContainerClassName="flex-grow">
+      <View className="flex-1 bg-gray-100 p-5 justify-center">
+        <View className="bg-white rounded-2xl p-6 items-center shadow-sm">
+          <Text className="text-[22px] font-extrabold text-gray-900 text-center mb-1">{name}</Text>
+          <Text className="text-sm text-primary font-semibold mb-6">/store/{slug}</Text>
 
-          <View style={styles.qrBox}>
+          <View className="p-4 bg-white rounded-xl border border-gray-200 mb-5">
             <QRCode value={storeUrl} size={200} backgroundColor="#ffffff" color="#111827" />
           </View>
 
-          <Text style={styles.instructionText}>
+          <Text className="text-[13px] text-gray-500 text-center leading-[18px] mb-6">
             Customers can scan this code with their smartphone camera to view your digital menu and place orders.
           </Text>
 
-          <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
-            <Text style={styles.shareBtnText}>Share Storefront Link</Text>
+          <TouchableOpacity
+            className="bg-primary rounded-xl py-3.5 px-6 w-full items-center flex-row justify-center gap-2"
+            onPress={handleShare}
+            activeOpacity={0.8}
+          >
+            <Share2 size={18} color="#FFFFFF" strokeWidth={2.2} />
+            <Text className="text-white text-base font-bold">Share Storefront Link</Text>
           </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  container: { flex: 1, backgroundColor: '#F3F4F6', padding: 20, justifyContent: 'center' },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 24, alignItems: 'center', elevation: 2 },
-  storeName: { fontSize: 22, fontWeight: '800', color: '#111827', textAlign: 'center', marginBottom: 4 },
-  storeSlug: { fontSize: 14, color: '#6C63FF', fontWeight: '600', marginBottom: 24 },
-  qrBox: { padding: 16, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 20 },
-  instructionText: { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 18, marginBottom: 24 },
-  shareBtn: { backgroundColor: '#6C63FF', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 24, width: '100%', alignItems: 'center' },
-  shareBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-});

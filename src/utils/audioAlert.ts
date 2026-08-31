@@ -1,21 +1,13 @@
 // Native & Web Audio Alert Utility for ScanCode Mobile
 // Synthesizes order alarm chimes and handles audio feedback across mobile & web environments.
 // Supports custom admin-selected alarm tones persisted via AsyncStorage.
+//
+// Uses expo-audio (expo-av was fully removed as of Expo SDK 55 — this project is on SDK 57).
+// Unlike the old expo-av setup, expo-audio has real web support, so custom tones now play
+// on web too instead of always falling back to the synthesizer there.
 
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Safely attempt to require expo-av only if available and not on web
-let Audio: any = null;
-try {
-  if (Platform.OS !== 'web') {
-    const ExpoAV = require('expo-av');
-    Audio = ExpoAV.Audio;
-  }
-} catch (e) {
-  // Gracefully caught inside standalone Expo Go applications missing compiled native modules
-  console.warn("expo-av native module 'ExponentAV' not detected. Falling back to platform mocks.");
-}
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 
 // ─── AsyncStorage Keys ───────────────────────────────────────────────────────
 
@@ -97,15 +89,14 @@ export function getCustomChimeUri(): string | null {
 // ─── Internal Helpers ────────────────────────────────────────────────────────
 
 /**
- * Configure audio session for native devices (iOS/Android)
+ * Configure the shared audio session (iOS silent-mode playback, Android ducking).
  */
 async function configureAudioSession() {
-  if (audioConfigured || Platform.OS === 'web' || !Audio) return;
+  if (audioConfigured) return;
   try {
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
+    await setAudioModeAsync({
+      playsInSilentMode: true,
+      interruptionMode: 'duckOthers',
     });
     audioConfigured = true;
   } catch (e) {
@@ -114,31 +105,27 @@ async function configureAudioSession() {
 }
 
 /**
- * Play audio file using expo-av with automatic resource cleanup
+ * Play an audio file via expo-audio, auto-releasing the player once playback
+ * completes. Falls back to the synthesizer on any error (missing file,
+ * unsupported format, playback failure, etc).
  */
 async function playSoundFile(uri: string, fallbackFreq: number) {
-  // If running on Expo Go or Web where native Audio is unavailable, fall back to synthesizer
-  if (!Audio || Platform.OS === 'web') {
-    console.log(`🔊 [SCANCODE AUDIO]: Asset playback requested for ${uri}. Falling back to synthesizer.`);
-    synthFallbackBeep(fallbackFreq, 0.4);
-    return;
-  }
-
+  let player: AudioPlayer | null = null;
   try {
     await configureAudioSession();
-    const { sound } = await Audio.Sound.createAsync(
-      { uri },
-      { shouldPlay: true, volume: 1.0 }
-    );
+    player = createAudioPlayer(uri);
 
-    // Automatically unload sound after playback completes to prevent resource leaks
-    sound.setOnPlaybackStatusUpdate((status: any) => {
-      if (status.isLoaded && status.didJustFinish) {
-        sound.unloadAsync().catch(() => { });
+    const subscription = player.addListener('playbackStatusUpdate', (status) => {
+      if (status.didJustFinish) {
+        subscription.remove();
+        player?.remove();
       }
     });
+
+    player.play();
   } catch (err) {
-    console.warn('expo-av playback error, falling back to synthesizer:', err);
+    console.warn('expo-audio playback error, falling back to synthesizer:', err);
+    player?.remove();
     synthFallbackBeep(fallbackFreq, 0.4);
   }
 }

@@ -5,16 +5,18 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { createOrder, getStoreConfig, getStorefrontBySlug, type OrderResponse, type StorefrontResponse } from '../../api';
-import type { CartItem } from './StorefrontScreen';
-import type { NavigationProp, RouteProps } from '../../types';
+import { CheckCircle2 } from 'lucide-react-native';
+import { createOrder, getStoreConfig, getStorefrontBySlug, type OrderResponse } from '../../api';
+import type { CartItem, NavigationProp, RouteProps } from '../../types';
+import { useCart } from '../../context/CartContext';
+import { parseStorefrontData } from '../../utils/parseStorefrontData';
+import { cn } from '../../utils/cn';
 
 interface Props {
   navigation: NavigationProp<'Checkout'>;
@@ -23,6 +25,7 @@ interface Props {
 
 export default function CheckoutScreen({ navigation, route }: Props) {
   const { slug, storefrontId: initialStorefrontId, cart: initialCart, table } = route.params;
+  const { clearCart } = useCart();
 
   const [cart] = useState<CartItem[]>(initialCart || []);
   const [storefrontId, setStorefrontId] = useState<number | null>(initialStorefrontId || null);
@@ -47,35 +50,25 @@ export default function CheckoutScreen({ navigation, route }: Props) {
       try {
         setIsLoadingConfig(true);
 
-        let activeStoreId = storefrontId;
-        if (!activeStoreId) {
-          const sf = await getStorefrontBySlug(slug);
-          activeStoreId = sf.id;
-          if (isMounted) {
-            setStorefrontId(sf.id);
-            setVendor({
-              name: sf.name,
-              bankName: (sf.data as any)?.bankName,
-              accountNumber: (sf.data as any)?.accountNumber,
-            });
-          }
-        } else {
-          const sf = await getStorefrontBySlug(slug);
-          if (isMounted) {
-            setVendor({
-              name: sf.name,
-              bankName: (sf.data as any)?.bankName,
-              accountNumber: (sf.data as any)?.accountNumber,
-            });
-          }
-        }
+        const sf = await getStorefrontBySlug(slug);
+        if (!isMounted) return;
 
-        if (activeStoreId) {
-          const config = await getStoreConfig(activeStoreId).catch(() => null);
-          if (isMounted && config) {
-            setVatRate(config.vatRate ?? 0.075);
-            setDeliveryFee(config.deliveryFee ?? 0);
-          }
+        const activeStoreId = storefrontId ?? sf.id;
+        if (!storefrontId) setStorefrontId(sf.id);
+        const customData = parseStorefrontData(sf.data);
+        setVendor({
+          name: sf.name,
+          bankName: customData.bankName,
+          accountNumber: customData.accountNumber,
+        });
+
+        const config = await getStoreConfig(activeStoreId).catch(() => null);
+        if (isMounted && config) {
+          // vatRate's canonical form is a fraction, but normalize defensively —
+          // see the comment on StoreConfigResponse in api.ts.
+          const rawVat = config.vatRate ?? 7.5;
+          setVatRate(rawVat > 1 ? rawVat / 100 : rawVat);
+          setDeliveryFee(config.deliveryFee ?? 0);
         }
       } catch (err) {
         // Fall back to defaults
@@ -125,6 +118,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
       });
 
       setPlacedOrder(order);
+      clearCart(storefrontId);
     } catch (err: unknown) {
       Alert.alert(
         'Order Failed',
@@ -140,101 +134,114 @@ export default function CheckoutScreen({ navigation, route }: Props) {
   const accountName = vendor?.name || 'Store Management';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-gray-50">
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scrollPadding}>
+        <ScrollView contentContainerClassName="p-4 pb-10">
           {placedOrder ? (
-            <View style={styles.successWrapper}>
-              <View style={styles.successIconBadge}>
-                <Text style={styles.successIconText}>✓</Text>
+            <View className="items-center py-6">
+              <View className="w-16 h-16 rounded-full bg-emerald-100 justify-center items-center mb-4">
+                <CheckCircle2 size={34} color="#059669" strokeWidth={2} />
               </View>
-              <Text style={styles.successTitle}>Order Placed Successfully!</Text>
-              <Text style={styles.successSub}>
-                Order #{placedOrder.id} is registered as <Text style={styles.statusBadge}>PENDING PAYMENT</Text>
+              <Text className="text-[22px] font-extrabold text-gray-900 text-center mb-1.5">Order Placed Successfully!</Text>
+              <Text className="text-sm text-gray-600 text-center mb-6">
+                Order #{placedOrder.id} is registered as <Text className="font-bold text-amber-600">PENDING PAYMENT</Text>
               </Text>
 
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Payment Due</Text>
-                <Text style={styles.grandTotalText}>₦{placedOrder.total.toLocaleString()}</Text>
+              <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-200 w-full">
+                <Text className="text-sm text-gray-500 text-center">Payment Due</Text>
+                <Text className="text-[28px] font-extrabold text-primary text-center mt-1">₦{placedOrder.total.toLocaleString()}</Text>
 
-                <View style={styles.divider} />
+                <View className="h-px bg-gray-100 my-2.5" />
 
-                <Text style={styles.bankInstruction}>
+                <Text className="text-[13px] text-gray-600 mb-3 leading-[18px]">
                   Please transfer the exact total amount to the store account below:
                 </Text>
 
-                <View style={styles.bankBox}>
-                  <View style={styles.bankRow}>
-                    <Text style={styles.bankLabel}>Bank Name:</Text>
-                    <Text style={styles.bankValue}>{bankName}</Text>
+                <View className="bg-gray-100 rounded-[10px] p-3 gap-1.5">
+                  <View className="flex-row justify-between">
+                    <Text className="text-[13px] text-gray-500">Bank Name:</Text>
+                    <Text className="text-[13px] font-semibold text-gray-800">{bankName}</Text>
                   </View>
-                  <View style={styles.bankRow}>
-                    <Text style={styles.bankLabel}>Account Number:</Text>
-                    <Text style={styles.bankValueBold}>{accountNumber}</Text>
+                  <View className="flex-row justify-between">
+                    <Text className="text-[13px] text-gray-500">Account Number:</Text>
+                    <Text className="text-sm font-extrabold text-gray-900">{accountNumber}</Text>
                   </View>
-                  <View style={styles.bankRow}>
-                    <Text style={styles.bankLabel}>Account Name:</Text>
-                    <Text style={styles.bankValue}>{accountName}</Text>
+                  <View className="flex-row justify-between">
+                    <Text className="text-[13px] text-gray-500">Account Name:</Text>
+                    <Text className="text-[13px] font-semibold text-gray-800">{accountName}</Text>
                   </View>
                 </View>
               </View>
 
               <TouchableOpacity
-                style={styles.primaryBtn}
+                className="bg-primary rounded-xl py-4 items-center mt-2 self-stretch"
+                onPress={() =>
+                  navigation.navigate('OrderReceiptTracker', {
+                    orderId: placedOrder.id,
+                    slug,
+                    storefrontId: storefrontId ?? placedOrder.storefrontId,
+                  })
+                }
+              >
+                <Text className="text-white text-base font-bold">Track Order Status</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="rounded-xl py-3.5 items-center mt-2.5 self-stretch border-[1.5px] border-gray-300"
                 onPress={() => navigation.navigate('Storefront', { slug })}
               >
-                <Text style={styles.primaryBtnText}>Return to Storefront</Text>
+                <Text className="text-gray-600 text-[15px] font-semibold">Return to Storefront</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View>
-              <Text style={styles.sectionTitle}>Order Summary</Text>
+              <Text className="text-base font-bold text-gray-900 mb-2.5 mt-2">Order Summary</Text>
 
-              <View style={styles.card}>
+              <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-200">
                 {cart.map((item) => (
-                  <View key={item.id} style={styles.itemRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                      <Text style={styles.itemSub}>₦{item.price.toLocaleString()} × {item.qty}</Text>
+                  <View key={item.id} className="flex-row justify-between items-center py-2">
+                    <View className="flex-1">
+                      <Text className="text-[15px] font-semibold text-gray-800">{item.name}</Text>
+                      <Text className="text-[13px] text-gray-500 mt-0.5">₦{item.price.toLocaleString()} × {item.qty}</Text>
                     </View>
-                    <Text style={styles.itemTotal}>₦{(item.price * item.qty).toLocaleString()}</Text>
+                    <Text className="text-sm font-bold text-gray-800">₦{(item.price * item.qty).toLocaleString()}</Text>
                   </View>
                 ))}
 
-                <View style={styles.divider} />
+                <View className="h-px bg-gray-100 my-2.5" />
 
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Subtotal</Text>
-                  <Text style={styles.summaryValue}>₦{subtotal.toLocaleString()}</Text>
+                <View className="flex-row justify-between py-1">
+                  <Text className="text-sm text-gray-600">Subtotal</Text>
+                  <Text className="text-sm font-medium text-gray-800">₦{subtotal.toLocaleString()}</Text>
                 </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>VAT ({(vatRate * 100).toFixed(1)}%)</Text>
-                  <Text style={styles.summaryValue}>₦{vat.toLocaleString()}</Text>
+                <View className="flex-row justify-between py-1">
+                  <Text className="text-sm text-gray-600">VAT ({(vatRate * 100).toFixed(1)}%)</Text>
+                  <Text className="text-sm font-medium text-gray-800">₦{vat.toLocaleString()}</Text>
                 </View>
                 {deliveryFee > 0 && (
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Delivery Fee</Text>
-                    <Text style={styles.summaryValue}>₦{deliveryFee.toLocaleString()}</Text>
+                  <View className="flex-row justify-between py-1">
+                    <Text className="text-sm text-gray-600">Delivery Fee</Text>
+                    <Text className="text-sm font-medium text-gray-800">₦{deliveryFee.toLocaleString()}</Text>
                   </View>
                 )}
 
-                <View style={styles.divider} />
+                <View className="h-px bg-gray-100 my-2.5" />
 
-                <View style={styles.summaryRow}>
-                  <Text style={styles.totalLabel}>Total</Text>
-                  <Text style={styles.totalValue}>₦{total.toLocaleString()}</Text>
+                <View className="flex-row justify-between py-1">
+                  <Text className="text-base font-bold text-gray-900">Total</Text>
+                  <Text className="text-lg font-extrabold text-primary">₦{total.toLocaleString()}</Text>
                 </View>
               </View>
 
-              <Text style={styles.sectionTitle}>Customer Details</Text>
+              <Text className="text-base font-bold text-gray-900 mb-2.5 mt-2">Customer Details</Text>
 
-              <View style={styles.card}>
-                <Text style={styles.label}>Full Name *</Text>
+              <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-200">
+                <Text className="text-[13px] font-semibold text-gray-700 mb-1 mt-2">Full Name *</Text>
                 <TextInput
-                  style={styles.input}
+                  className="border border-gray-300 rounded-[10px] px-3.5 py-2.5 text-sm text-gray-900 bg-gray-50"
                   value={customerName}
                   onChangeText={setCustomerName}
                   placeholder="e.g. John Doe"
@@ -242,9 +249,9 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                   editable={!isSubmitting}
                 />
 
-                <Text style={styles.label}>Phone Number *</Text>
+                <Text className="text-[13px] font-semibold text-gray-700 mb-1 mt-2">Phone Number *</Text>
                 <TextInput
-                  style={styles.input}
+                  className="border border-gray-300 rounded-[10px] px-3.5 py-2.5 text-sm text-gray-900 bg-gray-50"
                   value={customerPhone}
                   onChangeText={setCustomerPhone}
                   keyboardType="phone-pad"
@@ -253,9 +260,9 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                   editable={!isSubmitting}
                 />
 
-                <Text style={styles.label}>Email Address (Optional)</Text>
+                <Text className="text-[13px] font-semibold text-gray-700 mb-1 mt-2">Email Address (Optional)</Text>
                 <TextInput
-                  style={styles.input}
+                  className="border border-gray-300 rounded-[10px] px-3.5 py-2.5 text-sm text-gray-900 bg-gray-50"
                   value={customerEmail}
                   onChangeText={setCustomerEmail}
                   keyboardType="email-address"
@@ -265,9 +272,9 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                   editable={!isSubmitting}
                 />
 
-                <Text style={styles.label}>Table / Room Code (Optional)</Text>
+                <Text className="text-[13px] font-semibold text-gray-700 mb-1 mt-2">Table / Room Code (Optional)</Text>
                 <TextInput
-                  style={styles.input}
+                  className="border border-gray-300 rounded-[10px] px-3.5 py-2.5 text-sm text-gray-900 bg-gray-50"
                   value={tableCode}
                   onChangeText={setTableCode}
                   placeholder="e.g. T-04"
@@ -277,7 +284,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
               </View>
 
               <TouchableOpacity
-                style={[styles.primaryBtn, isSubmitting && styles.btnDisabled]}
+                className={cn('bg-primary rounded-xl py-4 items-center mt-2 self-stretch', isSubmitting && 'opacity-60')}
                 onPress={handlePlaceOrder}
                 disabled={isSubmitting || isLoadingConfig}
                 activeOpacity={0.8}
@@ -285,7 +292,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.primaryBtnText}>Confirm & Pay ₦{total.toLocaleString()}</Text>
+                  <Text className="text-white text-base font-bold">Confirm & Pay ₦{total.toLocaleString()}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -295,39 +302,3 @@ export default function CheckoutScreen({ navigation, route }: Props) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  scrollPadding: { padding: 16, paddingBottom: 40 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 10, marginTop: 8 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB' },
-  itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
-  itemName: { fontSize: 15, fontWeight: '600', color: '#1F2937' },
-  itemSub: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  itemTotal: { fontSize: 14, fontWeight: '700', color: '#1F2937' },
-  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 10 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  summaryLabel: { fontSize: 14, color: '#4B5563' },
-  summaryValue: { fontSize: 14, fontWeight: '500', color: '#1F2937' },
-  totalLabel: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  totalValue: { fontSize: 18, fontWeight: '800', color: '#6C63FF' },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4, marginTop: 8 },
-  input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#111827', backgroundColor: '#F9FAFB' },
-  primaryBtn: { backgroundColor: '#6C63FF', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
-  btnDisabled: { opacity: 0.6 },
-  primaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  successWrapper: { alignItems: 'center', paddingVertical: 24 },
-  successIconBadge: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  successIconText: { fontSize: 32, color: '#059669', fontWeight: 'bold' },
-  successTitle: { fontSize: 22, fontWeight: '800', color: '#111827', textAlign: 'center', marginBottom: 6 },
-  successSub: { fontSize: 14, color: '#4B5563', textAlign: 'center', marginBottom: 24 },
-  statusBadge: { fontWeight: '700', color: '#D97706' },
-  cardTitle: { fontSize: 14, color: '#6B7280', textAlign: 'center' },
-  grandTotalText: { fontSize: 28, fontWeight: '800', color: '#6C63FF', textAlign: 'center', marginTop: 4 },
-  bankInstruction: { fontSize: 13, color: '#4B5563', marginBottom: 12, lineHeight: 18 },
-  bankBox: { backgroundColor: '#F3F4F6', borderRadius: 10, padding: 12, gap: 6 },
-  bankRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  bankLabel: { fontSize: 13, color: '#6B7280' },
-  bankValue: { fontSize: 13, fontWeight: '600', color: '#1F2937' },
-  bankValueBold: { fontSize: 14, fontWeight: '800', color: '#111827' },
-});

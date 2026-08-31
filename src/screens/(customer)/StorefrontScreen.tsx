@@ -1,20 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-    StyleSheet,
     Text,
     View,
     Image,
     ScrollView,
+    FlatList,
     TouchableOpacity,
     TextInput,
     Alert,
     ActivityIndicator,
-    Modal,
-    Pressable
 } from 'react-native';
-import { Heart, Search, ShoppingCart } from 'lucide-react-native';
+import { Heart, Search, ShoppingCart, MapPin, Package, Store } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import StorefrontToolbar, { type WeeklyEvents } from '../../components/StorefrontToolbar';
 import {
     getProducts,
@@ -23,31 +20,12 @@ import {
     type ProductResponse,
     type StorefrontResponse,
 } from '../../api';
+import { useCart, EMPTY_CART, EMPTY_FAVORITES } from '../../context/CartContext';
+import { parseStorefrontData } from '../../utils/parseStorefrontData';
+import type { NavigationProp, RouteProps, Vendor, Product } from '../../types';
+import { cn } from '../../utils/cn';
 
-export interface Vendor {
-    name: string;
-    description: string;
-    phone: string;
-    email: string;
-    bankName: string;
-    accountNumber: string;
-    images: string[];
-    logoUrl?: string;
-    bannerUrl?: string;
-    estimatedDeliveryTime?: string;
-}
-
-export interface Product {
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    stock: number;
-    isDelisted: boolean;
-    media: string[];
-    category: string;
-    isPopular?: boolean;
-}
+export type { Vendor, Product } from '../../types';
 
 export interface Category {
     id: string;
@@ -56,52 +34,9 @@ export interface Category {
     imageUrl?: string;
 }
 
-export interface CartItem {
-    id: string;
-    name: string;
-    price: number;
-    qty: number;
-}
-
-type RootStackParamList = {
-    StorefrontScreen: { slug: string; table?: string; tableCode?: string };
-    CheckoutScreen: { slug: string; table?: string; cart: CartItem[] };
-};
-
-type StorefrontScreenRouteProp = RouteProp<RootStackParamList, 'StorefrontScreen'>;
-
-const SAMPLE_CATEGORIES: Category[] = [
-    { id: 'all', name: 'All', icon: '📋' },
-    { id: 'meals', name: 'Meals', icon: '🍱' },
-    { id: 'new', name: 'new', icon: '🥬' },
-    { id: 'general', name: 'General', icon: '📦' }
-];
-
-type StorefrontData = {
-    phone?: string;
-    email?: string;
-    bankName?: string;
-    accountNumber?: string;
-    images?: string[];
-    estimatedDeliveryTime?: string;
-    weeklyEvents?: WeeklyEvents;
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function parseStorefrontData(data: unknown): StorefrontData {
-    if (!isRecord(data)) return {};
-    return {
-        phone: typeof data.phone === 'string' ? data.phone : undefined,
-        email: typeof data.email === 'string' ? data.email : undefined,
-        bankName: typeof data.bankName === 'string' ? data.bankName : undefined,
-        accountNumber: typeof data.accountNumber === 'string' ? data.accountNumber : undefined,
-        images: Array.isArray(data.images) ? data.images.filter((item): item is string => typeof item === 'string') : undefined,
-        estimatedDeliveryTime: typeof data.estimatedDeliveryTime === 'string' ? data.estimatedDeliveryTime : undefined,
-        weeklyEvents: isRecord(data.weeklyEvents) ? data.weeklyEvents as WeeklyEvents : undefined,
-    };
+interface Props {
+    navigation: NavigationProp<'Storefront'>;
+    route: RouteProps<'Storefront'>;
 }
 
 function mapProduct(product: ProductResponse): Product {
@@ -203,21 +138,16 @@ const DUMMY_PRODUCTS: Product[] = [
     },
 ];
 
-export default function StorefrontScreen() {
-    const navigation = useNavigation<any>();
-    const route = useRoute<StorefrontScreenRouteProp>();
+export default function StorefrontScreen({ navigation, route }: Props) {
+    const { carts, favorites, addToCart: addToCartCtx, toggleFavorite: toggleFavoriteCtx } = useCart();
 
     const rawSlug = route.params?.slug;
     const slug = rawSlug && rawSlug.trim() ? rawSlug.trim() : 'demo';
-    const scannedTableCode = (route.params?.table ?? route.params?.tableCode) as string | undefined;
+    const scannedTableCode = route.params?.tableCode;
 
     const [storefront, setStorefront] = useState<StorefrontResponse | null>(null);
     const [vendor, setVendor] = useState<Vendor | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
-    const [cart, setCart] = useState<CartItem[]>([]);
-    const [isCartModalVisible, setIsCartModalVisible] = useState(false);
-    const [isFavoritesModalVisible, setIsFavoritesModalVisible] = useState(false);
-    const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -306,53 +236,20 @@ export default function StorefrontScreen() {
         fetchVendor();
     }, [slug]);
 
+    const storefrontId = storefront?.id ?? 0;
+    const cart = carts[storefrontId] ?? EMPTY_CART;
+    const favoriteProductsList = favorites[storefrontId] ?? EMPTY_FAVORITES;
+    const favoriteIds = useMemo(() => favoriteProductsList.map((p) => p.id), [favoriteProductsList]);
+
     const addToCart = (product: Product) => {
-        const existingItem = cart.find((item) => item.id === product.id);
-        const currentQty = existingItem ? existingItem.qty : 0;
-        if (currentQty + 1 > product.stock) {
+        const added = addToCartCtx(storefrontId, product);
+        if (!added) {
             Alert.alert("Limit Reached", `Only ${product.stock} items available in stock.`);
-            return;
         }
-        setCart((prevCart) => {
-            if (existingItem) {
-                return prevCart.map((item) =>
-                    item.id === product.id ? { ...item, qty: item.qty + 1 } : item
-                );
-            }
-            return [...prevCart, { id: product.id, name: product.name, price: product.price, qty: 1 }];
-        });
     };
 
     const toggleFavorite = (product: Product) => {
-        setFavoriteIds((prev) => {
-            if (prev.includes(product.id)) {
-                return prev.filter((id) => id !== product.id);
-            }
-            return [...prev, product.id];
-        });
-    };
-
-    const handleUpdateCartQty = (id: string, delta: number) => {
-        setCart((prev) => {
-            return prev.map((item) => {
-                if (item.id !== id) return item;
-                const newQty = item.qty + delta;
-
-                if (newQty <= 0) return null;
-
-                const productRef = products.find(p => p.id === id);
-                if (productRef && newQty > productRef.stock) {
-                    Alert.alert("Limit Reached", `Only ${productRef.stock} items available in stock.`);
-                    return item;
-                }
-
-                return { ...item, qty: newQty };
-            }).filter(Boolean) as CartItem[];
-        });
-    };
-
-    const handleRemoveCartItem = (id: string) => {
-        setCart((prev) => prev.filter((item) => item.id !== id));
+        toggleFavoriteCtx(storefrontId, product);
     };
 
     const filteredProducts = useMemo(() => {
@@ -371,10 +268,6 @@ export default function StorefrontScreen() {
             return matchesCategory && matchesSearch;
         });
     }, [products, activeCategory, searchQuery]);
-
-    const favoriteProducts = useMemo(() => {
-        return products.filter((product) => favoriteIds.includes(product.id));
-    }, [products, favoriteIds]);
 
     const categories = useMemo<Category[]>(() => {
         const categoryNames = Array.from(new Set(products.map((product) => product.category).filter(Boolean)));
@@ -406,45 +299,46 @@ export default function StorefrontScreen() {
 
     if (isLoading) {
         return (
-            <View style={styles.skeleton}>
+            <View className="flex-1 justify-center items-center bg-white">
                 <ActivityIndicator size="large" color="#6C63FF" />
             </View>
         );
     }
     if (error) {
         return (
-            <View style={styles.skeleton}>
-                <Text style={styles.errorText}>{error || "Store Details Missing"}</Text>
+            <View className="flex-1 justify-center items-center bg-white">
+                <Text className="text-red-500 text-base font-medium">{error || "Store Details Missing"}</Text>
             </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.brandContainer}>
-                <View style={styles.logoCircle}>
+        <SafeAreaView className="flex-1 bg-white">
+            <View className="items-center pt-4 pb-3 bg-white">
+                <View className="w-[60px] h-[60px] rounded-full bg-gray-900 justify-center items-center overflow-hidden mb-2">
                     {vendor?.logoUrl ? (
-                        <Image source={{ uri: vendor.logoUrl }} style={styles.logoImage} />
+                        <Image source={{ uri: vendor.logoUrl }} className="w-full h-full" resizeMode="cover" />
                     ) : (
-                        <View style={styles.logoInnerFallback}>
-                            <Text style={styles.logoIconText}>|=|</Text>
+                        <View className="justify-center items-center">
+                            <Store size={26} color="#FFFFFF" strokeWidth={1.8} />
                         </View>
                     )}
                 </View>
-                <Text style={styles.vendorName}>{vendor?.name || "The Test"}</Text>
-                <Text style={styles.brandingSubtext}>...by ScanCode.ng</Text>
+                <Text className="text-xl font-bold text-gray-900">{vendor?.name || "The Test"}</Text>
+                <Text className="text-xs text-gray-400 mt-0.5">...by ScanCode.ng</Text>
                 {scannedTableCode && (
-                    <View style={styles.tableBadge}>
-                        <Text style={styles.tableBadgeText}>📍 Table: {scannedTableCode}</Text>
+                    <View className="bg-amber-100 self-start py-1 px-2.5 rounded-full mt-2.5 flex-row items-center gap-1">
+                        <MapPin size={11} color="#D97706" strokeWidth={2.2} />
+                        <Text className="text-amber-600 text-xs font-semibold">Table: {scannedTableCode}</Text>
                     </View>
                 )}
             </View>
 
-            <View style={styles.searchRowContainer}>
-                <View style={styles.searchBarWrapper}>
-                    <Search size={16} color="#9CA3AF" style={{ marginRight: 6 }} />
+            <View className="flex-row items-center px-4 my-3">
+                <View className="flex-1 flex-row items-center bg-gray-50 border border-gray-200 rounded-[25px] pl-4 pr-1.5 h-[46px]">
+                    <Search size={16} color="#9CA3AF" className="mr-1.5" />
                     <TextInput
-                        style={styles.searchInputField}
+                        className="flex-1 text-sm text-gray-800 py-0"
                         placeholder="Search for dishes..."
                         placeholderTextColor="#9CA3AF"
                         value={searchQuery}
@@ -452,23 +346,23 @@ export default function StorefrontScreen() {
                     />
 
                     <TouchableOpacity
-                        style={styles.headerIconButton}
+                        className="w-[34px] h-[34px] rounded-full bg-white border border-gray-200 justify-center items-center ml-1.5 relative"
                         activeOpacity={0.7}
-                        onPress={() => setIsCartModalVisible(true)}
+                        onPress={() => navigation.navigate('CartDrawer', { slug, storefrontId, name: vendor?.name, table: scannedTableCode })}
                         accessibilityLabel="Open cart"
                     >
                         <ShoppingCart size={20} color="#065F46" strokeWidth={2} />
                         {financialSummary.totalQty > 0 && (
-                            <View style={styles.headerCountBadge}>
-                                <Text style={styles.headerCountBadgeText}>{financialSummary.totalQty}</Text>
+                            <View className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-lg bg-primary justify-center items-center px-1">
+                                <Text className="text-white text-[10px] font-extrabold">{financialSummary.totalQty}</Text>
                             </View>
                         )}
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.headerIconButton}
+                        className="w-[34px] h-[34px] rounded-full bg-white border border-gray-200 justify-center items-center ml-1.5 relative"
                         activeOpacity={0.7}
-                        onPress={() => setIsFavoritesModalVisible(true)}
+                        onPress={() => navigation.navigate('Wishlist', { slug, storefrontId, name: vendor?.name })}
                         accessibilityLabel="Open favorites"
                     >
                         <Heart
@@ -478,76 +372,87 @@ export default function StorefrontScreen() {
                             strokeWidth={2}
                         />
                         {favoriteIds.length > 0 && (
-                            <View style={styles.headerCountBadge}>
-                                <Text style={styles.headerCountBadgeText}>{favoriteIds.length}</Text>
+                            <View className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-lg bg-primary justify-center items-center px-1">
+                                <Text className="text-white text-[10px] font-extrabold">{favoriteIds.length}</Text>
                             </View>
                         )}
                     </TouchableOpacity>
                 </View>
             </View>
 
-            <Text style={styles.sectionHeadingTitle}>Categories</Text>
+            <Text className="text-base font-bold text-gray-900 px-4 mt-4 mb-3">Categories</Text>
 
-            <View style={styles.categoryScrollWrapper}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScrollPadding}>
+            <View className="bg-white">
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-4 pb-1">
                     {categories.length > 0 ? categories.map((cat) => {
                         const isSelected = activeCategory === cat.name;
                         return (
                             <TouchableOpacity
                                 key={cat.id}
-                                style={[styles.categorySquareCard, isSelected && styles.activeSquareCard]}
+                                className={cn(
+                                    'w-[76px] bg-white border rounded-xl p-2 items-center mr-2.5',
+                                    isSelected ? 'border-primary bg-violet-50' : 'border-gray-200'
+                                )}
                                 activeOpacity={0.8}
                                 onPress={() => handleCategoryPress(cat.name)}
                             >
-                                <View style={styles.squareIconBox}>
-                                    <Text style={styles.squareBoxIconSymbol}>{cat.icon}</Text>
+                                <View className="w-11 h-11 rounded-lg bg-gray-100 justify-center items-center mb-1.5">
+                                    <Text className="text-[22px]">{cat.icon}</Text>
                                 </View>
-                                <Text style={[styles.squareCardLabel, isSelected && styles.activeSquareCardLabel]}>
+                                <Text className={cn('text-[11px] text-center', isSelected ? 'text-primary font-semibold' : 'text-gray-600 font-medium')}>
                                     {cat.name}
                                 </Text>
                             </TouchableOpacity>
                         );
                     }) : (
-                        <View style={styles.emptyCategoriesBox}>
-                            <Text style={styles.emptyStateText}>Categories will appear when products are added.</Text>
+                        <View className="py-3 px-2">
+                            <Text className="text-[13px] text-gray-500 text-center">Categories will appear when products are added.</Text>
                         </View>
                     )}
                 </ScrollView>
             </View>
 
-            <Text style={styles.sectionHeadingTitle}>
-                {activeCategory ? `${activeCategory} Products` : 'All Products'}
-            </Text>
-
-            <ScrollView
-                style={styles.menuList}
-                contentContainerStyle={styles.scrollPadding}
-            >
-                {filteredProducts.map((item) => (
-                    <View key={item.id} style={styles.productCard}>
-                        <View style={styles.imgPlaceholder}>
+            <FlatList
+                className="flex-1"
+                contentContainerClassName="px-4 pt-1 pb-[110px]"
+                data={filteredProducts}
+                keyExtractor={(item) => item.id}
+                ListHeaderComponent={
+                    <Text className="text-base font-bold text-gray-900 mt-4 mb-3">
+                        {activeCategory ? `${activeCategory} Products` : 'All Products'}
+                    </Text>
+                }
+                ListEmptyComponent={
+                    <View className="items-center justify-center py-8 px-5">
+                        <Text className="text-base font-bold text-gray-800 mb-1.5">No products found</Text>
+                        <Text className="text-[13px] text-gray-500 text-center">Try another search or category.</Text>
+                    </View>
+                }
+                renderItem={({ item }) => (
+                    <View className="bg-white rounded-xl flex-row p-3 mb-4 border border-gray-100">
+                        <View className="w-20 h-20 rounded-lg bg-gray-100 justify-center items-center overflow-hidden">
                             {item.media[0] ? (
-                                <Image source={{ uri: item.media[0] }} style={styles.productImage} />
+                                <Image source={{ uri: item.media[0] }} className="w-full h-full rounded-lg" resizeMode="cover" />
                             ) : (
-                                <Text style={styles.placeholderIcon}>📦</Text>
+                                <Package size={26} color="#9CA3AF" strokeWidth={1.6} />
                             )}
                         </View>
-                        <View style={styles.productDetails}>
-                            <View style={styles.cardHeaderRow}>
-                                <Text style={styles.productName}>{item.name}</Text>
+                        <View className="flex-1 ml-4 justify-between">
+                            <View className="flex-row justify-between items-center">
+                                <Text className="text-base font-semibold text-gray-800 flex-1">{item.name}</Text>
                             </View>
-                            <Text style={styles.productDesc} numberOfLines={2}>{item.description}</Text>
-                            <View style={styles.cardRow}>
-                                <Text style={styles.productPrice}>₦{item.price.toLocaleString()}</Text>
-                                <View style={styles.cardActions}>
-                                    <TouchableOpacity style={styles.addBtn} onPress={() => addToCart(item)}>
-                                        <Text style={styles.addBtnText}> + </Text>
+                            <Text className="text-xs text-gray-400 my-1" numberOfLines={2}>{item.description}</Text>
+                            <View className="flex-row justify-between items-center">
+                                <Text className="text-[15px] font-bold text-primary">₦{item.price.toLocaleString()}</Text>
+                                <View className="flex-row items-center gap-2 ml-3">
+                                    <TouchableOpacity className="bg-primary py-1.5 px-3.5 rounded-full" onPress={() => addToCart(item)}>
+                                        <Text className="text-white text-[13px] font-semibold"> + </Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
-                                        style={[
-                                            styles.favoriteCardButton,
-                                            favoriteIds.includes(item.id) && styles.favoriteCardButtonActive
-                                        ]}
+                                        className={cn(
+                                            'w-8 h-8 rounded-2xl bg-white border justify-center items-center',
+                                            favoriteIds.includes(item.id) ? 'bg-red-50 border-red-300' : 'border-gray-200'
+                                        )}
                                         onPress={() => toggleFavorite(item)}
                                         activeOpacity={0.75}
                                         accessibilityLabel={`${favoriteIds.includes(item.id) ? 'Remove from' : 'Add to'} favorites`}
@@ -563,186 +468,23 @@ export default function StorefrontScreen() {
                             </View>
                         </View>
                     </View>
-                ))}
-                {filteredProducts.length === 0 && (
-                    <View style={styles.emptyStateBox}>
-                        <Text style={styles.emptyStateTitle}>No products found</Text>
-                        <Text style={styles.emptyStateText}>Try another search or category.</Text>
-                    </View>
                 )}
-            </ScrollView>
-
-            <Modal
-                visible={isFavoritesModalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setIsFavoritesModalVisible(false)}
-            >
-                <Pressable
-                    style={styles.modalBackdrop}
-                    onPress={() => setIsFavoritesModalVisible(false)}
-                >
-                    <Pressable style={styles.modalContentSheet} onPress={(e) => e.stopPropagation()}>
-                        <View style={styles.dragIndicator} />
-
-                        <View style={styles.modalHeaderRow}>
-                            <Text style={styles.modalHeadingTitle}>Favorites</Text>
-                            <TouchableOpacity onPress={() => setIsFavoritesModalVisible(false)} style={styles.closeHitboxBtn}>
-                                <Text style={styles.closeHitboxText}>✕</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {favoriteProducts.length > 0 ? (
-                            <ScrollView style={styles.cartItemsScroll} showsVerticalScrollIndicator={false}>
-                                {favoriteProducts.map((item) => (
-                                    <View key={item.id} style={styles.favoriteItemRow}>
-                                        <View style={styles.cartItemInfoBlock}>
-                                            <Text style={styles.cartItemName}>{item.name}</Text>
-                                            <Text style={styles.productDesc} numberOfLines={2}>{item.description}</Text>
-                                            <Text style={styles.cartItemPrice}>₦{item.price.toLocaleString()}</Text>
-                                        </View>
-
-                                        <View style={styles.favoriteModalActions}>
-                                            <TouchableOpacity style={styles.addBtn} onPress={() => addToCart(item)}>
-                                                <Text style={styles.addBtnText}> + </Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                style={[styles.favoriteCardButton, styles.favoriteCardButtonActive]}
-                                                onPress={() => toggleFavorite(item)}
-                                                activeOpacity={0.75}
-                                                accessibilityLabel="Remove from favorites"
-                                            >
-                                                <Heart
-                                                    size={16}
-                                                    color="#EF4444"
-                                                    fill="#EF4444"
-                                                    strokeWidth={2}
-                                                />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                ))}
-                            </ScrollView>
-                        ) : (
-                            <View style={styles.emptyStateBox}>
-                                <Text style={styles.emptyStateTitle}>No favorites yet</Text>
-                                <Text style={styles.emptyStateText}>Tap the heart on any item to save it here.</Text>
-                            </View>
-                        )}
-                    </Pressable>
-                </Pressable>
-            </Modal>
+            />
 
             {financialSummary.totalQty > 0 && (
                 <TouchableOpacity
-                    style={styles.cartBar}
+                    className="absolute bottom-6 left-5 right-5 bg-gray-900 rounded-xl flex-row justify-between items-center p-4 shadow-lg"
                     activeOpacity={0.9}
-                    onPress={() => setIsCartModalVisible(true)}>
-                    <View style={styles.cartBarLeft}>
-                        <View style={styles.countBadge}>
-                            <Text style={styles.countBadgeText}>{financialSummary.totalQty}</Text>
+                    onPress={() => navigation.navigate('CartDrawer', { slug, storefrontId, name: vendor?.name, table: scannedTableCode })}>
+                    <View className="flex-row items-center">
+                        <View className="bg-primary rounded-md px-2 py-0.5 mr-2">
+                            <Text className="text-white font-bold text-xs">{financialSummary.totalQty}</Text>
                         </View>
-                        <Text style={styles.cartBarText}>Cart</Text>
+                        <Text className="text-white font-bold text-[15px]">Cart</Text>
                     </View>
-                    <Text style={styles.cartBarText}>Proceed • ₦{financialSummary.grandTotal.toLocaleString()}</Text>
+                    <Text className="text-white font-bold text-[15px]">Proceed • ₦{financialSummary.grandTotal.toLocaleString()}</Text>
                 </TouchableOpacity>
             )}
-
-            <Modal
-                visible={isCartModalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setIsCartModalVisible(false)}
-            >
-                <Pressable
-                    style={styles.modalBackdrop}
-                    onPress={() => setIsCartModalVisible(false)}
-                >
-                    <Pressable style={styles.modalContentSheet} onPress={(e) => e.stopPropagation()}>
-                        <View style={styles.dragIndicator} />
-
-                        <View style={styles.modalHeaderRow}>
-                            <Text style={styles.modalHeadingTitle}>Review Cart</Text>
-                            <TouchableOpacity onPress={() => setIsCartModalVisible(false)} style={styles.closeHitboxBtn}>
-                                <Text style={styles.closeHitboxText}>✕</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView style={styles.cartItemsScroll} showsVerticalScrollIndicator={false}>
-                            {cart.map((item) => (
-                                <View key={item.id} style={styles.cartItemRow}>
-                                    <View style={styles.cartItemInfoBlock}>
-                                        <Text style={styles.cartItemName}>{item.name}</Text>
-                                        <Text style={styles.cartItemPrice}>₦{(item.price * item.qty).toLocaleString()}</Text>
-                                    </View>
-
-                                    <View style={styles.quantityControlWrapper}>
-                                        <TouchableOpacity
-                                            style={styles.qtyActionButton}
-                                            onPress={() => handleUpdateCartQty(item.id, -1)}
-                                        >
-                                            <Text style={styles.qtyActionBtnText}>-</Text>
-                                        </TouchableOpacity>
-
-                                        <Text style={styles.qtyDisplayCountText}>{item.qty}</Text>
-
-                                        <TouchableOpacity
-                                            style={styles.qtyActionButton}
-                                            onPress={() => handleUpdateCartQty(item.id, 1)}
-                                        >
-                                            <Text style={styles.qtyActionBtnText}>+</Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={styles.qtyActionButton}
-                                            onPress={() => handleRemoveCartItem(item.id)}
-                                        >
-                                            <Text style={styles.trashPurgeBtnText}>✕</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            ))}
-
-                            <View style={styles.popupBillingBox}>
-                                <View style={styles.summaryRow}>
-                                    <Text style={styles.summaryLabel}>Subtotal</Text>
-                                    <Text style={styles.summaryValue}>₦{financialSummary.subtotal.toLocaleString()}</Text>
-                                </View>
-
-                                <View style={styles.summaryRow}>
-                                    <Text style={styles.summaryLabel}>VAT ({vatRate * 100}%)</Text>
-                                    <Text style={styles.summaryValue}>₦{financialSummary.appliedVat.toLocaleString()}</Text>
-                                </View>
-
-                                {isDeliveryEnabled && (
-                                    <View style={styles.summaryRow}>
-                                        <Text style={styles.summaryLabel}>Logistics / Delivery Fee</Text>
-                                        <Text style={styles.summaryValue}>₦{financialSummary.appliedDelivery.toLocaleString()}</Text>
-                                    </View>
-                                )}
-
-                                <View style={styles.dividerLine} />
-
-                                <View style={[styles.summaryRow, styles.totalRow]}>
-                                    <Text style={styles.totalLabel}>Total Amount</Text>
-                                    <Text style={styles.totalValue}>₦{financialSummary.grandTotal.toLocaleString()}</Text>
-                                </View>
-                            </View>
-                        </ScrollView>
-
-                        <TouchableOpacity
-                            style={[styles.modalCheckoutBtn, cart.length === 0 && styles.modalCheckoutBtnDisabled]}
-                            disabled={cart.length === 0}
-                            onPress={() => {
-                                setIsCartModalVisible(false);
-                                navigation.navigate('Checkout', { slug, storefrontId: storefront?.id || 0, table: scannedTableCode, cart });
-                            }}
-                        >
-                            <Text style={styles.modalCheckoutBtnText}>Confirm & Proceed to Checkout</Text>
-                        </TouchableOpacity>
-                    </Pressable>
-                </Pressable>
-            </Modal>
 
             <StorefrontToolbar
                 storefrontId={storefront?.id}
@@ -753,583 +495,3 @@ export default function StorefrontScreen() {
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    skeleton: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-    },
-    errorText: {
-        color: '#EF4444',
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    header: {
-        backgroundColor: '#FFFFFF',
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
-    },
-    vendorDesc: {
-        fontSize: 14,
-        color: '#6B7280',
-        marginTop: 4,
-    },
-    tableBadge: {
-        backgroundColor: '#FEF3C7',
-        alignSelf: 'flex-start',
-        paddingVertical: 4,
-        paddingHorizontal: 10,
-        borderRadius: 20,
-        marginTop: 10,
-    },
-    tableBadgeText: {
-        color: '#D97706',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    categoryContainer: {
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
-    },
-    categoryScroll: {
-        paddingHorizontal: 16,
-    },
-    categoryPill: {
-        backgroundColor: '#F3F4F6',
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 20,
-        marginRight: 8,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    activeCategoryPill: {
-        backgroundColor: '#FFFBEB',
-        borderColor: '#FDE68A',
-    },
-    categoryText: {
-        fontSize: 13,
-        color: '#4B5563',
-        fontWeight: '500',
-    },
-    activeCategoryText: {
-        color: '#B45309',
-        fontWeight: '600',
-    },
-    menuList: {
-        flex: 1,
-    },
-    productCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        flexDirection: 'row',
-        padding: 12,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#F3F4F6',
-    },
-    imgPlaceholder: {
-        width: 80,
-        height: 80,
-        borderRadius: 8,
-        backgroundColor: '#F3F4F6',
-        justifyContent: 'center',
-        alignItems: 'center',
-        overflow: 'hidden',
-    },
-    productImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 8,
-        resizeMode: 'cover',
-    },
-    placeholderIcon: {
-        fontSize: 28,
-    },
-    productDetails: {
-        flex: 1,
-        marginLeft: 16,
-        justifyContent: 'space-between',
-    },
-    cardHeaderRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    productName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1F2937',
-        flex: 1,
-    },
-    popularBadge: {
-        backgroundColor: '#ECFDF5',
-        paddingVertical: 2,
-        paddingHorizontal: 6,
-        borderRadius: 4,
-    },
-    popularBadgeText: {
-        color: '#059669',
-        fontSize: 10,
-        fontWeight: 'bold',
-    },
-    productDesc: {
-        fontSize: 12,
-        color: '#9CA3AF',
-        marginVertical: 4,
-    },
-    cardRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    cardActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginLeft: 12,
-    },
-    productPrice: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#6C63FF',
-    },
-    addBtn: {
-        backgroundColor: '#6C63FF',
-        paddingVertical: 6,
-        paddingHorizontal: 14,
-        borderRadius: 50,
-    },
-    addBtnText: {
-        color: '#FFFFFF',
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    favoriteCardButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    favoriteCardButtonActive: {
-        backgroundColor: '#FEF2F2',
-        borderColor: '#FCA5A5',
-    },
-    favoriteCardButtonText: {
-        color: '#9CA3AF',
-        fontSize: 18,
-        fontWeight: '700',
-        lineHeight: 22,
-    },
-    favoriteCardButtonTextActive: {
-        color: '#EF4444',
-    },
-    summaryContainer: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 16,
-        marginTop: 8,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    summaryTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1F2937',
-        marginBottom: 12,
-    },
-    summaryRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 6,
-    },
-    summaryLabel: {
-        fontSize: 14,
-        color: '#4B5563',
-    },
-    summaryValue: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#1F2937',
-    },
-    dividerLine: {
-        height: 1,
-        backgroundColor: '#E5E7EB',
-        marginVertical: 10,
-    },
-    totalRow: {
-        paddingVertical: 4,
-    },
-    totalLabel: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1F2937',
-    },
-    totalValue: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#6C63FF',
-    },
-    cartBar: {
-        position: 'absolute',
-        bottom: 24,
-        left: 20,
-        right: 20,
-        backgroundColor: '#111827',
-        borderRadius: 12,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        elevation: 4,
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-    },
-    cartBarLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    countBadge: {
-        backgroundColor: '#6C63FF',
-        borderRadius: 6,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        marginRight: 8,
-    },
-    countBadgeText: {
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-        fontSize: 12,
-    },
-    cartBarText: {
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-        fontSize: 15,
-    },
-    container: {
-        flex: 1,
-        backgroundColor: '#FFFFFF',
-    },
-    brandContainer: {
-        alignItems: 'center',
-        paddingTop: 16,
-        paddingBottom: 12,
-        backgroundColor: '#FFFFFF',
-    },
-    logoCircle: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#111827',
-        justifyContent: 'center',
-        alignItems: 'center',
-        overflow: 'hidden',
-        marginBottom: 8,
-    },
-    logoImage: {
-        width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
-    },
-    logoInnerFallback: {
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    logoIconText: {
-        fontSize: 24,
-    },
-    vendorName: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#111827',
-    },
-    brandingSubtext: {
-        fontSize: 12,
-        color: '#9CA3AF',
-        marginTop: 2,
-    },
-    searchRowContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        marginVertical: 12,
-    },
-    searchBarWrapper: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F9FAFB',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        borderRadius: 25,
-        paddingLeft: 16,
-        paddingRight: 6,
-        height: 46,
-    },
-    searchIconSymbol: {
-        fontSize: 16,
-        color: '#9CA3AF',
-        marginRight: 8,
-    },
-    searchInputField: {
-        flex: 1,
-        fontSize: 14,
-        color: '#1F2937',
-        paddingVertical: 0,
-    },
-    headerIconButton: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginLeft: 6,
-        position: 'relative',
-    },
-    headerButtonIconText: {
-        fontSize: 15,
-    },
-    headerCountBadge: {
-        position: 'absolute',
-        top: -5,
-        right: -5,
-        minWidth: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: '#6C63FF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 4,
-    },
-    headerCountBadgeText: {
-        color: '#FFFFFF',
-        fontSize: 10,
-        fontWeight: '800',
-    },
-    sectionHeadingTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#111827',
-        paddingHorizontal: 16,
-        marginTop: 16,
-        marginBottom: 12,
-    },
-    categoryScrollWrapper: {
-        backgroundColor: '#FFFFFF',
-    },
-    categoryScrollPadding: {
-        paddingHorizontal: 16,
-        paddingBottom: 4,
-    },
-    categorySquareCard: {
-        width: 76,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        borderRadius: 12,
-        padding: 8,
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    activeSquareCard: {
-        borderColor: '#6C63FF',
-        backgroundColor: '#F5F3FF',
-    },
-    squareIconBox: {
-        width: 44,
-        height: 44,
-        borderRadius: 8,
-        backgroundColor: '#F3F4F6',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 6,
-    },
-    squareBoxIconSymbol: {
-        fontSize: 22,
-    },
-    squareCardLabel: {
-        fontSize: 11,
-        fontWeight: '500',
-        color: '#4B5563',
-        textAlign: 'center',
-    },
-    activeSquareCardLabel: {
-        color: '#6C63FF',
-        fontWeight: '600',
-    },
-    scrollPadding: {
-        paddingHorizontal: 16,
-        paddingTop: 4,
-        paddingBottom: 110,
-    },
-    emptyCategoriesBox: {
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-    },
-    emptyStateBox: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 32,
-        paddingHorizontal: 20,
-    },
-    emptyStateTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1F2937',
-        marginBottom: 6,
-    },
-    emptyStateText: {
-        fontSize: 13,
-        color: '#6B7280',
-        textAlign: 'center',
-    },
-    modalBackdrop: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContentSheet: {
-        backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        paddingHorizontal: 20,
-        paddingTop: 10,
-        paddingBottom: 40,
-        maxHeight: '80%',
-    },
-    dragIndicator: {
-        width: 40,
-        height: 5,
-        backgroundColor: '#E5E7EB',
-        borderRadius: 3,
-        alignSelf: 'center',
-        marginBottom: 16,
-    },
-    modalHeaderRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    modalHeadingTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#1F2937',
-    },
-    closeHitboxBtn: {
-        padding: 6,
-        backgroundColor: '#F3F4F6',
-        borderRadius: 14,
-    },
-    closeHitboxText: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#6B7280',
-    },
-    cartItemsScroll: {
-        marginVertical: 8,
-    },
-    cartItemRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
-    },
-    favoriteItemRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
-    },
-    favoriteModalActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    cartItemInfoBlock: {
-        flex: 1,
-        marginRight: 12,
-    },
-    cartItemName: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#1F2937',
-    },
-    cartItemPrice: {
-        fontSize: 13,
-        color: '#6C63FF',
-        fontWeight: '700',
-        marginTop: 2,
-    },
-    quantityControlWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    qtyActionButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#F3F4F6',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    qtyActionBtnText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#1F2937',
-    },
-    qtyDisplayCountText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#1F2937',
-        marginHorizontal: 12,
-        minWidth: 16,
-        textAlign: 'center',
-    },
-    trashPurgeBtnText: {
-        fontSize: 16,
-    },
-    popupBillingBox: {
-        backgroundColor: '#F9FAFB',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        borderRadius: 14,
-        padding: 16,
-        marginTop: 16,
-        marginBottom: 24,
-    },
-    modalCheckoutBtn: {
-        backgroundColor: '#6C63FF',
-        borderRadius: 12,
-        paddingVertical: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalCheckoutBtnDisabled: {
-        backgroundColor: '#D1D5DB',
-    },
-    modalCheckoutBtnText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-});

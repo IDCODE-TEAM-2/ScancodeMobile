@@ -1,14 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, CalendarDays, HandCoins, Music2, Star, X } from 'lucide-react-native';
+import { Bell, CalendarDays, HandCoins, Music2, Star, X, Check } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
 import {
   ActivityIndicator,
   Alert,
-  Clipboard,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -22,18 +20,12 @@ import {
   getStoreConfig,
   type StoreRequestType,
 } from '../api';
+import { DAYS_OF_WEEK, type WeeklyEvents } from '../types';
+import { cn } from '../utils/cn';
+
+export type { DayEvent, WeeklyEvents } from '../types';
 
 type ToolPopup = 'assistance' | 'request' | 'tip' | 'feedback' | 'events';
-type DayOfWeek = 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
-
-export interface DayEvent {
-  id: string;
-  time: string;
-  name: string;
-  description?: string;
-}
-
-export type WeeklyEvents = Partial<Record<DayOfWeek, DayEvent[]>>;
 
 interface StorefrontToolbarProps {
   storefrontId?: number | null;
@@ -46,7 +38,6 @@ interface StorefrontToolbarProps {
   weeklyEvents?: WeeklyEvents;
 }
 
-const DAYS_OF_WEEK: DayOfWeek[] = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DEFAULT_CALL_ENTITIES = ['Waiter', 'Bouncer', 'Services'];
 const REQUEST_TYPES: StoreRequestType[] = ['SHOUTOUT', 'SONG', 'KARAOKE'];
 
@@ -118,13 +109,9 @@ export default function StorefrontToolbar({
   const currentPresetMessages = useMemo(() => getPresetMessages(callTarget), [callTarget]);
   const totalEvents = DAYS_OF_WEEK.reduce((total, day) => total + (weeklyEvents?.[day]?.length ?? 0), 0);
 
-  const handleCopyAccount = () => {
+  const handleCopyAccount = async () => {
     if (!vendor?.accountNumber) return;
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator?.clipboard) {
-      navigator.clipboard.writeText(vendor.accountNumber);
-    } else {
-      Clipboard.setString(vendor.accountNumber);
-    }
+    await Clipboard.setStringAsync(vendor.accountNumber);
     setCopiedAccount(true);
     setTimeout(() => setCopiedAccount(false), 2000);
   };
@@ -267,19 +254,19 @@ export default function StorefrontToolbar({
 
   return (
     <>
-      <View style={styles.toolbar}>
+      <View className="absolute left-4 right-4 bottom-4 z-20 flex-row justify-between items-center bg-white border border-gray-200 rounded-[18px] px-2 py-2 shadow-lg">
         {toolbarItems.map((item) => (
           <TouchableOpacity
             key={item.key}
-            style={styles.toolButton}
+            className="flex-1 items-center justify-center"
             activeOpacity={0.75}
             onPress={() => setActivePopup(item.key)}
             accessibilityLabel={item.label}
           >
-            <View style={styles.toolIconCircle}>
+            <View className="w-[34px] h-[34px] rounded-full border border-gray-300 bg-white justify-center items-center mb-[3px]">
               <item.Icon size={18} color="#065F46" strokeWidth={2.2} />
             </View>
-            <Text style={styles.toolLabel} numberOfLines={1}>{item.label}</Text>
+            <Text className="text-gray-600 text-[10px] font-semibold" numberOfLines={1}>{item.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -290,71 +277,78 @@ export default function StorefrontToolbar({
         transparent
         onRequestClose={closePopup}
       >
-        <Pressable style={styles.backdrop} onPress={closePopup}>
-          <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
-            <View style={styles.dragIndicator} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+        <Pressable className="flex-1 bg-black/45 justify-end" onPress={closePopup}>
+          <Pressable className="bg-white rounded-t-3xl px-5 pt-2.5 pb-[34px] max-h-[84%]" onPress={(event) => event.stopPropagation()}>
+            <View className="w-10 h-[5px] rounded-full bg-gray-200 self-center mb-4" />
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-gray-900 text-lg font-extrabold">
                 {activePopup === 'assistance' && 'Call for Assistance'}
                 {activePopup === 'request' && 'Make a Request'}
                 {activePopup === 'tip' && 'Send a Tip'}
                 {activePopup === 'feedback' && 'Rate Your Experience'}
                 {activePopup === 'events' && 'This Week Events'}
               </Text>
-              <TouchableOpacity style={styles.closeButton} onPress={closePopup}>
+              <TouchableOpacity className="w-7 h-7 rounded-full bg-gray-100 justify-center items-center" onPress={closePopup}>
                 <X size={20} color="#6B7280" strokeWidth={2.5} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalBody}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName="pb-3">
               {activePopup === 'assistance' && (
                 <>
-                  <Text style={styles.label}>Table or room number</Text>
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Table or room number</Text>
                   <TextInput
-                    style={styles.input}
+                    className="min-h-[46px] rounded-xl border border-gray-200 px-3.5 text-gray-900 text-sm bg-white"
                     value={tableNumber}
                     onChangeText={setTableNumber}
                     placeholder="Enter table or room number"
                     placeholderTextColor="#9CA3AF"
                   />
 
-                  <Text style={styles.label}>Who should we call?</Text>
-                  <View style={styles.optionGrid}>
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Who should we call?</Text>
+                  <View className="flex-row flex-wrap gap-2">
                     {callEntities.map((entity) => (
                       <TouchableOpacity
                         key={entity}
-                        style={[styles.optionChip, callTarget === entity && styles.optionChipActive]}
+                        className={cn(
+                          'rounded-xl border px-3 py-2.5',
+                          callTarget === entity ? 'bg-emerald-800 border-emerald-800' : 'bg-white border-gray-200'
+                        )}
                         onPress={() => {
                           setCallTarget(entity);
                           setSelectedPreset('');
                         }}
                       >
-                        <Text style={[styles.optionText, callTarget === entity && styles.optionTextActive]}>{entity}</Text>
+                        <Text className={cn('text-[13px] font-bold', callTarget === entity ? 'text-white' : 'text-gray-700')}>{entity}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  <Text style={styles.label}>What do you need?</Text>
-                  <View style={styles.optionGrid}>
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">What do you need?</Text>
+                  <View className="flex-row flex-wrap gap-2">
                     {currentPresetMessages.map((preset) => (
                       <TouchableOpacity
                         key={preset}
-                        style={[styles.optionChip, selectedPreset === preset && styles.optionChipActive]}
+                        className={cn(
+                          'rounded-xl border px-3 py-2.5',
+                          selectedPreset === preset ? 'bg-emerald-800 border-emerald-800' : 'bg-white border-gray-200'
+                        )}
                         onPress={() => setSelectedPreset(preset)}
                       >
-                        <Text style={[styles.optionText, selectedPreset === preset && styles.optionTextActive]}>{preset}</Text>
+                        <Text className={cn('text-[13px] font-bold', selectedPreset === preset ? 'text-white' : 'text-gray-700')}>{preset}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
                   {selectedPreset === 'Custom message' && (
                     <TextInput
-                      style={[styles.input, styles.textArea]}
+                      className="min-h-[96px] rounded-xl border border-gray-200 px-3.5 pt-3 text-gray-900 text-sm bg-white mt-2"
                       value={customMessage}
                       onChangeText={setCustomMessage}
                       placeholder="Type your message"
                       placeholderTextColor="#9CA3AF"
                       multiline
+                      textAlignVertical="top"
                     />
                   )}
 
@@ -364,34 +358,38 @@ export default function StorefrontToolbar({
 
               {activePopup === 'request' && (
                 <>
-                  <Text style={styles.label}>Request type</Text>
-                  <View style={styles.optionGrid}>
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Request type</Text>
+                  <View className="flex-row flex-wrap gap-2">
                     {REQUEST_TYPES.map((type) => (
                       <TouchableOpacity
                         key={type}
-                        style={[styles.optionChip, requestType === type && styles.optionChipActive]}
+                        className={cn(
+                          'rounded-xl border px-3 py-2.5',
+                          requestType === type ? 'bg-emerald-800 border-emerald-800' : 'bg-white border-gray-200'
+                        )}
                         onPress={() => setRequestType(type)}
                       >
-                        <Text style={[styles.optionText, requestType === type && styles.optionTextActive]}>{type}</Text>
+                        <Text className={cn('text-[13px] font-bold', requestType === type ? 'text-white' : 'text-gray-700')}>{type}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  <Text style={styles.label}>Details</Text>
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Details</Text>
                   <TextInput
-                    style={[styles.input, styles.textArea]}
+                    className="min-h-[96px] rounded-xl border border-gray-200 px-3.5 pt-3 text-gray-900 text-sm bg-white"
                     value={requestDetails}
                     onChangeText={setRequestDetails}
                     placeholder="Song, shoutout, karaoke details..."
                     placeholderTextColor="#9CA3AF"
                     multiline
+                    textAlignVertical="top"
                   />
 
                   {requestType !== 'KARAOKE' && (
                     <>
-                      <Text style={styles.label}>Amount</Text>
+                      <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Amount</Text>
                       <TextInput
-                        style={styles.input}
+                        className="min-h-[46px] rounded-xl border border-gray-200 px-3.5 text-gray-900 text-sm bg-white"
                         value={String(requestAmount)}
                         onChangeText={(value) => {
                           const num = Number(value.replace(/\D/g, '')) || 0;
@@ -399,7 +397,7 @@ export default function StorefrontToolbar({
                         }}
                         keyboardType="numeric"
                       />
-                      <Text style={styles.minAmountHint}>Minimum ₦5,000</Text>
+                      <Text className="text-gray-500 text-[11px] mt-1 mb-0.5">Minimum ₦5,000</Text>
                     </>
                   )}
 
@@ -409,22 +407,25 @@ export default function StorefrontToolbar({
 
               {activePopup === 'tip' && (
                 <>
-                  <Text style={styles.label}>Who are you tipping?</Text>
-                  <View style={styles.optionGrid}>
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Who are you tipping?</Text>
+                  <View className="flex-row flex-wrap gap-2">
                     {['Waiter', 'Bouncer', 'Services', 'Other'].map((recipient) => (
                       <TouchableOpacity
                         key={recipient}
-                        style={[styles.optionChip, tipRecipient === recipient && styles.optionChipActive]}
+                        className={cn(
+                          'rounded-xl border px-3 py-2.5',
+                          tipRecipient === recipient ? 'bg-emerald-800 border-emerald-800' : 'bg-white border-gray-200'
+                        )}
                         onPress={() => setTipRecipient(recipient)}
                       >
-                        <Text style={[styles.optionText, tipRecipient === recipient && styles.optionTextActive]}>{recipient}</Text>
+                        <Text className={cn('text-[13px] font-bold', tipRecipient === recipient ? 'text-white' : 'text-gray-700')}>{recipient}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
                   {tipRecipient === 'Other' && (
                     <TextInput
-                      style={styles.input}
+                      className="min-h-[46px] rounded-xl border border-gray-200 px-3.5 text-gray-900 text-sm bg-white mt-2"
                       value={customTipRecipient}
                       onChangeText={setCustomTipRecipient}
                       placeholder="Recipient name or role"
@@ -432,39 +433,44 @@ export default function StorefrontToolbar({
                     />
                   )}
 
-                  <Text style={styles.label}>Amount</Text>
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Amount</Text>
                   <TextInput
-                    style={styles.input}
+                    className="min-h-[46px] rounded-xl border border-gray-200 px-3.5 text-gray-900 text-sm bg-white"
                     value={String(tipAmount)}
                     onChangeText={(value) => setTipAmount(Number(value.replace(/\D/g, '')) || 0)}
                     keyboardType="numeric"
                   />
-                  <View style={styles.optionGrid}>
+                  <View className="flex-row flex-wrap gap-2 mt-2">
                     {[100, 200, 500, 1000].map((amount) => (
                       <TouchableOpacity
                         key={amount}
-                        style={styles.optionChip}
+                        className="rounded-xl border border-gray-200 bg-white px-3 py-2.5"
                         onPress={() => setTipAmount((current) => current + amount)}
                       >
-                        <Text style={styles.optionText}>+{money(amount)}</Text>
+                        <Text className="text-gray-700 text-[13px] font-bold">+{money(amount)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
                   {!!vendor?.bankName && !!vendor?.accountNumber && (
-                    <View style={styles.bankBox}>
-                      <Text style={styles.bankTitle}>Payment account</Text>
-                      <Text style={styles.bankText}>{vendor.bankName}</Text>
-                      <Text style={styles.bankText}>{vendor.name}</Text>
+                    <View className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 mt-3.5 gap-0.5">
+                      <Text className="text-emerald-800 text-[11px] font-extrabold uppercase">Payment account</Text>
+                      <Text className="text-gray-700 text-[13px] font-semibold">{vendor.bankName}</Text>
+                      <Text className="text-gray-700 text-[13px] font-semibold">{vendor.name}</Text>
                       <TouchableOpacity
                         onPress={handleCopyAccount}
                         activeOpacity={0.65}
-                        style={styles.bankNumberRow}
+                        className="flex-row items-center justify-between mt-0.5"
                       >
-                        <Text style={styles.bankNumber}>{vendor.accountNumber}</Text>
-                        <Text style={styles.copyHint}>
-                          {copiedAccount ? '✓ Copied!' : 'Tap to copy'}
-                        </Text>
+                        <Text className="text-emerald-800 text-base font-black">{vendor.accountNumber}</Text>
+                        {copiedAccount ? (
+                          <View className="flex-row items-center gap-1">
+                            <Check size={12} color="#059669" strokeWidth={2.5} />
+                            <Text className="text-emerald-600 text-[11px] font-bold">Copied!</Text>
+                          </View>
+                        ) : (
+                          <Text className="text-emerald-600 text-[11px] font-bold">Tap to copy</Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   )}
@@ -475,23 +481,29 @@ export default function StorefrontToolbar({
 
               {activePopup === 'feedback' && (
                 <>
-                  <Text style={styles.label}>Stars rating</Text>
-                  <View style={styles.ratingRow}>
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Stars rating</Text>
+                  <View className="flex-row gap-3.5">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <TouchableOpacity key={star} onPress={() => setRating(star)}>
-                        <Text style={[styles.starText, star <= rating && styles.starTextActive]}>*</Text>
+                        <Star
+                          size={32}
+                          color={star <= rating ? '#F59E0B' : '#D1D5DB'}
+                          fill={star <= rating ? '#F59E0B' : 'none'}
+                          strokeWidth={1.5}
+                        />
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  <Text style={styles.label}>Describe your experience</Text>
+                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Describe your experience</Text>
                   <TextInput
-                    style={[styles.input, styles.textArea]}
+                    className="min-h-[96px] rounded-xl border border-gray-200 px-3.5 pt-3 text-gray-900 text-sm bg-white"
                     value={feedbackText}
                     onChangeText={setFeedbackText}
                     placeholder="How was the food, service, and vibe?"
                     placeholderTextColor="#9CA3AF"
                     multiline
+                    textAlignVertical="top"
                   />
 
                   <SubmitButton label="Submit Rating" loading={isSubmitting} onPress={submitFeedback} />
@@ -501,23 +513,23 @@ export default function StorefrontToolbar({
               {activePopup === 'events' && (
                 <>
                   {totalEvents === 0 ? (
-                    <View style={styles.emptyBox}>
-                      <Text style={styles.emptyTitle}>No events yet</Text>
-                      <Text style={styles.emptyText}>Events will appear here when the venue publishes a weekly schedule.</Text>
+                    <View className="items-center py-8 px-4">
+                      <Text className="text-gray-900 text-base font-extrabold mb-1.5">No events yet</Text>
+                      <Text className="text-gray-500 text-[13px] text-center leading-[19px]">Events will appear here when the venue publishes a weekly schedule.</Text>
                     </View>
                   ) : (
                     DAYS_OF_WEEK.map((day) => {
                       const events = weeklyEvents?.[day] ?? [];
                       if (events.length === 0) return null;
                       return (
-                        <View key={day} style={styles.dayBox}>
-                          <Text style={styles.dayTitle}>{day}</Text>
+                        <View key={day} className="border border-gray-200 rounded-2xl overflow-hidden mb-3">
+                          <Text className="bg-gray-50 text-gray-900 text-sm font-extrabold px-3 py-2.5">{day}</Text>
                           {events.map((event) => (
-                            <View key={event.id} style={styles.eventRow}>
-                              <Text style={styles.eventTime}>{event.time}</Text>
-                              <View style={styles.eventInfo}>
-                                <Text style={styles.eventName}>{event.name}</Text>
-                                {!!event.description && <Text style={styles.eventDescription}>{event.description}</Text>}
+                            <View key={event.id} className="flex-row gap-2.5 px-3 py-2.5 border-t border-gray-100">
+                              <Text className="text-emerald-800 text-xs font-black min-w-[54px]">{event.time}</Text>
+                              <View className="flex-1">
+                                <Text className="text-gray-900 text-[13px] font-extrabold">{event.name}</Text>
+                                {!!event.description && <Text className="text-gray-500 text-xs mt-0.5">{event.description}</Text>}
                               </View>
                             </View>
                           ))}
@@ -545,282 +557,8 @@ function SubmitButton({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.submitButton} onPress={onPress} disabled={loading}>
-      {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>{label}</Text>}
+    <TouchableOpacity className="min-h-[50px] rounded-xl bg-emerald-800 justify-center items-center mt-[18px]" onPress={onPress} disabled={loading}>
+      {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text className="text-white text-[15px] font-extrabold">{label}</Text>}
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  toolbar: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 16,
-    zIndex: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 18,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    elevation: 6,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-  },
-  toolButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 0,
-  },
-  toolIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  toolIconText: {
-    color: '#065F46',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  toolLabel: {
-    color: '#4B5563',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 34,
-    maxHeight: '84%',
-  },
-  dragIndicator: {
-    width: 40,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#E5E7EB',
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  modalTitle: {
-    color: '#111827',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  closeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeText: {
-    color: '#6B7280',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  modalBody: {
-    paddingBottom: 12,
-  },
-  label: {
-    color: '#4B5563',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 12,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  input: {
-    minHeight: 46,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 14,
-    color: '#111827',
-    fontSize: 14,
-    backgroundColor: '#FFFFFF',
-  },
-  textArea: {
-    minHeight: 96,
-    paddingTop: 12,
-    textAlignVertical: 'top',
-  },
-  optionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  optionChip: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  optionChipActive: {
-    backgroundColor: '#065F46',
-    borderColor: '#065F46',
-  },
-  optionText: {
-    color: '#374151',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  optionTextActive: {
-    color: '#FFFFFF',
-  },
-  submitButton: {
-    minHeight: 50,
-    borderRadius: 12,
-    backgroundColor: '#065F46',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 18,
-  },
-  submitText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  bankBox: {
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 14,
-    gap: 3,
-  },
-  bankTitle: {
-    color: '#065F46',
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  bankText: {
-    color: '#374151',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  bankNumber: {
-    color: '#065F46',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  bankNumberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  copyHint: {
-    color: '#059669',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  minAmountHint: {
-    color: '#6B7280',
-    fontSize: 11,
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    gap: 14,
-  },
-  starText: {
-    color: '#D1D5DB',
-    fontSize: 32,
-    fontWeight: '900',
-  },
-  starTextActive: {
-    color: '#F59E0B',
-  },
-  emptyBox: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 16,
-  },
-  emptyTitle: {
-    color: '#111827',
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  emptyText: {
-    color: '#6B7280',
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 19,
-  },
-  dayBox: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  dayTitle: {
-    backgroundColor: '#F9FAFB',
-    color: '#111827',
-    fontSize: 14,
-    fontWeight: '800',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  eventRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  eventTime: {
-    color: '#065F46',
-    fontSize: 12,
-    fontWeight: '900',
-    minWidth: 54,
-  },
-  eventInfo: {
-    flex: 1,
-  },
-  eventName: {
-    color: '#111827',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  eventDescription: {
-    color: '#6B7280',
-    fontSize: 12,
-    marginTop: 2,
-  },
-});

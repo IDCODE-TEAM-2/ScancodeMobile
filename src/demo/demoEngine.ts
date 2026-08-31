@@ -25,7 +25,10 @@ import type {
   UpdateStoreConfigBody,
   BusinessProfileData,
   TableVerifyResponse,
+  StorefrontRating,
+  CreateAccessPageBody,
 } from '../api';
+import type { WeeklyEvents, ProductInput, AccessPage, AccessPageGuestEntry } from '../types';
 
 const KEYS = {
   DEMO_MODE: 'scancode_demo_mode_enabled',
@@ -35,11 +38,32 @@ const KEYS = {
   STORE_CONFIGS: 'scancode_demo_store_configs',
   ORDERS: 'scancode_demo_orders',
   PROFILE: 'scancode_demo_business_profile',
+  FEEDBACKS: 'scancode_demo_feedbacks',
+  ACCESS_PAGES: 'scancode_demo_access_pages',
+  ACCESS_PAGE_GUESTS: 'scancode_demo_access_page_guests',
 };
 
+interface DemoFeedback {
+  id: number;
+  storefrontId: number;
+  rating: number;
+  description: string;
+  createdAt: string;
+}
+
+const SEED_FEEDBACKS: DemoFeedback[] = [
+  { id: 6001, storefrontId: 1, rating: 5, description: 'Amazing suya and fast service!', createdAt: new Date(Date.now() - 3 * 86400000).toISOString() },
+  { id: 6002, storefrontId: 1, rating: 4, description: 'Great vibe, drinks were a little pricey.', createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+  { id: 6003, storefrontId: 2, rating: 5, description: 'Best croissants in Lagos.', createdAt: new Date(Date.now() - 5 * 86400000).toISOString() },
+  { id: 6004, storefrontId: 3, rating: 3, description: 'Fun night but a bit crowded.', createdAt: new Date(Date.now() - 1 * 86400000).toISOString() },
+];
+
 class DemoEngine {
-  private demoModeEnabled: boolean = true;
-  private activeRole: 'admin' | 'customer' | 'logged_out' = 'admin';
+  // Matches api.ts's initial ENABLE_DEMO_MODE default — both must agree, otherwise
+  // this field wins once init() resolves (see api.ts's demoEngine.init().then(...)),
+  // silently flipping a production build into demo mode on every fresh install.
+  private demoModeEnabled: boolean = __DEV__;
+  private activeRole: 'admin' | 'customer' | 'logged_out' = 'logged_out';
   private storefronts: StorefrontResponse[] = [...DEMO_STOREFRONTS];
   private products: Record<number, ProductResponse[]> = JSON.parse(JSON.stringify(DEMO_PRODUCTS));
   private configs: Record<number, StoreConfigResponse> = JSON.parse(JSON.stringify(DEMO_STORE_CONFIGS));
@@ -48,6 +72,9 @@ class DemoEngine {
   private waiterCalls: DemoWaiterCall[] = JSON.parse(JSON.stringify(DEMO_WAITER_CALLS));
   private storeRequests: DemoStoreRequest[] = JSON.parse(JSON.stringify(DEMO_STORE_REQUESTS));
   private tips: DemoTip[] = JSON.parse(JSON.stringify(DEMO_TIPS));
+  private feedbacks: DemoFeedback[] = JSON.parse(JSON.stringify(SEED_FEEDBACKS));
+  private accessPages: AccessPage[] = [];
+  private accessPageGuests: AccessPageGuestEntry[] = [];
   private initialized: boolean = false;
 
   async init(): Promise<void> {
@@ -77,6 +104,15 @@ class DemoEngine {
 
       const prof = await AsyncStorage.getItem(KEYS.PROFILE);
       if (prof) this.businessProfile = JSON.parse(prof);
+
+      const fbs = await AsyncStorage.getItem(KEYS.FEEDBACKS);
+      if (fbs) this.feedbacks = JSON.parse(fbs);
+
+      const pages = await AsyncStorage.getItem(KEYS.ACCESS_PAGES);
+      if (pages) this.accessPages = JSON.parse(pages);
+
+      const guests = await AsyncStorage.getItem(KEYS.ACCESS_PAGE_GUESTS);
+      if (guests) this.accessPageGuests = JSON.parse(guests);
     } catch {
       // Use defaults if storage read fails
     } finally {
@@ -118,6 +154,9 @@ class DemoEngine {
     this.waiterCalls = JSON.parse(JSON.stringify(DEMO_WAITER_CALLS));
     this.storeRequests = JSON.parse(JSON.stringify(DEMO_STORE_REQUESTS));
     this.tips = JSON.parse(JSON.stringify(DEMO_TIPS));
+    this.feedbacks = JSON.parse(JSON.stringify(SEED_FEEDBACKS));
+    this.accessPages = [];
+    this.accessPageGuests = [];
 
     await AsyncStorage.multiRemove([
       KEYS.STOREFRONTS,
@@ -125,6 +164,9 @@ class DemoEngine {
       KEYS.STORE_CONFIGS,
       KEYS.ORDERS,
       KEYS.PROFILE,
+      KEYS.FEEDBACKS,
+      KEYS.ACCESS_PAGES,
+      KEYS.ACCESS_PAGE_GUESTS,
     ]);
   }
 
@@ -190,6 +232,119 @@ class DemoEngine {
     return dynamicStore;
   }
 
+  async getAllStorefronts(): Promise<StorefrontResponse[]> {
+    await this.simulateLatency();
+    return this.storefronts.filter((s) => s.isPublished);
+  }
+
+  async getStorefrontRatings(): Promise<StorefrontRating[]> {
+    await this.simulateLatency(150);
+    const byStorefront = new Map<number, number[]>();
+    for (const fb of this.feedbacks) {
+      const list = byStorefront.get(fb.storefrontId) ?? [];
+      list.push(fb.rating);
+      byStorefront.set(fb.storefrontId, list);
+    }
+    return Array.from(byStorefront.entries()).map(([storefrontId, ratings]) => ({
+      storefrontId,
+      average: ratings.reduce((sum, r) => sum + r, 0) / ratings.length,
+      count: ratings.length,
+    }));
+  }
+
+  async createStoreFeedback(storefrontId: number, rating: number, description: string): Promise<{ id: number }> {
+    await this.simulateLatency();
+    const entry: DemoFeedback = {
+      id: Date.now(),
+      storefrontId,
+      rating,
+      description,
+      createdAt: new Date().toISOString(),
+    };
+    this.feedbacks.unshift(entry);
+    await AsyncStorage.setItem(KEYS.FEEDBACKS, JSON.stringify(this.feedbacks));
+    return { id: entry.id };
+  }
+
+  async getAccessPages(storefrontId: number): Promise<AccessPage[]> {
+    await this.simulateLatency();
+    return this.accessPages.filter((p) => p.storefrontId === storefrontId);
+  }
+
+  async createAccessPage(storefrontId: number, body: CreateAccessPageBody): Promise<AccessPage> {
+    await this.simulateLatency();
+    const id = Date.now();
+    const base = body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `event-${id}`;
+    let slug = base;
+    let n = 1;
+    while (this.accessPages.some((p) => p.slug === slug)) {
+      slug = `${base}-${++n}`;
+    }
+    const now = new Date().toISOString();
+    const page: AccessPage = {
+      id,
+      storefrontId,
+      slug,
+      type: body.type,
+      title: body.title,
+      description: body.description,
+      fields: body.fields,
+      exclusiveContent: body.exclusiveContent,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.accessPages.push(page);
+    await AsyncStorage.setItem(KEYS.ACCESS_PAGES, JSON.stringify(this.accessPages));
+    return page;
+  }
+
+  async updateAccessPage(accessPageId: number, body: Partial<CreateAccessPageBody> & { isActive?: boolean }): Promise<AccessPage> {
+    await this.simulateLatency();
+    const idx = this.accessPages.findIndex((p) => p.id === accessPageId);
+    if (idx === -1) throw new Error('Access page not found');
+    this.accessPages[idx] = {
+      ...this.accessPages[idx],
+      ...body,
+      updatedAt: new Date().toISOString(),
+    };
+    await AsyncStorage.setItem(KEYS.ACCESS_PAGES, JSON.stringify(this.accessPages));
+    return this.accessPages[idx];
+  }
+
+  async deleteAccessPage(accessPageId: number): Promise<void> {
+    await this.simulateLatency();
+    this.accessPages = this.accessPages.filter((p) => p.id !== accessPageId);
+    this.accessPageGuests = this.accessPageGuests.filter((g) => g.accessPageId !== accessPageId);
+    await AsyncStorage.setItem(KEYS.ACCESS_PAGES, JSON.stringify(this.accessPages));
+    await AsyncStorage.setItem(KEYS.ACCESS_PAGE_GUESTS, JSON.stringify(this.accessPageGuests));
+  }
+
+  async getAccessPageBySlug(slug: string): Promise<AccessPage> {
+    await this.simulateLatency();
+    const found = this.accessPages.find((p) => p.slug.toLowerCase() === slug.toLowerCase());
+    if (!found) throw new Error('Access page not found');
+    return found;
+  }
+
+  async submitAccessPageGuestEntry(accessPageId: number, responses: Record<string, string>): Promise<AccessPageGuestEntry> {
+    await this.simulateLatency();
+    const entry: AccessPageGuestEntry = {
+      id: Date.now(),
+      accessPageId,
+      responses,
+      checkedInAt: new Date().toISOString(),
+    };
+    this.accessPageGuests.push(entry);
+    await AsyncStorage.setItem(KEYS.ACCESS_PAGE_GUESTS, JSON.stringify(this.accessPageGuests));
+    return entry;
+  }
+
+  async getAccessPageGuests(accessPageId: number): Promise<AccessPageGuestEntry[]> {
+    await this.simulateLatency();
+    return this.accessPageGuests.filter((g) => g.accessPageId === accessPageId);
+  }
+
   async createStorefront(body: CreateStorefrontBody): Promise<StorefrontResponse> {
     await this.simulateLatency();
     const id = Date.now();
@@ -216,6 +371,26 @@ class DemoEngine {
     return newStore;
   }
 
+  async getStorefrontEvents(storefrontId: number): Promise<WeeklyEvents> {
+    await this.simulateLatency(150);
+    const storefront = this.storefronts.find((s) => s.id === storefrontId);
+    const data = storefront?.data as { weeklyEvents?: WeeklyEvents } | undefined;
+    return data?.weeklyEvents ?? {};
+  }
+
+  async updateStorefrontEvents(storefrontId: number, weeklyEvents: WeeklyEvents): Promise<WeeklyEvents> {
+    await this.simulateLatency(150);
+    const storefront = this.storefronts.find((s) => s.id === storefrontId);
+    if (!storefront) {
+      throw new Error('Storefront not found');
+    }
+    const existingData = (storefront.data as Record<string, unknown>) ?? {};
+    storefront.data = { ...existingData, weeklyEvents };
+    storefront.updatedAt = new Date().toISOString();
+    await AsyncStorage.setItem(KEYS.STOREFRONTS, JSON.stringify(this.storefronts));
+    return weeklyEvents;
+  }
+
   async getProducts(storefrontId: number): Promise<ProductResponse[]> {
     await this.simulateLatency();
     return this.products[storefrontId] || DEMO_PRODUCTS[1] || [];
@@ -227,13 +402,55 @@ class DemoEngine {
     return all.filter((p) => p.isPopular);
   }
 
+  async createProduct(storefrontId: number, body: ProductInput): Promise<ProductResponse> {
+    await this.simulateLatency();
+    const newProduct: ProductResponse = {
+      id: Date.now(),
+      storefrontId,
+      name: body.name,
+      description: body.description,
+      price: body.price,
+      stock: body.stock,
+      isDelisted: false,
+      mediaUrls: body.mediaUrls,
+      category: body.category,
+      isPopular: body.isPopular ?? false,
+      viewCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const existing = this.products[storefrontId] ?? [];
+    this.products[storefrontId] = [newProduct, ...existing];
+    await AsyncStorage.setItem(KEYS.PRODUCTS, JSON.stringify(this.products));
+    return newProduct;
+  }
+
+  async updateProduct(storefrontId: number, productId: number, body: Partial<ProductInput> & { isDelisted?: boolean }): Promise<ProductResponse> {
+    await this.simulateLatency();
+    const list = this.products[storefrontId] ?? [];
+    const product = list.find((p) => p.id === productId);
+    if (!product) {
+      throw new Error('Product not found');
+    }
+    Object.assign(product, body, { updatedAt: new Date().toISOString() });
+    await AsyncStorage.setItem(KEYS.PRODUCTS, JSON.stringify(this.products));
+    return product;
+  }
+
+  async deleteProduct(storefrontId: number, productId: number): Promise<void> {
+    await this.simulateLatency(150);
+    this.products[storefrontId] = (this.products[storefrontId] ?? []).filter((p) => p.id !== productId);
+    await AsyncStorage.setItem(KEYS.PRODUCTS, JSON.stringify(this.products));
+  }
+
   async getStoreConfig(storefrontId: number): Promise<StoreConfigResponse> {
     await this.simulateLatency();
     if (this.configs[storefrontId]) return this.configs[storefrontId];
     return {
       id: Date.now(),
       storefrontId,
-      vatRate: 7.5,
+      // Canonical representation is a fraction (0.075 = 7.5%) — see StoreConfigResponse.
+      vatRate: 0.075,
       deliveryFee: 1500,
       waiterPhone: '+2348012345678',
       callEntities: ['Waiter / Service', 'Manager On Duty', 'Bill Request'],
@@ -254,7 +471,7 @@ class DemoEngine {
     return updated;
   }
 
-  async verifyStoreTable(storefrontId: number, code: string): Promise<TableVerifyResponse> {
+  async verifyStoreTable(_storefrontId: number, code: string): Promise<TableVerifyResponse> {
     await this.simulateLatency();
     return {
       valid: true,
@@ -294,6 +511,27 @@ class DemoEngine {
       return this.orders.filter((o) => o.storefrontId === storefrontId);
     }
     return [...this.orders];
+  }
+
+  async getOrderById(orderId: number): Promise<OrderResponse> {
+    await this.simulateLatency(150);
+    const order = this.orders.find((o) => o.id === orderId);
+    if (!order) {
+      throw new Error('Order not found');
+    }
+    return order;
+  }
+
+  async updateOrderStatus(orderId: number, status: string): Promise<OrderResponse> {
+    await this.simulateLatency(150);
+    const order = this.orders.find((o) => o.id === orderId);
+    if (!order) {
+      throw new Error('Order not found');
+    }
+    order.status = status;
+    order.updatedAt = new Date().toISOString();
+    await AsyncStorage.setItem(KEYS.ORDERS, JSON.stringify(this.orders));
+    return order;
   }
 
   async saveBusinessProfileData(data: BusinessProfileData): Promise<void> {

@@ -2,12 +2,17 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { demoEngine } from './demo/demoEngine';
+import type { WeeklyEvents, ProductInput, AccessPage, AccessPageType, AccessPageField, AccessPageGuestEntry } from './types';
 
-export const API_BASE = 'http://192.168.1.155:8082';
+// Real deployments must set EXPO_PUBLIC_API_BASE (see .env.example). Falls back to a
+// local LAN IP suited for on-device development against a backend on the same network.
+export const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'http://192.168.1.155:8082';
 const TOKEN_KEY = 'scancode_token';
 
-// Global flag to easily enable/disable demo mode across the entire app
-export let ENABLE_DEMO_MODE = true;
+// Demo mode defaults on for local development convenience and off for production builds.
+// A previously-persisted user choice (see setGlobalDemoMode) still overrides this once
+// demoEngine finishes loading — see the init() call below.
+export let ENABLE_DEMO_MODE = __DEV__;
 
 export function setGlobalDemoMode(enabled: boolean) {
   ENABLE_DEMO_MODE = enabled;
@@ -19,10 +24,38 @@ demoEngine.init().then(() => {
   ENABLE_DEMO_MODE = demoEngine.isDemoModeEnabled();
 });
 
+// ─── Cross-platform secure storage ──────────────────────────────────────────
+// expo-secure-store has no web implementation, so web falls back to AsyncStorage.
+// (Not a substitute for real secure storage on web — there isn't one available here —
+// just parity so auth doesn't silently break on web builds.)
+
+async function setSecureItem(key: string, value: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    await AsyncStorage.setItem(key, value);
+  } else {
+    await SecureStore.setItemAsync(key, value);
+  }
+}
+
+async function getSecureItem(key: string): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    return AsyncStorage.getItem(key);
+  }
+  return SecureStore.getItemAsync(key);
+}
+
+async function deleteSecureItem(key: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    await AsyncStorage.removeItem(key);
+  } else {
+    await SecureStore.deleteItemAsync(key);
+  }
+}
+
 // ─── Token helpers ───────────────────────────────────────────────────────────
 
 export async function saveToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await setSecureItem(TOKEN_KEY, token);
 }
 
 export async function getToken(): Promise<string | null> {
@@ -31,7 +64,7 @@ export async function getToken(): Promise<string | null> {
     if (role === 'logged_out') return null;
     return role === 'admin' ? 'demo-jwt-token-admin-999' : 'demo-jwt-token-customer-111';
   }
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return getSecureItem(TOKEN_KEY);
 }
 
 export async function deleteToken(): Promise<void> {
@@ -39,17 +72,26 @@ export async function deleteToken(): Promise<void> {
     await demoEngine.setActiveRole('logged_out');
     return;
   }
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await deleteSecureItem(TOKEN_KEY);
+}
+
+// ─── Session expiry notification ────────────────────────────────────────────
+// request() below calls this on any 401 so a single top-level subscriber (App.tsx) can
+// log the user out everywhere, instead of every screen needing its own 401 handling.
+
+type UnauthorizedListener = () => void;
+const unauthorizedListeners = new Set<UnauthorizedListener>();
+
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener);
+  return () => unauthorizedListeners.delete(listener);
 }
 
 // ─── HTTP helper ─────────────────────────────────────────────────────────────
 
-async function saveSecureData(key: string, value: string) {
-  if (Platform.OS === 'web') {
-    await AsyncStorage.setItem(key, value);
-  } else {
-    await SecureStore.setItemAsync(key, value);
-  }
+async function parseJsonBody<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 async function request<T>(
@@ -76,17 +118,20 @@ async function request<T>(
   });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      unauthorizedListeners.forEach((listener) => listener());
+    }
     let message = `HTTP ${res.status}`;
     try {
-      const err = await res.json();
-      message = err.message ?? err.error ?? message;
+      const err = await parseJsonBody<{ message?: string; error?: string }>(res);
+      message = err?.message ?? err?.error ?? message;
     } catch {
       // ignore parse errors
     }
     throw new Error(message);
   }
 
-  return res.json() as Promise<T>;
+  return parseJsonBody<T>(res);
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -143,6 +188,9 @@ export interface ProductResponse {
 export interface StoreConfigResponse {
   id: number | null;
   storefrontId: number;
+  // Canonical representation is a fraction (0.075 = 7.5%), not a percent.
+  // Consumers should still defensively normalize (`rate > 1 ? rate / 100 : rate`)
+  // since this value can come from a real, less-trusted backend.
   vatRate: number;
   deliveryFee: number;
   waiterPhone?: string | null;
@@ -198,11 +246,13 @@ export interface RegisterResponse {
   message: string;
 }
 
-export function register(username: string, email: string, password: string) {
+export type AccountRole = 'vendor' | 'customer';
+
+export function register(username: string, email: string, password: string, role: AccountRole) {
   if (ENABLE_DEMO_MODE) {
     return Promise.resolve({ message: 'Registration successful! (Demo Mode)' });
   }
-  return request<RegisterResponse>('POST', '/auth/register', { username, email, password }, false);
+  return request<RegisterResponse>('POST', '/auth/register', { username, email, password, role }, false);
 }
 
 export function verifyOtp(email: string, otp: string) {
@@ -265,6 +315,28 @@ export function getStorefrontBySlug(slug: string) {
   return request<StorefrontResponse>('GET', `/api/business/storefronts/${encodeURIComponent(slug)}`, undefined, false);
 }
 
+// All published storefronts across every vendor — the customer/vendor discovery directory.
+// Distinct from getMyStorefronts(), which is scoped to the signed-in vendor's own stores.
+export function getAllStorefronts() {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.getAllStorefronts();
+  }
+  return request<StorefrontResponse[]>('GET', '/api/business/storefronts', undefined, false);
+}
+
+export interface StorefrontRating {
+  storefrontId: number;
+  average: number;
+  count: number;
+}
+
+export function getStorefrontRatings(): Promise<StorefrontRating[]> {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.getStorefrontRatings();
+  }
+  return request<StorefrontRating[]>('GET', '/api/business/storefronts/ratings', undefined, false);
+}
+
 export function getProducts(storefrontId: number) {
   if (ENABLE_DEMO_MODE) {
     return demoEngine.getProducts(storefrontId);
@@ -284,6 +356,27 @@ export function trackProductView(storefrontId: number, productId: number) {
     return Promise.resolve();
   }
   return request<void>('POST', `/api/storefronts/${storefrontId}/products/${productId}/view`, undefined, false);
+}
+
+export function createProduct(storefrontId: number, body: ProductInput) {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.createProduct(storefrontId, body);
+  }
+  return request<ProductResponse>('POST', `/api/storefronts/${storefrontId}/products`, body);
+}
+
+export function updateProduct(storefrontId: number, productId: number, body: Partial<ProductInput> & { isDelisted?: boolean }) {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.updateProduct(storefrontId, productId, body);
+  }
+  return request<ProductResponse>('PUT', `/api/storefronts/${storefrontId}/products/${productId}`, body);
+}
+
+export function deleteProduct(storefrontId: number, productId: number) {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.deleteProduct(storefrontId, productId);
+  }
+  return request<void>('DELETE', `/api/storefronts/${storefrontId}/products/${productId}`);
 }
 
 export function getStoreConfig(storefrontId: number) {
@@ -331,6 +424,36 @@ export function getOrders(storefrontId?: number) {
   return request<OrderResponse[]>('GET', storefrontId ? `/api/storefronts/${storefrontId}/orders` : '/api/orders');
 }
 
+export function updateOrderStatus(storefrontId: number, orderId: number, status: string) {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.updateOrderStatus(orderId, status);
+  }
+  return request<OrderResponse>('PATCH', `/api/storefronts/${storefrontId}/orders/${orderId}/status`, { status });
+}
+
+export function getOrderById(storefrontId: number, orderId: number) {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.getOrderById(orderId);
+  }
+  return request<OrderResponse>('GET', `/api/storefronts/${storefrontId}/orders/${orderId}`, undefined, false);
+}
+
+// ─── Weekly Events (per-storefront) ────────────────────────────────────────
+
+export function getStorefrontEvents(storefrontId: number) {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.getStorefrontEvents(storefrontId);
+  }
+  return request<WeeklyEvents>('GET', `/api/storefronts/${storefrontId}/events`, undefined, false);
+}
+
+export function updateStorefrontEvents(storefrontId: number, weeklyEvents: WeeklyEvents) {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.updateStorefrontEvents(storefrontId, weeklyEvents);
+  }
+  return request<WeeklyEvents>('PUT', `/api/storefronts/${storefrontId}/events`, { weeklyEvents });
+}
+
 export interface WaiterCallBody {
   tableNumber: string;
   callTarget: string;
@@ -373,7 +496,7 @@ export function createStoreFeedback(storefrontId: number, body: {
   description: string;
 }) {
   if (ENABLE_DEMO_MODE) {
-    return Promise.resolve({ id: Date.now() });
+    return demoEngine.createStoreFeedback(storefrontId, body.rating, body.description);
   }
   return request<{ id: number }>('POST', `/api/storefronts/${storefrontId}/feedbacks`, body, false);
 }
@@ -406,6 +529,7 @@ export function verifyPayment(reference: string) {
 }
 
 export interface UpdateStoreConfigBody {
+  // Expected as a fraction (0.075 = 7.5%) — see StoreConfigResponse.vatRate.
   vatRate?: number;
   deliveryFee?: number;
   deliveryEnabled?: boolean;
@@ -515,4 +639,76 @@ export function acknowledgeTip(storefrontId: number, tipId: number): Promise<voi
     return demoEngine.acknowledgeTip(tipId);
   }
   return request<void>('PATCH', `/api/storefronts/${storefrontId}/tips/${tipId}/acknowledge`);
+}
+
+// ─── Access Pages (event pages / guest check-in / exclusive content) ───────
+
+export interface CreateAccessPageBody {
+  type: AccessPageType;
+  title: string;
+  description?: string;
+  fields: AccessPageField[];
+  exclusiveContent?: string;
+}
+
+export function getAccessPages(storefrontId: number): Promise<AccessPage[]> {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.getAccessPages(storefrontId);
+  }
+  return request<AccessPage[]>('GET', `/api/storefronts/${storefrontId}/access-pages`);
+}
+
+export function createAccessPage(storefrontId: number, body: CreateAccessPageBody): Promise<AccessPage> {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.createAccessPage(storefrontId, body);
+  }
+  return request<AccessPage>('POST', `/api/storefronts/${storefrontId}/access-pages`, body);
+}
+
+export function updateAccessPage(accessPageId: number, body: Partial<CreateAccessPageBody> & { isActive?: boolean }): Promise<AccessPage> {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.updateAccessPage(accessPageId, body);
+  }
+  return request<AccessPage>('PUT', `/api/access-pages/${accessPageId}`, body);
+}
+
+export function deleteAccessPage(accessPageId: number): Promise<void> {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.deleteAccessPage(accessPageId);
+  }
+  return request<void>('DELETE', `/api/access-pages/${accessPageId}`);
+}
+
+export function getAccessPageBySlug(slug: string): Promise<AccessPage> {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.getAccessPageBySlug(slug);
+  }
+  return request<AccessPage>('GET', `/api/access-pages/slug/${encodeURIComponent(slug)}`, undefined, false);
+}
+
+export function submitAccessPageGuestEntry(accessPageId: number, responses: Record<string, string>): Promise<AccessPageGuestEntry> {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.submitAccessPageGuestEntry(accessPageId, responses);
+  }
+  return request<AccessPageGuestEntry>('POST', `/api/access-pages/${accessPageId}/guests`, { responses }, false);
+}
+
+export function getAccessPageGuests(accessPageId: number): Promise<AccessPageGuestEntry[]> {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.getAccessPageGuests(accessPageId);
+  }
+  return request<AccessPageGuestEntry[]>('GET', `/api/access-pages/${accessPageId}/guests`);
+}
+
+// ─── Push notifications ──────────────────────────────────────────────────────
+// Registers this device's Expo push token so a real backend can send order alerts
+// even when the app is backgrounded/closed. In demo mode this is a no-op — there's
+// no server to receive it — but the client-side permission/token flow still runs
+// (see src/utils/pushNotifications.ts), so the plumbing is proven and ready.
+
+export function registerPushToken(token: string) {
+  if (ENABLE_DEMO_MODE) {
+    return Promise.resolve();
+  }
+  return request<void>('POST', '/api/notifications/register', { token });
 }

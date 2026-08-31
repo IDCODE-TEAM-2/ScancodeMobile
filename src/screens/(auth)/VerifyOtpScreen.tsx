@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +12,7 @@ import {
 import { CommonActions } from '@react-navigation/native';
 import { verifyOtp, resendOtp } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
+import CustomButton from '../../components/CustomButton';
 
 interface Props {
   navigation: NavigationProp<'VerifyOtp'>;
@@ -63,31 +63,31 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      className="flex-1"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.container}>
-          <Text style={styles.brand}>ScanCode</Text>
-          <Text style={styles.title}>Verify your email</Text>
-          <Text style={styles.subtitle}>
+      <ScrollView contentContainerClassName="flex-grow" keyboardShouldPersistTaps="handled">
+        <View className="flex-1 bg-white px-6 justify-center py-12">
+          <Text className="text-[34px] font-extrabold text-primary text-center mb-1.5">ScanCode</Text>
+          <Text className="text-[22px] font-bold text-gray-900 text-center mb-2.5">Verify your email</Text>
+          <Text className="text-[15px] text-gray-500 text-center leading-[22px] mb-8">
             Enter the 6-digit code we sent to{'\n'}
-            <Text style={styles.email}>{email}</Text>
+            <Text className="text-primary font-semibold">{email}</Text>
           </Text>
 
           {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View className="bg-red-100 rounded-lg p-3 mb-4">
+              <Text className="text-red-600 text-sm">{error}</Text>
             </View>
           )}
           {success && (
-            <View style={styles.successBox}>
-              <Text style={styles.successText}>{success}</Text>
+            <View className="bg-emerald-100 rounded-lg p-3 mb-4">
+              <Text className="text-emerald-800 text-sm">{success}</Text>
             </View>
           )}
 
           <TextInput
-            style={styles.otpInput}
+            className="border-2 border-primary rounded-2xl px-3.5 py-[18px] text-[28px] font-bold text-gray-900 bg-gray-50 mb-5 tracking-[12px]"
             value={otp}
             onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))}
             keyboardType="number-pad"
@@ -98,21 +98,16 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
             textAlign="center"
           />
 
-          <TouchableOpacity
-            style={[styles.button, (loading || otp.length < 6) && styles.buttonDisabled]}
+          <CustomButton
+            title="Verify Email"
             onPress={handleVerify}
-            disabled={loading || otp.length < 6}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Verify Email</Text>
-            )}
-          </TouchableOpacity>
+            loading={loading}
+            disabled={otp.length < 6}
+            className="mb-4"
+          />
 
           <TouchableOpacity
-            style={styles.resendRow}
+            className="flex-row justify-center mt-1"
             onPress={handleResend}
             disabled={resending || loading}
           >
@@ -120,8 +115,8 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
               <ActivityIndicator size="small" color="#6C63FF" />
             ) : (
               <>
-                <Text style={styles.linkText}>Didn't get the code? </Text>
-                <Text style={[styles.linkText, styles.linkAccent]}>Resend</Text>
+                <Text className="text-sm text-gray-500">Didn't get the code? </Text>
+                <Text className="text-sm text-primary font-semibold">Resend</Text>
               </>
             )}
           </TouchableOpacity>
@@ -130,82 +125,3 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-    paddingVertical: 48,
-  },
-  brand: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#6C63FF',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
-  },
-  email: {
-    color: '#6C63FF',
-    fontWeight: '600',
-  },
-  errorBox: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: { color: '#DC2626', fontSize: 14 },
-  successBox: {
-    backgroundColor: '#D1FAE5',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  successText: { color: '#065F46', fontSize: 14 },
-  otpInput: {
-    borderWidth: 2,
-    borderColor: '#6C63FF',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 18,
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-    marginBottom: 20,
-    letterSpacing: 12,
-  },
-  button: {
-    backgroundColor: '#6C63FF',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  resendRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  linkText: { fontSize: 14, color: '#6B7280' },
-  linkAccent: { color: '#6C63FF', fontWeight: '600' },
-});

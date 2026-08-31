@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
+import { cn } from '../utils/cn';
 
 export type StatusType =
   | 'PUBLISHED'
   | 'LOCKED'
   | 'PENDING'
   | 'CONFIRMED'
+  | 'COMPLETED'
   | 'REJECTED'
   | 'CANCELLED'
   | 'DELIVERED'
@@ -16,60 +18,27 @@ export interface StatusBadgeProps {
   label?: string;
 }
 
+const SUCCESS = ['PUBLISHED', 'CONFIRMED', 'COMPLETED', 'DELIVERED'];
+const WARNING = ['LOCKED', 'PENDING', 'PENDING_ACK'];
+const DANGER = ['REJECTED', 'CANCELLED'];
+
 export default function StatusBadge({ status, label }: StatusBadgeProps) {
   const normalized = status.toUpperCase();
 
-  let bgStyle = styles.pendingBg;
-  let textStyle = styles.pendingText;
+  const bgTextClasses = SUCCESS.includes(normalized)
+    ? 'bg-emerald-100 text-emerald-800'
+    : WARNING.includes(normalized)
+      ? 'bg-amber-100 text-amber-800'
+      : DANGER.includes(normalized)
+        ? 'bg-red-100 text-red-800'
+        : 'bg-indigo-100 text-indigo-800';
 
-  switch (normalized) {
-    case 'PUBLISHED':
-    case 'CONFIRMED':
-    case 'DELIVERED':
-      bgStyle = styles.successBg;
-      textStyle = styles.successText;
-      break;
-    case 'LOCKED':
-    case 'PENDING':
-    case 'PENDING_ACK':
-      bgStyle = styles.warningBg;
-      textStyle = styles.warningText;
-      break;
-    case 'REJECTED':
-    case 'CANCELLED':
-      bgStyle = styles.dangerBg;
-      textStyle = styles.dangerText;
-      break;
-    default:
-      break;
-  }
-
+  const [bgClass, textClass] = bgTextClasses.split(' ');
   const displayLabel = label || status;
 
   return (
-    <View style={[styles.badge, bgStyle]}>
-      <Text style={[styles.text, textStyle]}>{displayLabel}</Text>
+    <View className={cn('rounded-full px-2.5 py-[3px] self-start', bgClass)}>
+      <Text className={cn('text-xs font-semibold', textClass)}>{displayLabel}</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    alignSelf: 'flex-start',
-  },
-  text: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  successBg: { backgroundColor: '#D1FAE5' },
-  successText: { color: '#065F46' },
-  warningBg: { backgroundColor: '#FEF3C7' },
-  warningText: { color: '#92400E' },
-  dangerBg: { backgroundColor: '#FEE2E2' },
-  dangerText: { color: '#991B1B' },
-  pendingBg: { backgroundColor: '#E0E7FF' },
-  pendingText: { color: '#3730A3' },
-});

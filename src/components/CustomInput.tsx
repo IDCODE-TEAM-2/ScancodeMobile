@@ -1,77 +1,36 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  type TextInputProps,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { View, Text, TextInput, type TextInputProps } from 'react-native';
+import { cn } from '../utils/cn';
 
 export interface CustomInputProps extends TextInputProps {
   label?: string;
   error?: string | null;
-  containerStyle?: StyleProp<ViewStyle>;
+  containerClassName?: string;
 }
 
 export default function CustomInput({
   label,
   error,
-  containerStyle,
-  style,
+  containerClassName,
+  className,
   editable = true,
   ...props
-}: CustomInputProps) {
+}: CustomInputProps & { className?: string }) {
   return (
-    <View style={[styles.container, containerStyle]}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+    <View className={cn('mb-3', containerClassName)}>
+      {label ? <Text className="text-sm font-semibold text-gray-700 mb-1.5">{label}</Text> : null}
       <TextInput
-        style={[
-          styles.input,
-          error ? styles.inputError : null,
-          !editable ? styles.inputDisabled : null,
-          style,
-        ]}
+        className={cn(
+          'border-[1.5px] border-gray-300 rounded-[10px] px-3.5 py-3 text-[15px] text-gray-900 bg-gray-50',
+          error && 'border-red-500',
+          !editable && 'bg-gray-100 text-gray-400',
+          className
+        )}
         placeholderTextColor="#9CA3AF"
         editable={editable}
         {...props}
       />
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? <Text className="text-red-600 text-xs mt-1">{error}</Text> : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
-  },
-  inputError: {
-    borderColor: '#EF4444',
-  },
-  inputDisabled: {
-    backgroundColor: '#F3F4F6',
-    color: '#9CA3AF',
-  },
-  errorText: {
-    color: '#DC2626',
-    fontSize: 12,
-    marginTop: 4,
-  },
-});

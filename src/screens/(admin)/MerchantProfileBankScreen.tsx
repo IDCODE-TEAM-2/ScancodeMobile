@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet,
   View,
   Text,
   TextInput,
@@ -12,8 +11,10 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Landmark } from 'lucide-react-native';
 import type { NavigationProp } from '../../types';
 import { getBusinessProfileData, saveBusinessProfileData } from '../../api';
+import { cn } from '../../utils/cn';
 
 export default function MerchantProfileBankScreen() {
   const navigation = useNavigation<NavigationProp<'MerchantProfileBank'>>();
@@ -64,8 +65,8 @@ export default function MerchantProfileBankScreen() {
       setTimeout(() => {
         navigation.goBack();
       }, 1200);
-    } catch (err: any) {
-      setFeedbackMsg({ type: 'error', text: err.message || 'Failed to save profile details.' });
+    } catch (err: unknown) {
+      setFeedbackMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save profile details.' });
     } finally {
       setIsSaving(false);
     }
@@ -73,24 +74,24 @@ export default function MerchantProfileBankScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
+      <View className="flex-1 justify-center items-center bg-gray-50">
         <ActivityIndicator size="large" color="#126B33" />
-        <Text style={styles.loadingText}>Loading profile details...</Text>
+        <Text className="mt-3 text-sm text-gray-600">Loading profile details...</Text>
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-gray-50"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.infoBanner}>
-          <Text style={styles.infoIcon}>🏦</Text>
-          <View style={styles.infoTextContainer}>
-            <Text style={styles.infoTitle}>Payment Account Details</Text>
-            <Text style={styles.infoSub}>
+      <ScrollView contentContainerClassName="p-5" keyboardShouldPersistTaps="handled">
+        <View className="flex-row bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 items-start gap-3">
+          <Landmark size={24} color="#065F46" strokeWidth={2} />
+          <View className="flex-1">
+            <Text className="text-sm font-bold text-emerald-800 mb-0.5">Payment Account Details</Text>
+            <Text className="text-xs text-emerald-700 leading-[18px]">
               These bank details are displayed to customers on your storefront toolbar when they send tips or custom service requests.
             </Text>
           </View>
@@ -98,27 +99,27 @@ export default function MerchantProfileBankScreen() {
 
         {feedbackMsg && (
           <View
-            style={[
-              styles.feedbackBox,
-              feedbackMsg.type === 'success' ? styles.feedbackSuccess : styles.feedbackError,
-            ]}
+            className={cn(
+              'p-3.5 rounded-xl mb-4 border',
+              feedbackMsg.type === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
+            )}
           >
             <Text
-              style={[
-                styles.feedbackText,
-                feedbackMsg.type === 'success' ? styles.feedbackSuccessText : styles.feedbackErrorText,
-              ]}
+              className={cn(
+                'text-[13px] font-semibold text-center',
+                feedbackMsg.type === 'success' ? 'text-emerald-900' : 'text-red-900'
+              )}
             >
               {feedbackMsg.text}
             </Text>
           </View>
         )}
 
-        <View style={styles.card}>
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Business Name</Text>
+        <View className="bg-white rounded-[20px] p-5 mb-5 shadow-sm">
+          <View className="mb-4">
+            <Text className="text-[13px] font-semibold text-gray-700 mb-1.5">Business Name</Text>
             <TextInput
-              style={styles.input}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-3 text-sm text-gray-900"
               value={businessName}
               onChangeText={setBusinessName}
               placeholder="e.g. Ocean Breeze Restaurant"
@@ -126,10 +127,10 @@ export default function MerchantProfileBankScreen() {
             />
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Bank Name *</Text>
+          <View className="mb-4">
+            <Text className="text-[13px] font-semibold text-gray-700 mb-1.5">Bank Name *</Text>
             <TextInput
-              style={styles.input}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-3 text-sm text-gray-900"
               value={bankName}
               onChangeText={setBankName}
               placeholder="e.g. Access Bank, GTBank, Zenith"
@@ -137,10 +138,10 @@ export default function MerchantProfileBankScreen() {
             />
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Account Name *</Text>
+          <View className="mb-4">
+            <Text className="text-[13px] font-semibold text-gray-700 mb-1.5">Account Name *</Text>
             <TextInput
-              style={styles.input}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-3 text-sm text-gray-900"
               value={accountName}
               onChangeText={setAccountName}
               placeholder="e.g. Ocean Breeze Enterprise"
@@ -148,10 +149,10 @@ export default function MerchantProfileBankScreen() {
             />
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Account Number *</Text>
+          <View>
+            <Text className="text-[13px] font-semibold text-gray-700 mb-1.5">Account Number *</Text>
             <TextInput
-              style={styles.input}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-3 text-sm text-gray-900"
               value={accountNumber}
               onChangeText={setAccountNumber}
               placeholder="e.g. 0123456789"
@@ -163,7 +164,7 @@ export default function MerchantProfileBankScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
+          className={cn('rounded-2xl py-4 items-center justify-center', isSaving ? 'bg-gray-400' : 'bg-primary')}
           onPress={handleSave}
           disabled={isSaving}
           activeOpacity={0.8}
@@ -171,35 +172,10 @@ export default function MerchantProfileBankScreen() {
           {isSaving ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.saveBtnText}>Save Account Details</Text>
+            <Text className="text-white text-[15px] font-bold">Save Account Details</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#4B5563' },
-  scrollContent: { padding: 20 },
-  infoBanner: { flexDirection: 'row', backgroundColor: '#ECFDF5', borderColor: '#A7F3D0', borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 16, alignItems: 'flex-start' },
-  infoIcon: { fontSize: 24, marginRight: 12 },
-  infoTextContainer: { flex: 1 },
-  infoTitle: { fontSize: 14, fontWeight: '700', color: '#065F46', marginBottom: 2 },
-  infoSub: { fontSize: 12, color: '#047857', lineHeight: 18 },
-  feedbackBox: { padding: 14, borderRadius: 12, marginBottom: 16 },
-  feedbackSuccess: { backgroundColor: '#DEF7EC', borderColor: '#BCF0DA', borderWidth: 1 },
-  feedbackError: { backgroundColor: '#FDE8E8', borderColor: '#FBD5D5', borderWidth: 1 },
-  feedbackText: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  feedbackSuccessText: { color: '#03543F' },
-  feedbackErrorText: { color: '#9B1C1C' },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, marginBottom: 20, elevation: 2 },
-  fieldGroup: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#111827' },
-  saveBtn: { backgroundColor: '#6C63FF', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  saveBtnDisabled: { backgroundColor: '#9CA3AF' },
-  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-});
