@@ -350,13 +350,22 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
                     <Trash2 size={14} color="#DC2626" strokeWidth={2} />
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={() => handleToggleDelist(p)} className="flex-row items-center gap-1 mt-1.5">
-                  {p.isDelisted ? (
-                    <Eye size={13} color="#4B5563" strokeWidth={2} />
-                  ) : (
-                    <EyeOff size={13} color="#4B5563" strokeWidth={2} />
+                <TouchableOpacity
+                  onPress={() => handleToggleDelist(p)}
+                  activeOpacity={0.75}
+                  className={cn(
+                    'flex-row items-center gap-1 mt-1.5 rounded-full px-2.5 py-1 border',
+                    p.isDelisted ? 'bg-emerald-50 border-emerald-200' : 'bg-gray-100 border-gray-200'
                   )}
-                  <Text className="text-[11px] text-gray-500 font-medium">{p.isDelisted ? 'Relist' : 'Delist'}</Text>
+                >
+                  {p.isDelisted ? (
+                    <Eye size={12} color="#059669" strokeWidth={2.2} />
+                  ) : (
+                    <EyeOff size={12} color="#4B5563" strokeWidth={2.2} />
+                  )}
+                  <Text className={cn('text-[11px] font-bold', p.isDelisted ? 'text-emerald-700' : 'text-gray-600')}>
+                    {p.isDelisted ? 'Relist' : 'Delist'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>

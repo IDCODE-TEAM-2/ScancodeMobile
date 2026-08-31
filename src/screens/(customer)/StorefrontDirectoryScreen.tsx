@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Image, Alert } from 'react-native';
-import { Star, MapPin, Store, QrCode, LogOut, ArrowDownAZ, ArrowLeft, LocateFixed } from 'lucide-react-native';
+import { Star, MapPin, Store, QrCode, LogOut, ArrowDownAZ, ArrowLeft, LocateFixed, Settings as SettingsIcon } from 'lucide-react-native';
 import Skeleton from '../../components/Skeleton';
 import {
   getAllStorefronts,
@@ -170,6 +170,9 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
             accessibilityLabel="Scan a table QR code"
           >
             <QrCode size={19} color="#4B5563" strokeWidth={2} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} className="p-2" accessibilityLabel="Settings">
+            <SettingsIcon size={19} color="#4B5563" strokeWidth={2} />
           </TouchableOpacity>
           {!isVendor && (
             <TouchableOpacity onPress={handleLogout} className="p-2" accessibilityLabel="Sign out">

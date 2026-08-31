@@ -186,6 +186,7 @@ export type RootStackParamList = {
   AccessPageGuest: { accessPageSlug: string };
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
+  Settings: undefined;
 };
 
 export type NavigationProp<T extends keyof RootStackParamList> =

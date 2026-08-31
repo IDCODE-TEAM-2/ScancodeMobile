@@ -42,6 +42,88 @@ memory regression) — do not assume a training-data cutoff knows the right APIs
 
 Most recent first. Add an entry here for every fix so changes stay traceable across sessions.
 
+### 2026-08-31 (session 11) — App Store readiness pivot: real backend wired, account deletion, app.json blockers, Dashboard card bug
+
+Mid-session the user revealed they're submitting to the App Store "today" and asked for
+cleanup + a data-deletion option. This became the priority over the batch of smaller UI
+requests already in flight (see below for what got done first). Confirmed a real backend
+exists (`api.scancode.ng`) rather than guessing — this mattered: probing it live surfaced a
+genuine integration bug within minutes.
+
+**Real bug found by testing against the live backend, not demoEngine:** `request()` in
+`api.ts` only attached the Authorization header when `requireAuth` was `true` — meaning any
+endpoint called with `requireAuth: false` (intended to mean "also works logged-out") never
+sent a token even when the user WAS logged in. Confirmed live: `GET /api/business/storefronts`
+(the storefront directory) returns 401 from the real backend even though the client always
+called it anonymously. Fixed: the token is now attached whenever one exists, regardless of
+`requireAuth` — that flag no longer gates the header, only documents "this endpoint doesn't
+require one." This is exactly the kind of bug demo-mode testing can never surface, since
+demoEngine's calls never check auth at all.
+
+**Account/data deletion** (required by App Store Guideline 5.1.1(v) for any app with account
+creation) — new `SettingsScreen.tsx`, reachable from a gear icon on `DashboardScreen` and
+`StorefrontDirectoryScreen`. Double-confirms before calling new `deleteAccount()` (`api.ts` +
+`demoEngine.ts`, `DELETE /api/auth/me`). **That endpoint path is an unconfirmed best guess**
+(follows this backend's existing `/api/auth/me` GET convention) — no API docs were available
+to verify it; this is the one piece of this feature that needs backend confirmation before
+shipping, everything else (UI, confirmation flow, demo-mode fallback) is complete.
+
+**`app.json` had several real submission blockers, found by reading it fresh against what
+App Store submission actually needs:**
+- `name` was `"scancode-mobile"` (a slug, shown under the home screen icon) — changed to
+  `"ScanCode"`.
+- `expo-camera` and `expo-image-picker` are both installed and used (`CameraQRScannerScreen`,
+  `CreateStorefrontScreen`, `ProductCatalogEditorScreen`) but neither was in `plugins` and
+  there was no `NSCameraUsageDescription`/`NSPhotoLibraryUsageDescription` anywhere — **this
+  crashes on a real iOS device the moment permission is requested**, it's not just a review
+  rejection risk. Added both plugins with real usage-description strings.
+- No `ios.bundleIdentifier` or `android.package` — required for any store build. Left as an
+  obvious placeholder (`REPLACE_ME_ng_scancode_app`) rather than guessing a real one — this
+  is permanent once submitted and genuinely the user's call, not something to invent.
+- The `@sentry/react-native/expo` config plugin had placeholder `organization`/`project`
+  values (`your-sentry-org`/`your-sentry-project`) from session 7's scaffold — removed the
+  plugin entirely rather than risk a same-day build failure from a build-time step trying to
+  resolve a Sentry project that doesn't exist. The npm package and `Sentry.init()`/`Sentry.wrap()`
+  in `App.tsx` stay — Sentry itself is already safely disabled with no DSN set (confirmed live
+  in session 9/10: "No DSN provided, client will not send events"), only the build-time plugin
+  was the risk. Re-add the plugin with real values once there's an actual Sentry project.
+- `eas.json`'s `preview`/`production` profiles' placeholder API URLs replaced with the real
+  `https://api.scancode.ng`.
+
+**`DashboardScreen`'s storefront-card buttons investigated after a report that they were
+"hardcoded, not interactive."** Extensive live testing (four different click methods, all
+seemingly failing the same way) eventually traced to two separate things:
+1. A real bug: the notification-dot wrapper added around the business name Text (session 10)
+   narrowed its available width enough that long names wrapped across 3–4 lines, ballooning
+   the card header to ~96px tall and pushing the ops-row buttons further down the card than
+   expected. Fixed with `numberOfLines={1}` + `shrink`/`shrink-0` on the right elements.
+2. A false alarm in the verification method itself, worth documenting so it doesn't cost
+   time again: `Storefront`, `StoreChargesConfig`, and `ActivateQR` (among others) all title
+   themselves from `route.params?.name || 'fallback'` — since every ops-row button passes the
+   *same* storefront name as a param, clicking "Config" and landing on a screen titled "The
+   Lagos Grill & Lounge" looks identical to landing on "Storefront" by title alone. Checking
+   actual page content (not just the title) after the fix confirmed Config, Orders, etc. all
+   navigate correctly and always did. The user's original complaint was very likely caused by
+   the header-wrapping bug making the card look broken, not a real navigation defect.
+
+**Also fixed from the smaller UI batch, before the App Store pivot:** `ServicesScreen`'s
+Access Page icon was still amber (missed in session 9's monochrome pass, since it shared its
+own chip's color rather than being flagged as an exception) — now `#374151` matching the
+other two cards. `ProductCatalogEditorScreen`'s Delist/Relist control restyled from a bare
+text+icon link into an actual pill button (bordered, background-filled, bold label) matching
+the visual weight of the Edit/Delete buttons next to it.
+
+**Deliberately not attempted this session** (communicated to the user as deferred, not
+silently dropped): multiple bank accounts per business, fully consolidating every
+settings-adjacent screen into one panel (Settings screen exists now but only owns
+account/legal, not bank/business-detail editing yet), independent Access Page creation
+without a storefront, and the requested full stress/usage audit of the codebase — all
+real, larger pieces of work that "submitting today" didn't leave room for safely.
+LiveOrdersManagerScreen's reject-confirmation was checked and already existed (an
+`Alert.alert` confirming every status change, REJECTED included, since session 3) — flagged
+to the user as already-present rather than rebuilt blind, since what they may have actually
+experienced was likely the same card-rendering issue above making the UI feel unreliable.
+
 ### 2026-08-31 (session 10) — Back button, storefront collapsing header, edit storefront, notification badges, toolbar payment/copy/centering, bottom scroll padding
 
 User reported a batch of bugs and requests, all reproduced and verified live (`expo start

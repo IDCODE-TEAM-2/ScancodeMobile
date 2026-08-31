@@ -49,6 +49,7 @@ import ProductCatalogEditorScreen from './src/screens/(admin)/ProductCatalogEdit
 import AccessPageManagerScreen from './src/screens/(admin)/AccessPageManagerScreen';
 import StorefrontDirectoryScreen from './src/screens/(customer)/StorefrontDirectoryScreen';
 import AccessPageGuestScreen from './src/screens/(customer)/AccessPageGuestScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 // ==========================================
 // 1. NAVIGATOR DEFINITIONS
@@ -64,6 +65,7 @@ const wishlistOptions: NativeStackNavigationOptions = { title: 'Wishlist', heade
 const cartOptions: NativeStackNavigationOptions = { title: 'Your Cart', headerBackTitle: 'Back' };
 const orderTrackerOptions: NativeStackNavigationOptions = { title: 'Order Status', headerBackTitle: 'Back' };
 const accessPageGuestOptions: NativeStackNavigationOptions = { title: 'Event Check-In', headerBackTitle: 'Back' };
+const settingsOptions: NativeStackNavigationOptions = { title: 'Settings', headerBackTitle: 'Back' };
 
 const sharedScreenOptions: NativeStackNavigationOptions = {
   headerStyle: { backgroundColor: '#ffffff' },
@@ -208,6 +210,9 @@ function AdminNavigator() {
         })}
       />
       <AdminStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
+      <AdminStack.Screen name="Settings" component={SettingsScreen} options={settingsOptions} />
+      <AdminStack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ title: 'Terms of Service', headerBackTitle: 'Back' }} />
+      <AdminStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy', headerBackTitle: 'Back' }} />
 
       {/* Customer Preview & Dev Tool Screens accessible in Admin Context */}
       <AdminStack.Screen
@@ -256,6 +261,9 @@ function CustomerNavigator() {
       <CustomerStack.Screen name="Checkout" component={CheckoutScreen} options={checkoutOptions} />
       <CustomerStack.Screen name="OrderReceiptTracker" component={OrderReceiptTrackerScreen} options={orderTrackerOptions} />
       <CustomerStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
+      <CustomerStack.Screen name="Settings" component={SettingsScreen} options={settingsOptions} />
+      <CustomerStack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ title: 'Terms of Service', headerBackTitle: 'Back' }} />
+      <CustomerStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy', headerBackTitle: 'Back' }} />
     </CustomerStack.Navigator>
   );
 }

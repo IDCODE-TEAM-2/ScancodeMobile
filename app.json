@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "scancode-mobile",
+    "name": "ScanCode",
     "slug": "scancode-mobile",
     "version": "1.0.0",
     "scheme": "scancode",
@@ -8,9 +8,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "REPLACE_ME_ng_scancode_app"
     },
     "android": {
+      "package": "REPLACE_ME_ng_scancode_app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -35,11 +37,16 @@
         }
       ],
       [
-        "@sentry/react-native/expo",
+        "expo-camera",
         {
-          "url": "https://sentry.io/",
-          "organization": "your-sentry-org",
-          "project": "your-sentry-project"
+          "cameraPermission": "ScanCode uses your camera to scan a table's QR code."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ScanCode uses your photo library so you can upload a storefront logo, images, or product photos.",
+          "cameraPermission": false
         }
       ]
     ]

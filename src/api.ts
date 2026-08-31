@@ -104,11 +104,16 @@ async function request<T>(
     'Content-Type': 'application/json',
   };
 
-  if (requireAuth) {
-    const token = await getToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+  // `requireAuth` only ever meant "this endpoint also works logged-out" — it was
+  // incorrectly gating whether a token got attached at all. That meant a *logged-in* user
+  // hitting a requireAuth:false endpoint (e.g. the storefront directory) sent no
+  // Authorization header and got a 401 from any backend that treats "public GET" as
+  // "public, but personalize if you happen to be authenticated." Confirmed live against
+  // the real backend (api.scancode.ng) 2026-08-31 — always attach the token when one
+  // exists, regardless of requireAuth; only skip attaching it when there isn't one.
+  const token = await getToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -281,6 +286,19 @@ export function getMe() {
     return demoEngine.getMe();
   }
   return request<MeResponse>('GET', '/api/auth/me');
+}
+
+// Permanently deletes the signed-in user's account and all associated data (App Store
+// Guideline 5.1.1(v) requires this for any app that supports account creation). Endpoint
+// path is a best-guess following this backend's existing `/api/auth/me` convention for
+// "the current user" — NOT confirmed against real API docs (none were available). Verify
+// against the actual backend before shipping; if the path differs, this is the one line
+// to change.
+export function deleteAccount(): Promise<void> {
+  if (ENABLE_DEMO_MODE) {
+    return demoEngine.deleteAccount();
+  }
+  return request<void>('DELETE', '/api/auth/me');
 }
 
 // ─── Storefronts ─────────────────────────────────────────────────────────────

@@ -14,13 +14,13 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://staging-api.your-production-domain.example"
+        "EXPO_PUBLIC_API_BASE": "https://api.scancode.ng"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://api.your-production-domain.example"
+        "EXPO_PUBLIC_API_BASE": "https://api.scancode.ng"
       }
     }
   },

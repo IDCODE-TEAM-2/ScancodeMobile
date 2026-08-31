@@ -89,7 +89,7 @@ export default function ServicesScreen({ navigation }: Props) {
         activeOpacity={0.75}
       >
         <View className="w-12 h-12 rounded-xl bg-amber-50 items-center justify-center mr-3.5">
-          <Ticket size={22} color="#D97706" strokeWidth={2} />
+          <Ticket size={22} color="#374151" strokeWidth={2} />
         </View>
         <View className="flex-1">
           <Text className="text-base font-bold text-gray-900">Access Page</Text>

@@ -170,6 +170,13 @@ class DemoEngine {
     ]);
   }
 
+  // Demo-mode equivalent of a real account deletion: wipes everything back to a fresh
+  // install's state and signs out, so the flow is genuinely demonstrable without a backend.
+  async deleteAccount(): Promise<void> {
+    await this.resetDemoState();
+    await this.setActiveRole('logged_out');
+  }
+
   // ─── Mock API Endpoint Handlers ──────────────────────────────────────────────
 
   async login(email: string): Promise<AuthResponse> {
