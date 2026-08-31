@@ -32,6 +32,64 @@ memory regression) — do not assume a training-data cutoff knows the right APIs
 
 Most recent first. Add an entry here for every fix so changes stay traceable across sessions.
 
+### 2026-08-31 (session 7) — Push notifications, Terms/Privacy, crash reporting, EAS build profiles
+
+Closes out the four items deferred at the end of session 6. `npx tsc --noEmit` clean
+throughout; verified live via `expo start --web` (see per-item notes below).
+
+**Push notifications (client-side plumbing only — no backend in this repo to send from).**
+Installed `expo-notifications`, `expo-device`, `expo-constants`. New
+`src/utils/pushNotifications.ts`: `registerForPushNotificationsAsync()` requests permission,
+skips entirely on non-physical devices (`Device.isDevice`) and when no EAS project is
+configured yet (`Constants.expoConfig?.extra?.eas?.projectId` unset — see `eas.json` below),
+then calls the existing `registerPushToken` endpoint (was already in `api.ts`/`demoEngine.ts`
+as a demo no-op, unused until now). `setNotificationHandler` configured with the *current*
+SDK 57 fields (`shouldShowBanner`/`shouldShowList`) — the older `shouldShowAlert` field was
+deprecated; confirmed against live docs before writing this, per this file's standing rule.
+Wired into `App.tsx`: a `useEffect` keyed on `appState` calls it once the user is actually
+`'admin'` or `'customer'`, never during `'loading'`/`'logged_out'`. `expo-notifications` added
+to `app.json`'s plugins. Verified live: web bundle logs the expected (harmless)
+`[expo-notifications] Listening to push token changes is not yet fully supported on web`
+warning and does not crash — a real device build is required to exercise the actual token
+flow, which isn't testable from this environment.
+
+**Terms of Service / Privacy Policy.** New `TermsOfServiceScreen.tsx` / `PrivacyPolicyScreen.tsx`
+(`src/screens/(auth)/`) with drafted content scoped to what this app actually does (vendor/
+customer account types, direct-to-vendor payments, Access Page guest data, no GPS collection
+— the storefront "location" field is self-selected, not geolocated). Registered in
+`AuthNavigator` with visible headers/back buttons. `RegisterScreen` gained a required
+"I agree to the Terms of Service and Privacy Policy" checkbox with tappable links to both
+screens; `Create Account` is disabled until checked, and submitting without it shows an error
+rather than silently proceeding. Verified live: checkbox renders unchecked by default, the
+Terms link navigates and back-navigates correctly, content is fully scrollable.
+
+**Crash reporting scaffold (Sentry).** Installed `@sentry/react-native`. New
+`src/utils/crashReporting.ts` calls `Sentry.init` at module load (side-effect import, first
+line of `App.tsx`, before any component code runs) with `dsn: process.env.EXPO_PUBLIC_SENTRY_DSN`
+and `enabled: !!dsn` — deliberately explicit rather than relying on Sentry's own empty-DSN
+handling, so the disabled state is unambiguous in this codebase. `App.tsx`'s root component
+is now wrapped with `Sentry.wrap()` before being exported. `metro.config.js` swapped
+`expo/metro-config`'s `getDefaultConfig` for `@sentry/react-native/metro`'s
+`getSentryExpoConfig` (a drop-in replacement, still wrapped by `withNativeWind` on top) so
+source maps upload correctly on a real build. `app.json` gained the
+`@sentry/react-native/expo` config plugin with placeholder `organization`/`project` values
+that **must be replaced with a real Sentry project before EAS builds run**; `npx expo
+install` also auto-appended a redundant bare `"@sentry/react-native"` plugin entry, which was
+removed since the `/expo` sub-path entry already covers it. `.env.example` documents both
+`EXPO_PUBLIC_SENTRY_DSN` (not secret, safe to embed client-side, left blank so local dev
+never reports to a real project) and `SENTRY_AUTH_TOKEN` (a real secret, build-time only for
+source-map upload — must go in `.env.local`/CI secrets, never `EXPO_PUBLIC_`-prefixed).
+Verified live: web console shows `Sentry Logger [warn]: No DSN provided, client will not
+send events` — confirms it initializes without crashing and stays inert exactly as intended
+until a real DSN is set.
+
+**`eas.json` build profiles.** `development` (dev client, internal distribution),
+`preview` (internal distribution, staging API placeholder), `production`
+(`autoIncrement: true`, production API placeholder). Each profile sets its own
+`EXPO_PUBLIC_API_BASE` via `env`, mirroring the existing `.env`/`.env.local` convention —
+**the `preview`/`production` API URLs are placeholder domains and must be replaced with real
+backend URLs before running an actual EAS build.**
+
 ### 2026-08-31 (session 6) — Services menu, Access Page subsystem, Storefront Directory, Product Catalog Editor
 
 Closes out the scope note left at the bottom of session 5's entry (Nigeria location dropdown,

@@ -1,4 +1,5 @@
 import './global.css';
+import { Sentry } from './src/utils/crashReporting';
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
@@ -8,6 +9,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import type { RootStackParamList } from './src/types';
 import { demoEngine } from './src/demo/demoEngine';
 import { getToken, deleteToken, onUnauthorized } from './src/api';
+import { registerForPushNotificationsAsync } from './src/utils/pushNotifications';
 import { AppContext, type AppState } from './src/context/AppContext';
 import { CartProvider } from './src/context/CartContext';
 
@@ -17,6 +19,8 @@ import LoginScreen from './src/screens/(auth)/LoginScreen';
 import ForgotPasswordScreen from './src/screens/(auth)/ForgotPasswordScreen';
 import RegisterScreen from './src/screens/(auth)/RegisterScreen';
 import VerifyOtpScreen from './src/screens/(auth)/VerifyOtpScreen';
+import TermsOfServiceScreen from './src/screens/(auth)/TermsOfServiceScreen';
+import PrivacyPolicyScreen from './src/screens/(auth)/PrivacyPolicyScreen';
 
 // Customer Storefront & Checkout Screens
 import StorefrontScreen from './src/screens/(customer)/StorefrontScreen';
@@ -76,6 +80,8 @@ function AuthNavigator() {
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={hiddenHeader} />
       <AuthStack.Screen name="Register" component={RegisterScreen} options={hiddenHeader} />
       <AuthStack.Screen name="VerifyOtp" component={VerifyOtpScreen} options={hiddenHeader} />
+      <AuthStack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ title: 'Terms of Service', headerBackTitle: 'Back' }} />
+      <AuthStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy', headerBackTitle: 'Back' }} />
       {/* Splash kept for backward compatibility but auth routing is handled in App */}
       <AuthStack.Screen name="Splash" component={SplashScreen} options={hiddenHeader} />
 
@@ -261,7 +267,7 @@ function BootScreen() {
 // ==========================================
 // 4. MAIN CONTAINER & STATE GATEKEEPER
 // ==========================================
-export default function App() {
+function App() {
   const [appState, setAppState] = useState<AppState>('loading');
 
   useEffect(() => {
@@ -294,6 +300,16 @@ export default function App() {
     });
   }, []);
 
+  // Request push permission and register the device's Expo push token once the user is
+  // actually signed in — never on the loading/logged_out states. Silently no-ops on
+  // simulators/emulators, without an EAS project configured, or if permission is denied
+  // (see pushNotifications.ts) — there's no user-facing error to surface for any of those.
+  useEffect(() => {
+    if (appState === 'admin' || appState === 'customer') {
+      registerForPushNotificationsAsync();
+    }
+  }, [appState]);
+
   return (
     <AppContext.Provider value={{ appState, setAppState }}>
     <CartProvider>
@@ -317,3 +333,5 @@ export default function App() {
     </AppContext.Provider>
   );
 }
+
+export default Sentry.wrap(App);

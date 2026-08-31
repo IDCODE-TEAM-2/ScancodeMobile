@@ -188,13 +188,15 @@ PHASE 3: Large Size & High Complexity (Advanced Modules — Build Last)
    - Use soft dual-tone gradients (#6C63FF to #4F46E5) for active buttons and accent elements.
 
 2. High-Contrast OLED Dark Mode for Kitchen & POS Terminals:
-   - Build an OLED pitch-black dark theme (#09090B card background, #18181B borders) 
-     specifically for kitchen display systems (KDS) to eliminate screen glare and reduce battery draw.
+   - allow toggling to Dark Mode: an OLED pitch-black dark theme (#09090B card background, #18181B borders) 
+     to eliminate screen glare and reduce battery draw.
 
 3. Micro-Animations & Fluid Spring Transitions:
    - Add spring physics (using react-native-reanimated) when items are added to the cart, 
      causing the cart floating badge to bounce dynamically.
    - Animated status badge state transitions (Pending amber glow pulse -> Confirmed green pop).
+   - Remove coloring from all icons except the toolbar, keep the rest minimalist and monochrome (BW).
+   - make sure everything, from the poages to the icons, buttons etc, are well responsive and screen adaptable, especially for phones capable of doing split-screen and pop-up modes
 
 4. Skeleton Loading Shimmers:
    - Replace standard ActivityIndicator spinners on Storefront and Dashboard with animated 
@@ -204,6 +206,8 @@ PHASE 3: Large Size & High Complexity (Advanced Modules — Build Last)
    - Trigger heavy haptic vibration on incoming new order alarms, medium haptic tap on order
      confirmation, and light haptic tick on category selection.
 
+6. Color Scheme:
+   - Scancode's Primary colors are Scanciode green, Emerald and white. Get rid of that blue coloring and adjust the entire application's primary theme, keep in mind the dark mode feature so that both blend seamlessly
 
 --------------------------------------------------------------------------------
 6. POST-PARITY FEATURE ADDITIONS (beyond the original 23-screen web-parity target)

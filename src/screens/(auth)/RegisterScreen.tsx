@@ -7,7 +7,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { Briefcase, ShoppingCart } from 'lucide-react-native';
+import { Briefcase, ShoppingCart, Check } from 'lucide-react-native';
 import { register, type AccountRole } from '../../api';
 import type { NavigationProp } from '../../types';
 import CustomInput from '../../components/CustomInput';
@@ -30,10 +30,15 @@ export default function RegisterScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
 
   async function handleRegister() {
     if (!username.trim() || !email.trim() || !password.trim()) {
       setError('All fields are required.');
+      return;
+    }
+    if (!agreed) {
+      setError('Please agree to the Terms of Service and Privacy Policy to continue.');
       return;
     }
     setError(null);
@@ -120,7 +125,33 @@ export default function RegisterScreen({ navigation }: Props) {
               editable={!loading}
             />
 
-            <CustomButton title="Create Account" onPress={handleRegister} loading={loading} />
+            <TouchableOpacity
+              className="flex-row items-start gap-2.5 mt-1 mb-1"
+              onPress={() => setAgreed((prev) => !prev)}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <View
+                className={cn(
+                  'w-5 h-5 rounded-md border-[1.5px] items-center justify-center mt-0.5',
+                  agreed ? 'bg-primary border-primary' : 'bg-white border-gray-300'
+                )}
+              >
+                {agreed && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
+              </View>
+              <Text className="flex-1 text-[13px] text-gray-600 leading-5">
+                I agree to the{' '}
+                <Text className="text-primary font-semibold" onPress={() => navigation.navigate('TermsOfService')}>
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text className="text-primary font-semibold" onPress={() => navigation.navigate('PrivacyPolicy')}>
+                  Privacy Policy
+                </Text>
+              </Text>
+            </TouchableOpacity>
+
+            <CustomButton title="Create Account" onPress={handleRegister} loading={loading} disabled={!agreed} />
           </View>
 
           <TouchableOpacity

@@ -26,7 +26,16 @@
     "plugins": [
       "expo-web-browser",
       "expo-secure-store",
-      "expo-audio"
+      "expo-audio",
+      "expo-notifications",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "your-sentry-org",
+          "project": "your-sentry-project"
+        }
+      ]
     ]
   }
 }
