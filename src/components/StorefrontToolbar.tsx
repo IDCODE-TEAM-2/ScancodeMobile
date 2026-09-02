@@ -21,6 +21,7 @@ import {
   type StoreRequestType,
 } from '../api';
 import { DAYS_OF_WEEK, type WeeklyEvents } from '../types';
+import { useAppContext } from '../context/AppContext';
 import { cn } from '../utils/cn';
 
 export type { DayEvent, WeeklyEvents } from '../types';
@@ -53,7 +54,7 @@ function getPresetMessages(entity: string): string[] {
 }
 
 function money(value: number) {
-  return `N${value.toLocaleString()}`;
+  return `₦${value.toLocaleString()}`;
 }
 
 export default function StorefrontToolbar({
@@ -62,6 +63,7 @@ export default function StorefrontToolbar({
   vendor,
   weeklyEvents,
 }: StorefrontToolbarProps) {
+  const { isDark } = useAppContext();
   const [activePopup, setActivePopup] = useState<ToolPopup | null>(null);
   const [callEntities, setCallEntities] = useState(DEFAULT_CALL_ENTITIES);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,7 +100,7 @@ export default function StorefrontToolbar({
         setCallTarget(config.callEntities[0]);
       })
       .catch(() => {
-        // Defaults keep the toolbar usable while config is unavailable.
+        // Fall back to default entities
       });
 
     return () => {
@@ -106,44 +108,49 @@ export default function StorefrontToolbar({
     };
   }, [storefrontId]);
 
-  const currentPresetMessages = useMemo(() => getPresetMessages(callTarget), [callTarget]);
-  const totalEvents = DAYS_OF_WEEK.reduce((total, day) => total + (weeklyEvents?.[day]?.length ?? 0), 0);
+  const currentPresetMessages = useMemo(
+    () => getPresetMessages(callTarget),
+    [callTarget]
+  );
+
+  const totalEvents = useMemo(() => {
+    if (!weeklyEvents) return 0;
+    return Object.values(weeklyEvents).reduce((sum, list) => sum + (list?.length ?? 0), 0);
+  }, [weeklyEvents]);
+
+  const closePopup = () => setActivePopup(null);
+
+  const showSuccess = (message: string) => {
+    Alert.alert('Request Sent', message, [{ text: 'OK', onPress: closePopup }]);
+  };
+
+  const requireStorefront = () => {
+    if (!storefrontId) {
+      Alert.alert('Storefront unavailable', 'Please open a live storefront before submitting requests.');
+      return false;
+    }
+    return true;
+  };
 
   const handleCopyAccount = async () => {
     if (!vendor?.accountNumber) return;
     await Clipboard.setStringAsync(vendor.accountNumber);
     setCopiedAccount(true);
-    setTimeout(() => setCopiedAccount(false), 2000);
-  };
-
-  const requireStorefront = () => {
-    if (storefrontId) return true;
-    Alert.alert('Store is still loading', 'Please try again once the storefront has finished loading.');
-    return false;
-  };
-
-  const closePopup = () => {
-    setActivePopup(null);
-    setIsSubmitting(false);
-  };
-
-  const showSuccess = (message: string) => {
-    Alert.alert('Sent', message);
-    closePopup();
+    setTimeout(() => setCopiedAccount(false), 2500);
   };
 
   const submitAssistance = async () => {
     if (!requireStorefront()) return;
     if (!tableNumber.trim()) {
-      Alert.alert('Table required', 'Please enter your table or room number.');
+      Alert.alert('Table number required', 'Please enter your table or room number.');
       return;
     }
     if (!selectedPreset) {
-      Alert.alert('Select request', 'Please choose what you need.');
+      Alert.alert('Option required', 'Please choose what you need.');
       return;
     }
     if (selectedPreset === 'Custom message' && !customMessage.trim()) {
-      Alert.alert('Message required', 'Please enter your custom message.');
+      Alert.alert('Message required', 'Please write your custom message.');
       return;
     }
 
@@ -173,7 +180,7 @@ export default function StorefrontToolbar({
       return;
     }
     if (requestType !== 'KARAOKE' && requestAmount < 5000) {
-      Alert.alert('Minimum amount', 'Paid requests (Shoutout & Song) must be at least N5,000.');
+      Alert.alert('Minimum amount', 'Paid requests (Shoutout & Song) must be at least ₦5,000.');
       setRequestAmount(5000);
       return;
     }
@@ -203,7 +210,7 @@ export default function StorefrontToolbar({
       return;
     }
     if (tipAmount < 100) {
-      Alert.alert('Minimum tip', 'Tips must be at least N100.');
+      Alert.alert('Minimum tip', 'Tips must be at least ₦100.');
       return;
     }
 
@@ -254,7 +261,7 @@ export default function StorefrontToolbar({
 
   return (
     <>
-      <View className="absolute left-4 right-4 bottom-4 z-20 flex-row justify-between items-center bg-white border border-gray-200 rounded-[18px] px-2 py-2 shadow-lg">
+      <View className="absolute left-4 right-4 bottom-4 z-20 flex-row justify-between items-center bg-white dark:bg-[#18181B] border border-gray-200 dark:border-zinc-800 rounded-[18px] px-2 py-2 shadow-lg">
         {toolbarItems.map((item) => (
           <TouchableOpacity
             key={item.key}
@@ -263,10 +270,10 @@ export default function StorefrontToolbar({
             onPress={() => setActivePopup(item.key)}
             accessibilityLabel={item.label}
           >
-            <View className="w-[34px] h-[34px] rounded-full border border-gray-300 bg-white justify-center items-center mb-[3px]">
-              <item.Icon size={18} color="#065F46" strokeWidth={2.2} />
+            <View className="w-[34px] h-[34px] rounded-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 justify-center items-center mb-[3px]">
+              <item.Icon size={18} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
             </View>
-            <Text className="text-gray-600 text-[10px] font-semibold" numberOfLines={1}>{item.label}</Text>
+            <Text className="text-gray-600 dark:text-zinc-300 text-[10px] font-semibold" numberOfLines={1}>{item.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -277,76 +284,80 @@ export default function StorefrontToolbar({
         transparent
         onRequestClose={closePopup}
       >
-        <Pressable className="flex-1 bg-black/45 justify-end" onPress={closePopup}>
-          <Pressable className="bg-white rounded-t-3xl px-5 pt-2.5 pb-[34px] max-h-[84%]" onPress={(event) => event.stopPropagation()}>
-            <View className="w-10 h-[5px] rounded-full bg-gray-200 self-center mb-4" />
+        <Pressable className="flex-1 bg-black/55 justify-end" onPress={closePopup}>
+          <Pressable className="bg-white dark:bg-[#18181B] rounded-t-3xl px-5 pt-2.5 pb-[34px] max-h-[84%] border-t border-transparent dark:border-zinc-800" onPress={(event) => event.stopPropagation()}>
+            <View className="w-10 h-[5px] rounded-full bg-gray-200 dark:bg-zinc-700 self-center mb-4" />
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-gray-900 text-lg font-extrabold">
+              <Text className="text-gray-900 dark:text-white text-lg font-extrabold">
                 {activePopup === 'assistance' && 'Call for Assistance'}
                 {activePopup === 'request' && 'Make a Request'}
                 {activePopup === 'tip' && 'Send a Tip'}
                 {activePopup === 'feedback' && 'Rate Your Experience'}
                 {activePopup === 'events' && 'This Week Events'}
               </Text>
-              <TouchableOpacity className="w-7 h-7 rounded-full bg-gray-100 justify-center items-center" onPress={closePopup}>
-                <X size={20} color="#6B7280" strokeWidth={2.5} />
+              <TouchableOpacity className="w-7 h-7 rounded-full bg-gray-100 dark:bg-zinc-800 justify-center items-center" onPress={closePopup}>
+                <X size={18} color={isDark ? '#D1D5DB' : '#6B7280'} strokeWidth={2.5} />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName="pb-3">
               {activePopup === 'assistance' && (
                 <>
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Table or room number</Text>
+                  <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase">Table or room number</Text>
                   <TextInput
-                    className="min-h-[46px] rounded-xl border border-gray-200 px-3.5 text-gray-900 text-sm bg-white"
+                    className="min-h-[46px] rounded-xl border border-gray-200 dark:border-zinc-700 px-3.5 text-gray-900 dark:text-zinc-100 text-sm bg-white dark:bg-zinc-900"
                     value={tableNumber}
                     onChangeText={setTableNumber}
                     placeholder="Enter table or room number"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
                   />
 
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Who should we call?</Text>
+                  <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase">Who should we call?</Text>
                   <View className="flex-row flex-wrap gap-2">
                     {callEntities.map((entity) => (
                       <TouchableOpacity
                         key={entity}
                         className={cn(
                           'rounded-xl border px-3 py-2.5',
-                          callTarget === entity ? 'bg-emerald-800 border-emerald-800' : 'bg-white border-gray-200'
+                          callTarget === entity
+                            ? 'bg-emerald-800 dark:bg-emerald-700 border-emerald-800 dark:border-emerald-700'
+                            : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700'
                         )}
                         onPress={() => {
                           setCallTarget(entity);
                           setSelectedPreset('');
                         }}
                       >
-                        <Text className={cn('text-[13px] font-bold', callTarget === entity ? 'text-white' : 'text-gray-700')}>{entity}</Text>
+                        <Text className={cn('text-[13px] font-bold', callTarget === entity ? 'text-white' : 'text-gray-700 dark:text-zinc-200')}>{entity}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">What do you need?</Text>
+                  <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase">What do you need?</Text>
                   <View className="flex-row flex-wrap gap-2">
                     {currentPresetMessages.map((preset) => (
                       <TouchableOpacity
                         key={preset}
                         className={cn(
                           'rounded-xl border px-3 py-2.5',
-                          selectedPreset === preset ? 'bg-emerald-800 border-emerald-800' : 'bg-white border-gray-200'
+                          selectedPreset === preset
+                            ? 'bg-emerald-800 dark:bg-emerald-700 border-emerald-800 dark:border-emerald-700'
+                            : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700'
                         )}
                         onPress={() => setSelectedPreset(preset)}
                       >
-                        <Text className={cn('text-[13px] font-bold', selectedPreset === preset ? 'text-white' : 'text-gray-700')}>{preset}</Text>
+                        <Text className={cn('text-[13px] font-bold', selectedPreset === preset ? 'text-white' : 'text-gray-700 dark:text-zinc-200')}>{preset}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
                   {selectedPreset === 'Custom message' && (
                     <TextInput
-                      className="min-h-[96px] rounded-xl border border-gray-200 px-3.5 pt-3 text-gray-900 text-sm bg-white mt-2"
+                      className="min-h-[96px] rounded-xl border border-gray-200 dark:border-zinc-700 px-3.5 pt-3 text-gray-900 dark:text-zinc-100 text-sm bg-white dark:bg-zinc-900 mt-2"
                       value={customMessage}
                       onChangeText={setCustomMessage}
                       placeholder="Type your message"
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
                       multiline
                       textAlignVertical="top"
                     />
@@ -358,38 +369,40 @@ export default function StorefrontToolbar({
 
               {activePopup === 'request' && (
                 <>
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Request type</Text>
+                  <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase">Request type</Text>
                   <View className="flex-row flex-wrap gap-2">
                     {REQUEST_TYPES.map((type) => (
                       <TouchableOpacity
                         key={type}
                         className={cn(
                           'rounded-xl border px-3 py-2.5',
-                          requestType === type ? 'bg-emerald-800 border-emerald-800' : 'bg-white border-gray-200'
+                          requestType === type
+                            ? 'bg-emerald-800 dark:bg-emerald-700 border-emerald-800 dark:border-emerald-700'
+                            : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700'
                         )}
                         onPress={() => setRequestType(type)}
                       >
-                        <Text className={cn('text-[13px] font-bold', requestType === type ? 'text-white' : 'text-gray-700')}>{type}</Text>
+                        <Text className={cn('text-[13px] font-bold', requestType === type ? 'text-white' : 'text-gray-700 dark:text-zinc-200')}>{type}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Details</Text>
+                  <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase">Details</Text>
                   <TextInput
-                    className="min-h-[96px] rounded-xl border border-gray-200 px-3.5 pt-3 text-gray-900 text-sm bg-white"
+                    className="min-h-[96px] rounded-xl border border-gray-200 dark:border-zinc-700 px-3.5 pt-3 text-gray-900 dark:text-zinc-100 text-sm bg-white dark:bg-zinc-900"
                     value={requestDetails}
                     onChangeText={setRequestDetails}
                     placeholder="Song, shoutout, karaoke details..."
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
                     multiline
                     textAlignVertical="top"
                   />
 
                   {requestType !== 'KARAOKE' && (
                     <>
-                      <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Amount</Text>
+                      <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase">Amount</Text>
                       <TextInput
-                        className="min-h-[46px] rounded-xl border border-gray-200 px-3.5 text-gray-900 text-sm bg-white"
+                        className="min-h-[46px] rounded-xl border border-gray-200 dark:border-zinc-700 px-3.5 text-gray-900 dark:text-zinc-100 text-sm bg-white dark:bg-zinc-900"
                         value={String(requestAmount)}
                         onChangeText={(value) => {
                           const num = Number(value.replace(/\D/g, '')) || 0;
@@ -397,7 +410,7 @@ export default function StorefrontToolbar({
                         }}
                         keyboardType="numeric"
                       />
-                      <Text className="text-gray-500 text-[11px] mt-1 mb-0.5">Minimum ₦5,000</Text>
+                      <Text className="text-gray-500 dark:text-zinc-400 text-[11px] mt-1 mb-0.5">Minimum ₦5,000</Text>
 
                       <PaymentAccountBlock vendor={vendor} copied={copiedAccount} onCopy={handleCopyAccount} />
                     </>
@@ -409,35 +422,37 @@ export default function StorefrontToolbar({
 
               {activePopup === 'tip' && (
                 <>
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Who are you tipping?</Text>
+                  <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase">Who are you tipping?</Text>
                   <View className="flex-row flex-wrap gap-2">
                     {['Waiter', 'Bouncer', 'Services', 'Other'].map((recipient) => (
                       <TouchableOpacity
                         key={recipient}
                         className={cn(
                           'rounded-xl border px-3 py-2.5',
-                          tipRecipient === recipient ? 'bg-emerald-800 border-emerald-800' : 'bg-white border-gray-200'
+                          tipRecipient === recipient
+                            ? 'bg-emerald-800 dark:bg-emerald-700 border-emerald-800 dark:border-emerald-700'
+                            : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700'
                         )}
                         onPress={() => setTipRecipient(recipient)}
                       >
-                        <Text className={cn('text-[13px] font-bold', tipRecipient === recipient ? 'text-white' : 'text-gray-700')}>{recipient}</Text>
+                        <Text className={cn('text-[13px] font-bold', tipRecipient === recipient ? 'text-white' : 'text-gray-700 dark:text-zinc-200')}>{recipient}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
 
                   {tipRecipient === 'Other' && (
                     <TextInput
-                      className="min-h-[46px] rounded-xl border border-gray-200 px-3.5 text-gray-900 text-sm bg-white mt-2"
+                      className="min-h-[46px] rounded-xl border border-gray-200 dark:border-zinc-700 px-3.5 text-gray-900 dark:text-zinc-100 text-sm bg-white dark:bg-zinc-900 mt-2"
                       value={customTipRecipient}
                       onChangeText={setCustomTipRecipient}
                       placeholder="Recipient name or role"
-                      placeholderTextColor="#9CA3AF"
+                      placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
                     />
                   )}
 
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Amount</Text>
+                  <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase">Amount</Text>
                   <TextInput
-                    className="min-h-[46px] rounded-xl border border-gray-200 px-3.5 text-gray-900 text-sm bg-white"
+                    className="min-h-[46px] rounded-xl border border-gray-200 dark:border-zinc-700 px-3.5 text-gray-900 dark:text-zinc-100 text-sm bg-white dark:bg-zinc-900"
                     value={String(tipAmount)}
                     onChangeText={(value) => setTipAmount(Number(value.replace(/\D/g, '')) || 0)}
                     keyboardType="numeric"
@@ -446,10 +461,10 @@ export default function StorefrontToolbar({
                     {[100, 200, 500, 1000].map((amount) => (
                       <TouchableOpacity
                         key={amount}
-                        className="rounded-xl border border-gray-200 bg-white px-3 py-2.5"
+                        className="rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5"
                         onPress={() => setTipAmount((current) => current + amount)}
                       >
-                        <Text className="text-gray-700 text-[13px] font-bold">+{money(amount)}</Text>
+                        <Text className="text-gray-700 dark:text-zinc-200 text-[13px] font-bold">+{money(amount)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -462,13 +477,13 @@ export default function StorefrontToolbar({
 
               {activePopup === 'feedback' && (
                 <>
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase text-center">Stars rating</Text>
+                  <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase text-center">Stars rating</Text>
                   <View className="flex-row justify-center gap-3.5">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <TouchableOpacity key={star} onPress={() => setRating(star)}>
                         <Star
                           size={32}
-                          color={star <= rating ? '#F59E0B' : '#D1D5DB'}
+                          color={star <= rating ? '#F59E0B' : (isDark ? '#52525B' : '#D1D5DB')}
                           fill={star <= rating ? '#F59E0B' : 'none'}
                           strokeWidth={1.5}
                         />
@@ -476,13 +491,13 @@ export default function StorefrontToolbar({
                     ))}
                   </View>
 
-                  <Text className="text-gray-600 text-xs font-extrabold mt-3 mb-2 uppercase">Describe your experience</Text>
+                  <Text className="text-gray-600 dark:text-zinc-400 text-xs font-extrabold mt-3 mb-2 uppercase">Describe your experience</Text>
                   <TextInput
-                    className="min-h-[96px] rounded-xl border border-gray-200 px-3.5 pt-3 text-gray-900 text-sm bg-white"
+                    className="min-h-[96px] rounded-xl border border-gray-200 dark:border-zinc-700 px-3.5 pt-3 text-gray-900 dark:text-zinc-100 text-sm bg-white dark:bg-zinc-900"
                     value={feedbackText}
                     onChangeText={setFeedbackText}
                     placeholder="How was the food, service, and vibe?"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
                     multiline
                     textAlignVertical="top"
                   />
@@ -495,22 +510,22 @@ export default function StorefrontToolbar({
                 <>
                   {totalEvents === 0 ? (
                     <View className="items-center py-8 px-4">
-                      <Text className="text-gray-900 text-base font-extrabold mb-1.5">No events yet</Text>
-                      <Text className="text-gray-500 text-[13px] text-center leading-[19px]">Events will appear here when the venue publishes a weekly schedule.</Text>
+                      <Text className="text-gray-900 dark:text-white text-base font-extrabold mb-1.5">No events yet</Text>
+                      <Text className="text-gray-500 dark:text-zinc-400 text-[13px] text-center leading-[19px]">Events will appear here when the venue publishes a weekly schedule.</Text>
                     </View>
                   ) : (
                     DAYS_OF_WEEK.map((day) => {
                       const events = weeklyEvents?.[day] ?? [];
                       if (events.length === 0) return null;
                       return (
-                        <View key={day} className="border border-gray-200 rounded-2xl overflow-hidden mb-3">
-                          <Text className="bg-gray-50 text-gray-900 text-sm font-extrabold px-3 py-2.5">{day}</Text>
+                        <View key={day} className="border border-gray-200 dark:border-zinc-700 rounded-2xl overflow-hidden mb-3">
+                          <Text className="bg-gray-50 dark:bg-zinc-800 text-gray-900 dark:text-white text-sm font-extrabold px-3 py-2.5">{day}</Text>
                           {events.map((event) => (
-                            <View key={event.id} className="flex-row gap-2.5 px-3 py-2.5 border-t border-gray-100">
-                              <Text className="text-emerald-800 text-xs font-black min-w-[54px]">{event.time}</Text>
+                            <View key={event.id} className="flex-row gap-2.5 px-3 py-2.5 border-t border-gray-100 dark:border-zinc-700">
+                              <Text className="text-emerald-700 dark:text-emerald-300 text-xs font-black min-w-[54px]">{event.time}</Text>
                               <View className="flex-1">
-                                <Text className="text-gray-900 text-[13px] font-extrabold">{event.name}</Text>
-                                {!!event.description && <Text className="text-gray-500 text-xs mt-0.5">{event.description}</Text>}
+                                <Text className="text-gray-900 dark:text-white text-[13px] font-extrabold">{event.name}</Text>
+                                {!!event.description && <Text className="text-gray-500 dark:text-zinc-400 text-xs mt-0.5">{event.description}</Text>}
                               </View>
                             </View>
                           ))}
@@ -540,20 +555,20 @@ function PaymentAccountBlock({
   if (!vendor?.bankName || !vendor?.accountNumber) return null;
 
   return (
-    <View className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 mt-3.5 gap-0.5">
-      <Text className="text-emerald-800 text-[11px] font-extrabold uppercase">Payment account</Text>
-      <Text className="text-gray-700 text-[13px] font-semibold">{vendor.bankName}</Text>
-      <Text className="text-gray-700 text-[13px] font-semibold">{vendor.name}</Text>
+    <View className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-3 mt-3.5 gap-0.5">
+      <Text className="text-emerald-800 dark:text-emerald-300 text-[11px] font-extrabold uppercase">Payment account</Text>
+      <Text className="text-gray-700 dark:text-zinc-200 text-[13px] font-semibold">{vendor.bankName}</Text>
+      <Text className="text-gray-700 dark:text-zinc-200 text-[13px] font-semibold">{vendor.name}</Text>
       <TouchableOpacity
         onPress={onCopy}
         activeOpacity={0.65}
         className="flex-row items-center justify-between mt-0.5"
       >
-        <Text className="text-emerald-800 text-base font-black">{vendor.accountNumber}</Text>
+        <Text className="text-emerald-800 dark:text-emerald-300 text-base font-black">{vendor.accountNumber}</Text>
         {copied ? (
           <View className="flex-row items-center gap-1">
             <Check size={14} color="#059669" strokeWidth={2.5} />
-            <Text className="text-emerald-600 text-[11px] font-bold">Copied!</Text>
+            <Text className="text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">Copied!</Text>
           </View>
         ) : (
           <Copy size={16} color="#059669" strokeWidth={2.2} />
@@ -573,7 +588,7 @@ function SubmitButton({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity className="min-h-[50px] rounded-xl bg-emerald-800 justify-center items-center mt-[18px]" onPress={onPress} disabled={loading}>
+    <TouchableOpacity className="min-h-[50px] rounded-xl bg-primary justify-center items-center mt-[18px]" onPress={onPress} disabled={loading}>
       {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text className="text-white text-[15px] font-extrabold">{label}</Text>}
     </TouchableOpacity>
   );

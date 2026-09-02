@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommonActions } from '@react-navigation/native';
 import { verifyOtp, resendOtp } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export default function VerifyOtpScreen({ navigation, route }: Props) {
+  const insets = useSafeAreaInsets();
   const { email } = route.params;
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -63,31 +65,32 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1"
+      className="flex-1 bg-white dark:bg-[#09090B]"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ paddingTop: Math.max(insets.top, 16) }}
     >
-      <ScrollView contentContainerClassName="flex-grow" keyboardShouldPersistTaps="handled">
-        <View className="flex-1 bg-white px-6 justify-center py-12">
+      <ScrollView contentContainerClassName="flex-grow justify-center px-6 py-12" keyboardShouldPersistTaps="handled">
+        <View className="w-full max-w-md self-center">
           <Text className="text-[34px] font-extrabold text-primary text-center mb-1.5">ScanCode</Text>
-          <Text className="text-[22px] font-bold text-gray-900 text-center mb-2.5">Verify your email</Text>
-          <Text className="text-[15px] text-gray-500 text-center leading-[22px] mb-8">
+          <Text className="text-[22px] font-bold text-gray-900 dark:text-white text-center mb-2.5">Verify your email</Text>
+          <Text className="text-[15px] text-gray-500 dark:text-zinc-400 text-center leading-[22px] mb-8">
             Enter the 6-digit code we sent to{'\n'}
             <Text className="text-primary font-semibold">{email}</Text>
           </Text>
 
           {error && (
-            <View className="bg-red-100 rounded-lg p-3 mb-4">
-              <Text className="text-red-600 text-sm">{error}</Text>
+            <View className="bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+              <Text className="text-red-600 dark:text-red-400 text-sm text-center">{error}</Text>
             </View>
           )}
           {success && (
-            <View className="bg-emerald-100 rounded-lg p-3 mb-4">
-              <Text className="text-emerald-800 text-sm">{success}</Text>
+            <View className="bg-emerald-100 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 mb-4">
+              <Text className="text-emerald-800 dark:text-emerald-300 text-sm text-center">{success}</Text>
             </View>
           )}
 
           <TextInput
-            className="border-2 border-primary rounded-2xl px-3.5 py-[18px] text-[28px] font-bold text-gray-900 bg-gray-50 mb-5 tracking-[12px]"
+            className="border-2 border-primary rounded-2xl px-3.5 py-[18px] text-[28px] font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-zinc-900 mb-5 tracking-[12px]"
             value={otp}
             onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))}
             keyboardType="number-pad"
@@ -115,7 +118,7 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
               <ActivityIndicator size="small" color="#059669" />
             ) : (
               <>
-                <Text className="text-sm text-gray-500">Didn't get the code? </Text>
+                <Text className="text-sm text-gray-500 dark:text-zinc-400">Didn't get the code? </Text>
                 <Text className="text-sm text-primary font-semibold">Resend</Text>
               </>
             )}

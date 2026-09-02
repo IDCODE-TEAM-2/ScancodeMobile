@@ -7,6 +7,7 @@ import StatusBadge from '../../components/StatusBadge';
 import ErrorBanner from '../../components/ErrorBanner';
 import { getOrderById, type OrderResponse } from '../../api';
 import { playStatusChangeSound } from '../../utils/audioAlert';
+import { useAppContext } from '../../context/AppContext';
 import type { NavigationProp, RouteProps } from '../../types';
 
 interface Props {
@@ -14,9 +15,6 @@ interface Props {
   route: RouteProps<'OrderReceiptTracker'>;
 }
 
-// Statuses that mean "the order is settled" — stop polling once reached. CONFIRMED is
-// deliberately NOT terminal: the lifecycle is PENDING -> CONFIRMED -> COMPLETED, so a
-// confirmed order is still in progress until the store marks it completed.
 const TERMINAL_STATUSES = new Set(['REJECTED', 'CANCELLED', 'COMPLETED']);
 const POLL_INTERVAL_MS = 5000;
 
@@ -30,6 +28,7 @@ function parseItems(raw: string): { id: string; name: string; qty: number; price
 
 export default function OrderReceiptTrackerScreen({ navigation, route }: Props) {
   const { orderId, slug, storefrontId } = route.params;
+  const { isDark } = useAppContext();
   const [order, setOrder] = useState<OrderResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +71,7 @@ export default function OrderReceiptTrackerScreen({ navigation, route }: Props) 
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center p-6 bg-gray-50 gap-3">
+      <View className="flex-1 items-center justify-center p-6 bg-gray-50 dark:bg-[#09090B] gap-3">
         <ActivityIndicator size="large" color="#059669" />
       </View>
     );
@@ -80,7 +79,7 @@ export default function OrderReceiptTrackerScreen({ navigation, route }: Props) 
 
   if (!order) {
     return (
-      <View className="flex-1 items-center justify-center p-6 bg-gray-50 gap-3">
+      <View className="flex-1 items-center justify-center p-6 bg-gray-50 dark:bg-[#09090B] gap-3">
         <ErrorBanner message={error ?? 'Order not found.'} />
         <TouchableOpacity className="mt-2" onPress={() => navigation.navigate('Storefront', { slug })}>
           <Text className="text-primary font-bold text-sm">Back to Storefront</Text>
@@ -94,23 +93,23 @@ export default function OrderReceiptTrackerScreen({ navigation, route }: Props) 
   const isRejectedOrCancelled = order.status === 'REJECTED' || order.status === 'CANCELLED';
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['bottom', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-[#09090B]" edges={['bottom', 'left', 'right']}>
       <ScrollView contentContainerClassName="p-4 pb-10">
         {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
 
-        <View className="bg-white rounded-2xl p-6 items-center mb-5 border border-gray-200 gap-2">
+        <View className="bg-white dark:bg-[#18181B] rounded-2xl p-6 items-center mb-5 border border-gray-200 dark:border-zinc-800 gap-2 shadow-sm">
           {isRejectedOrCancelled ? (
             <XCircle size={48} color="#DC2626" strokeWidth={1.5} />
           ) : order.status === 'CONFIRMED' || order.status === 'COMPLETED' ? (
-            <CheckCircle2 size={48} color="#111827" strokeWidth={1.5} />
+            <CheckCircle2 size={48} color="#059669" strokeWidth={1.5} />
           ) : (
             <Clock size={48} color="#D97706" strokeWidth={1.5} />
           )}
 
-          <Text className="text-lg font-extrabold text-gray-900 mt-2">Order #{order.id}</Text>
+          <Text className="text-lg font-extrabold text-gray-900 dark:text-white mt-2">Order #{order.id}</Text>
           <StatusBadge status={order.status} />
 
-          <Text className="text-sm text-gray-600 text-center mt-2 leading-5">
+          <Text className="text-sm text-gray-600 dark:text-zinc-400 text-center mt-2 leading-5">
             {order.status === 'PENDING' && 'Waiting for the store to confirm your order.'}
             {order.status === 'CONFIRMED' && 'Your order has been confirmed and is being prepared.'}
             {order.status === 'COMPLETED' && 'Your order is complete. Enjoy!'}
@@ -120,32 +119,32 @@ export default function OrderReceiptTrackerScreen({ navigation, route }: Props) 
 
           {!isTerminal && (
             <View className="flex-row items-center gap-2 mt-3">
-              <ActivityIndicator size="small" color="#9CA3AF" />
-              <Text className="text-xs text-gray-400">Checking for updates…</Text>
+              <ActivityIndicator size="small" color="#059669" />
+              <Text className="text-xs text-gray-400 dark:text-zinc-500">Checking for updates…</Text>
             </View>
           )}
         </View>
 
-        <Text className="text-base font-bold text-gray-900 mb-2.5">Order Details</Text>
-        <View className="bg-white rounded-2xl p-4 mb-5 border border-gray-200">
+        <Text className="text-base font-bold text-gray-900 dark:text-white mb-2.5">Order Details</Text>
+        <View className="bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-5 border border-gray-200 dark:border-zinc-800 shadow-sm">
           {items.map((item) => (
             <View key={item.id} className="flex-row justify-between items-center py-2">
               <View className="flex-1">
-                <Text className="text-[15px] font-semibold text-gray-800">{item.name}</Text>
-                <Text className="text-[13px] text-gray-500 mt-0.5">₦{item.price.toLocaleString()} × {item.qty}</Text>
+                <Text className="text-[15px] font-semibold text-gray-800 dark:text-zinc-100">{item.name}</Text>
+                <Text className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">₦{item.price.toLocaleString()} × {item.qty}</Text>
               </View>
-              <Text className="text-sm font-bold text-gray-800">₦{(item.price * item.qty).toLocaleString()}</Text>
+              <Text className="text-sm font-bold text-gray-800 dark:text-zinc-200">₦{(item.price * item.qty).toLocaleString()}</Text>
             </View>
           ))}
-          <View className="h-px bg-gray-100 my-2.5" />
+          <View className="h-px bg-gray-100 dark:bg-zinc-700 my-2.5" />
           <View className="flex-row justify-between">
-            <Text className="text-base font-bold text-gray-900">Total</Text>
+            <Text className="text-base font-bold text-gray-900 dark:text-white">Total</Text>
             <Text className="text-lg font-extrabold text-primary">₦{order.total.toLocaleString()}</Text>
           </View>
           {order.tableLabel ? (
             <View className="flex-row items-center gap-1 mt-2.5">
               <MapPin size={12} color="#6B7280" strokeWidth={2.2} />
-              <Text className="text-[13px] text-gray-500">{order.tableLabel}</Text>
+              <Text className="text-[13px] text-gray-500 dark:text-zinc-400">{order.tableLabel}</Text>
             </View>
           ) : null}
         </View>

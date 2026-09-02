@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Briefcase, ShoppingCart, Check } from 'lucide-react-native';
 import { register, type AccountRole } from '../../api';
 import type { NavigationProp } from '../../types';
@@ -24,6 +25,7 @@ const ROLE_OPTIONS: { role: AccountRole; label: string; icon: typeof Briefcase }
 ];
 
 export default function RegisterScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const [role, setRole] = useState<AccountRole>('vendor');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -56,13 +58,14 @@ export default function RegisterScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1"
+      className="flex-1 bg-white dark:bg-[#09090B]"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ paddingTop: Math.max(insets.top, 16) }}
     >
-      <ScrollView contentContainerClassName="flex-grow" keyboardShouldPersistTaps="handled">
-        <View className="flex-1 bg-white px-6 justify-center py-12">
+      <ScrollView contentContainerClassName="flex-grow justify-center px-6 py-12" keyboardShouldPersistTaps="handled">
+        <View className="w-full max-w-md self-center">
           <Text className="text-[34px] font-extrabold text-primary text-center mb-1.5">ScanCode</Text>
-          <Text className="text-base text-gray-500 text-center mb-8">Create your account</Text>
+          <Text className="text-base text-gray-500 dark:text-zinc-400 text-center mb-8">Create your account</Text>
 
           <View className="flex-row gap-2.5 mb-6">
             {ROLE_OPTIONS.map((option) => {
@@ -73,14 +76,16 @@ export default function RegisterScreen({ navigation }: Props) {
                   key={option.role}
                   className={cn(
                     'flex-1 flex-row items-center justify-center gap-2 rounded-xl border-[1.5px] py-3.5',
-                    isActive ? 'bg-primary/10 border-primary' : 'bg-white border-gray-300'
+                    isActive
+                      ? 'bg-primary/10 dark:bg-primary/20 border-primary'
+                      : 'bg-white dark:bg-[#18181B] border-gray-300 dark:border-zinc-700'
                   )}
                   onPress={() => setRole(option.role)}
                   disabled={loading}
                   activeOpacity={0.8}
                 >
-                  <Icon size={16} color={isActive ? '#111827' : '#6B7280'} strokeWidth={2.2} />
-                  <Text className={cn('text-sm font-bold', isActive ? 'text-primary' : 'text-gray-500')}>
+                  <Icon size={16} color={isActive ? '#059669' : '#6B7280'} strokeWidth={2.2} />
+                  <Text className={cn('text-sm font-bold', isActive ? 'text-primary' : 'text-gray-500 dark:text-zinc-400')}>
                     Register as {option.label}
                   </Text>
                 </TouchableOpacity>
@@ -89,8 +94,8 @@ export default function RegisterScreen({ navigation }: Props) {
           </View>
 
           {error && (
-            <View className="bg-red-100 rounded-lg p-3 mb-4">
-              <Text className="text-red-600 text-sm">{error}</Text>
+            <View className="bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+              <Text className="text-red-600 dark:text-red-400 text-sm text-center">{error}</Text>
             </View>
           )}
 
@@ -134,12 +139,14 @@ export default function RegisterScreen({ navigation }: Props) {
               <View
                 className={cn(
                   'w-5 h-5 rounded-md border-[1.5px] items-center justify-center mt-0.5',
-                  agreed ? 'bg-primary border-primary' : 'bg-white border-gray-300'
+                  agreed
+                    ? 'bg-primary border-primary'
+                    : 'bg-white dark:bg-[#18181B] border-gray-300 dark:border-zinc-700'
                 )}
               >
                 {agreed && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
               </View>
-              <Text className="flex-1 text-[13px] text-gray-600 leading-5">
+              <Text className="flex-1 text-[13px] text-gray-600 dark:text-zinc-400 leading-5">
                 I agree to the{' '}
                 <Text className="text-primary font-semibold" onPress={() => navigation.navigate('TermsOfService')}>
                   Terms of Service
@@ -159,7 +166,7 @@ export default function RegisterScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('Login')}
             disabled={loading}
           >
-            <Text className="text-sm text-gray-500">Already have an account?</Text>
+            <Text className="text-sm text-gray-500 dark:text-zinc-400">Already have an account?</Text>
             <Text className="text-sm text-primary font-semibold"> Sign in</Text>
           </TouchableOpacity>
         </View>

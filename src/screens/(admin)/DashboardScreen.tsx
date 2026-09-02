@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShoppingBag, Bell, Settings2, Settings as SettingsIcon, Calendar, Plus, LayoutGrid, Landmark, Compass, Package, Pencil } from 'lucide-react-native';
 import {
   getMyStorefronts,
@@ -13,9 +14,9 @@ import {
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
-// Gated behind __DEV__ below — safe to leave imported, it won't render in production builds.
 import DevTestBanner from '../../components/DevTestBanner';
 import Skeleton from '../../components/Skeleton';
+import { confirmAction } from '../../utils/alerts';
 import { cn } from '../../utils/cn';
 
 interface Props {
@@ -30,13 +31,12 @@ interface NotifCounts {
 const EMPTY_NOTIF_COUNTS: NotifCounts = { orders: 0, activity: 0 };
 
 export default function DashboardScreen({ navigation }: Props) {
-  const { setAppState } = useAppContext();
+  const insets = useSafeAreaInsets();
+  const { setAppState, isDark } = useAppContext();
   const [storefronts, setStorefronts] = useState<StorefrontResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Fetched separately, after the storefront list itself resolves — badges pop in once
-  // ready rather than gating the whole screen's loading state on N extra requests.
   const [notifCounts, setNotifCounts] = useState<Record<number, NotifCounts>>({});
 
   const loadNotifCounts = useCallback(async (list: StorefrontResponse[]) => {
@@ -60,8 +60,6 @@ export default function DashboardScreen({ navigation }: Props) {
             },
           ];
         } catch {
-          // A notification badge is a nice-to-have — a failed count fetch for one
-          // storefront shouldn't disrupt the rest of the dashboard.
           return [s.id, EMPTY_NOTIF_COUNTS];
         }
       })
@@ -78,8 +76,6 @@ export default function DashboardScreen({ navigation }: Props) {
       setStorefronts(data);
       loadNotifCounts(data);
     } catch (err: unknown) {
-      // A 401 here is already handled globally (see App.tsx's onUnauthorized
-      // subscription, which logs the user out) — this just surfaces anything else.
       setError(err instanceof Error ? err.message : 'Failed to load storefronts.');
     } finally {
       setLoading(false);
@@ -89,54 +85,54 @@ export default function DashboardScreen({ navigation }: Props) {
 
   useFocusRefresh(load);
 
-  async function handleLogout() {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteToken();
-          setAppState('logged_out');
-        },
+  function handleLogout() {
+    confirmAction(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      async () => {
+        await deleteToken();
+        setAppState('logged_out');
       },
-    ]);
+      { confirmText: 'Sign Out', destructive: true }
+    );
   }
+
+  const iconColor = isDark ? '#D1D5DB' : '#4B5563';
 
   function renderStorefront({ item }: { item: StorefrontResponse }) {
     const published = item.isPublished;
     const counts = notifCounts[item.id] ?? EMPTY_NOTIF_COUNTS;
     const hasNotifications = counts.orders + counts.activity > 0;
     return (
-      <View className="bg-white rounded-xl p-4 shadow-sm">
+      <View className="bg-white dark:bg-[#18181B] rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-zinc-800">
         <View className="flex-row justify-between items-start mb-1.5">
           <View className="flex-row items-center flex-1 mr-2 gap-1.5 shrink">
             {hasNotifications && (
               <View className="w-2 h-2 rounded-full bg-red-500 shrink-0" accessibilityLabel="New notifications" />
             )}
-            <Text className="text-base font-bold text-gray-900 shrink" numberOfLines={1}>{item.name}</Text>
+            <Text className="text-base font-bold text-gray-900 dark:text-white shrink" numberOfLines={1}>{item.name}</Text>
           </View>
           <View className="flex-row items-center gap-2">
-            <View className={cn('rounded-full px-2.5 py-[3px]', published ? 'bg-emerald-100' : 'bg-amber-100')}>
-              <Text className={cn('text-xs font-semibold', published ? 'text-emerald-800' : 'text-amber-800')}>
+            <View className={cn('rounded-full px-2.5 py-[3px]', published ? 'bg-emerald-100 dark:bg-emerald-950' : 'bg-amber-100 dark:bg-amber-950')}>
+              <Text className={cn('text-xs font-semibold', published ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300')}>
                 {published ? 'Published' : 'QR Locked'}
               </Text>
             </View>
             <TouchableOpacity
               onPress={() => navigation.navigate('CreateStorefront', { editStorefrontId: item.id })}
-              className="w-7 h-7 rounded-full bg-gray-100 items-center justify-center"
+              className="w-7 h-7 rounded-full bg-gray-100 dark:bg-zinc-800 items-center justify-center"
               accessibilityLabel={`Edit ${item.name}`}
             >
-              <Pencil size={13} color="#374151" strokeWidth={2.2} />
+              <Pencil size={13} color={iconColor} strokeWidth={2.2} />
             </TouchableOpacity>
           </View>
         </View>
 
         {item.description ? (
-          <Text className="text-[13px] text-gray-500 mb-1.5" numberOfLines={2}>{item.description}</Text>
+          <Text className="text-[13px] text-gray-500 dark:text-zinc-400 mb-1.5" numberOfLines={2}>{item.description}</Text>
         ) : null}
 
-        <Text className="text-xs text-gray-400 mb-3 uppercase tracking-wide">{item.businessType}</Text>
+        <Text className="text-xs text-gray-400 dark:text-zinc-500 mb-3 uppercase tracking-wide">{item.businessType}</Text>
 
         <View className="flex-row gap-2">
           {published ? (
@@ -173,10 +169,10 @@ export default function DashboardScreen({ navigation }: Props) {
           )}
         </View>
 
-        {/* Operations row — always visible */}
+        {/* Operations row */}
         <View className="flex-row gap-2 mt-2">
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
+            className="flex-1 border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
             onPress={() =>
               navigation.navigate('LiveOrdersManager', {
                 storefrontId: item.id,
@@ -186,12 +182,12 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <ShoppingBag size={13} color="#374151" strokeWidth={2.2} />
-            <Text className="text-emerald-600 font-semibold text-xs">Orders</Text>
+            <ShoppingBag size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
+            <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">Orders</Text>
             <NotifCountBadge count={counts.orders} />
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
+            className="flex-1 border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
             onPress={() =>
               navigation.navigate('ToolbarRequestsAdmin', {
                 storefrontId: item.id,
@@ -201,12 +197,12 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <Bell size={13} color="#374151" strokeWidth={2.2} />
-            <Text className="text-emerald-600 font-semibold text-xs">Activity</Text>
+            <Bell size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
+            <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">Activity</Text>
             <NotifCountBadge count={counts.activity} />
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('StoreChargesConfig', {
                 storefrontId: item.id,
@@ -216,11 +212,11 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <Settings2 size={13} color="#374151" strokeWidth={2.2} />
-            <Text className="text-emerald-600 font-semibold text-xs">Config</Text>
+            <Settings2 size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
+            <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">Config</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('EventsManager', {
                 storefrontId: item.id,
@@ -230,13 +226,13 @@ export default function DashboardScreen({ navigation }: Props) {
             }
             activeOpacity={0.7}
           >
-            <Calendar size={13} color="#374151" strokeWidth={2.2} />
-            <Text className="text-emerald-600 font-semibold text-xs">Events</Text>
+            <Calendar size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
+            <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">Events</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          className="border-[1.5px] border-primary/20 bg-emerald-50 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
+          className="border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
           onPress={() =>
             navigation.navigate('ProductCatalogEditor', {
               storefrontId: item.id,
@@ -246,43 +242,44 @@ export default function DashboardScreen({ navigation }: Props) {
           }
           activeOpacity={0.7}
         >
-          <Package size={13} color="#374151" strokeWidth={2.2} />
-          <Text className="text-emerald-600 font-semibold text-xs">Product Catalog</Text>
+          <Package size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
+          <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">Product Catalog</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-100">
-      <View className="flex-row justify-between items-center px-5 py-4 bg-white border-b border-gray-200">
-        <Text className="text-xl font-bold text-gray-900">My Storefronts</Text>
-        <View className="flex-row items-center gap-1">
-          <TouchableOpacity onPress={() => navigation.navigate('StorefrontDirectory')} className="p-2" accessibilityLabel="Discover storefronts">
-            <Compass size={19} color="#4B5563" strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Services')} className="p-2" accessibilityLabel="Services menu">
-            <LayoutGrid size={19} color="#4B5563" strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MerchantProfileBank', undefined)} className="p-2" accessibilityLabel="Bank profile">
-            <Landmark size={19} color="#4B5563" strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')} className="p-2" accessibilityLabel="Settings">
-            <SettingsIcon size={19} color="#4B5563" strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} className="px-2 py-1.5 ml-1">
-            <Text className="text-red-500 font-semibold text-sm">Sign Out</Text>
-          </TouchableOpacity>
+    <View className="flex-1 bg-gray-100 dark:bg-[#09090B]">
+      <View className="bg-white dark:bg-[#18181B] border-b border-gray-200 dark:border-zinc-800" style={{ paddingTop: insets.top }}>
+        <View className="flex-row justify-between items-center px-5 py-4">
+          <Text className="text-xl font-bold text-gray-900 dark:text-white">My Storefronts</Text>
+          <View className="flex-row items-center gap-1">
+            <TouchableOpacity onPress={() => navigation.navigate('StorefrontDirectory')} className="p-2" accessibilityLabel="Discover storefronts">
+              <Compass size={19} color={iconColor} strokeWidth={2} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Services')} className="p-2" accessibilityLabel="Services menu">
+              <LayoutGrid size={19} color={iconColor} strokeWidth={2} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MerchantProfileBank', undefined)} className="p-2" accessibilityLabel="Bank profile">
+              <Landmark size={19} color={iconColor} strokeWidth={2} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} className="p-2" accessibilityLabel="Settings">
+              <SettingsIcon size={19} color={iconColor} strokeWidth={2} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} className="px-2 py-1.5 ml-1">
+              <Text className="text-red-500 font-semibold text-sm">Sign Out</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
-      {/* Dev-only role switcher / test utilities — never rendered in a production build */}
       {__DEV__ && <DevTestBanner />}
 
       {loading ? (
         <View className="p-4 gap-3">
           {[0, 1, 2].map((i) => (
-            <View key={i} className="bg-white rounded-xl p-4 shadow-sm">
+            <View key={i} className="bg-white dark:bg-[#18181B] rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-zinc-800">
               <View className="flex-row justify-between items-start mb-2.5">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-4 w-16 rounded-full" />
@@ -298,7 +295,7 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
       ) : error ? (
         <View className="flex-1 items-center justify-center p-6">
-          <Text className="text-red-600 text-sm text-center mb-4">{error}</Text>
+          <Text className="text-red-600 dark:text-red-400 text-sm text-center mb-4">{error}</Text>
           <TouchableOpacity className="bg-primary rounded-lg px-5 py-2.5" onPress={() => load()}>
             <Text className="text-white font-semibold">Retry</Text>
           </TouchableOpacity>
@@ -318,8 +315,8 @@ export default function DashboardScreen({ navigation }: Props) {
           }
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center p-6">
-              <Text className="text-lg font-bold text-gray-700 mb-1.5">No storefronts yet</Text>
-              <Text className="text-sm text-gray-400 text-center mb-5">
+              <Text className="text-lg font-bold text-gray-700 dark:text-zinc-300 mb-1.5">No storefronts yet</Text>
+              <Text className="text-sm text-gray-400 dark:text-zinc-500 text-center mb-5">
                 Create your first storefront to get started
               </Text>
               <TouchableOpacity

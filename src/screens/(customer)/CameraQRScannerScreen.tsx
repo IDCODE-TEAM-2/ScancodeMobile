@@ -106,13 +106,14 @@ export default function CameraQRScannerScreen({ navigation }: Props) {
   const renderCameraViewfinder = () => {
     if (CameraView && permission?.granted) {
       return (
-        <CameraView
-          style={StyleSheet.absoluteFill}
-          enableTorch={torch}
-          onBarcodeScanned={scanned ? undefined : ({ data }: { data: string }) => processQrData(data)}
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        >
-          <View className="flex-1 bg-black/45 items-center justify-center">
+        <View style={StyleSheet.absoluteFill}>
+          <CameraView
+            style={StyleSheet.absoluteFill}
+            enableTorch={torch}
+            onBarcodeScanned={scanned ? undefined : ({ data }: { data: string }) => processQrData(data)}
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          />
+          <View pointerEvents="box-none" className="flex-1 bg-black/45 items-center justify-center">
             <View className="w-60 h-60 relative justify-between">
               <View className="absolute w-8 h-8 border-primary top-0 left-0 border-t-4 border-l-4" />
               <View className="absolute w-8 h-8 border-primary top-0 right-0 border-t-4 border-r-4" />
@@ -123,7 +124,7 @@ export default function CameraQRScannerScreen({ navigation }: Props) {
               Align physical table QR code inside the frame
             </Text>
           </View>
-        </CameraView>
+        </View>
       );
     }
 
@@ -155,16 +156,6 @@ export default function CameraQRScannerScreen({ navigation }: Props) {
     <View className="flex-1 bg-black">
       <View className="flex-[2] relative">
         {renderCameraViewfinder()}
-
-        <TouchableOpacity
-          className="absolute left-4 w-10 h-10 rounded-full bg-black/55 items-center justify-center"
-          style={{ top: 16 }}
-          onPress={() => navigation.goBack()}
-          accessibilityLabel="Go back"
-          activeOpacity={0.8}
-        >
-          <ArrowLeft size={20} color="#FFFFFF" strokeWidth={2.4} />
-        </TouchableOpacity>
       </View>
 
       <View className="bg-white rounded-t-3xl p-5">
@@ -209,8 +200,8 @@ export default function CameraQRScannerScreen({ navigation }: Props) {
               placeholderTextColor="#9CA3AF"
               autoCapitalize="none"
             />
-            <TouchableOpacity className="bg-primary rounded-lg px-4.5 justify-center items-center" onPress={handleManualSubmit}>
-              <Text className="text-white font-bold text-sm">Go</Text>
+            <TouchableOpacity className="bg-primary rounded-lg px-5 py-2.5 min-w-[52px] justify-center items-center" onPress={handleManualSubmit}>
+              <Text className="text-white font-bold text-sm text-center">Go</Text>
             </TouchableOpacity>
           </View>
         </View>

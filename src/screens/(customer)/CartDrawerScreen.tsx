@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShoppingCart, Minus, Plus, X } from 'lucide-react-native';
 import { useCart, EMPTY_CART } from '../../context/CartContext';
+import { useAppContext } from '../../context/AppContext';
 import { getStoreConfig } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
 import { cn } from '../../utils/cn';
@@ -15,6 +16,7 @@ interface Props {
 export default function CartDrawerScreen({ navigation, route }: Props) {
   const { slug, storefrontId, name, table } = route.params;
   const { carts, updateCartQty, removeCartItem } = useCart();
+  const { isDark } = useAppContext();
   const cart = carts[storefrontId] ?? EMPTY_CART;
 
   const [vatRate, setVatRate] = useState(0.075);
@@ -49,15 +51,17 @@ export default function CartDrawerScreen({ navigation, route }: Props) {
     return { subtotal, appliedDelivery, appliedVat, grandTotal };
   }, [cart, vatRate, deliveryFee]);
 
+  const iconColor = isDark ? '#D1D5DB' : '#1F2937';
+
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['bottom', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-white dark:bg-[#09090B]" edges={['bottom', 'left', 'right']}>
       {cart.length === 0 ? (
         <View className="flex-1 items-center justify-center p-8 gap-1.5">
-          <ShoppingCart size={40} color="#D1D5DB" strokeWidth={1.5} />
-          <Text className="text-base font-bold text-gray-800 mt-2">Your cart is empty</Text>
-          <Text className="text-[13px] text-gray-500 text-center">Add items from the menu to get started.</Text>
+          <ShoppingCart size={40} color={isDark ? '#52525B' : '#D1D5DB'} strokeWidth={1.5} />
+          <Text className="text-base font-bold text-gray-800 dark:text-zinc-200 mt-2">Your cart is empty</Text>
+          <Text className="text-[13px] text-gray-500 dark:text-zinc-400 text-center">Add items from the menu to get started.</Text>
           <TouchableOpacity
-            className="mt-4 bg-primary rounded-[10px] px-5 py-3"
+            className="mt-4 bg-primary rounded-xl px-5 py-3"
             onPress={() => navigation.navigate('Storefront', { slug, name, tableCode: table })}
             activeOpacity={0.8}
           >
@@ -68,49 +72,49 @@ export default function CartDrawerScreen({ navigation, route }: Props) {
         <>
           <ScrollView contentContainerClassName="p-4 pb-2" showsVerticalScrollIndicator={false}>
             {cart.map((item) => (
-              <View key={item.id} className="flex-row justify-between items-center py-3 border-b border-gray-100">
+              <View key={item.id} className="flex-row justify-between items-center py-3 border-b border-gray-100 dark:border-zinc-800">
                 <View className="flex-1 mr-3">
-                  <Text className="text-[15px] font-semibold text-gray-800">{item.name}</Text>
+                  <Text className="text-[15px] font-semibold text-gray-800 dark:text-zinc-100">{item.name}</Text>
                   <Text className="text-[13px] text-primary font-bold mt-0.5">₦{(item.price * item.qty).toLocaleString()}</Text>
                 </View>
 
                 <View className="flex-row items-center">
-                  <TouchableOpacity className="w-8 h-8 rounded-2xl bg-gray-100 justify-center items-center ml-1.5" onPress={() => updateCartQty(storefrontId, item.id, -1)}>
-                    <Minus size={14} color="#1F2937" strokeWidth={2.5} />
+                  <TouchableOpacity className="w-8 h-8 rounded-2xl bg-gray-100 dark:bg-zinc-800 justify-center items-center ml-1.5" onPress={() => updateCartQty(storefrontId, item.id, -1)}>
+                    <Minus size={14} color={iconColor} strokeWidth={2.5} />
                   </TouchableOpacity>
-                  <Text className="text-sm font-bold text-gray-800 mx-1.5 min-w-[16px] text-center">{item.qty}</Text>
-                  <TouchableOpacity className="w-8 h-8 rounded-2xl bg-gray-100 justify-center items-center ml-1.5" onPress={() => updateCartQty(storefrontId, item.id, 1)}>
-                    <Plus size={14} color="#1F2937" strokeWidth={2.5} />
+                  <Text className="text-sm font-bold text-gray-800 dark:text-zinc-100 mx-1.5 min-w-[16px] text-center">{item.qty}</Text>
+                  <TouchableOpacity className="w-8 h-8 rounded-2xl bg-gray-100 dark:bg-zinc-800 justify-center items-center ml-1.5" onPress={() => updateCartQty(storefrontId, item.id, 1)}>
+                    <Plus size={14} color={iconColor} strokeWidth={2.5} />
                   </TouchableOpacity>
-                  <TouchableOpacity className="w-8 h-8 rounded-2xl bg-gray-100 justify-center items-center ml-1.5" onPress={() => removeCartItem(storefrontId, item.id)}>
-                    <X size={14} color="#1F2937" strokeWidth={2.5} />
+                  <TouchableOpacity className="w-8 h-8 rounded-2xl bg-gray-100 dark:bg-zinc-800 justify-center items-center ml-1.5" onPress={() => removeCartItem(storefrontId, item.id)}>
+                    <X size={14} color={iconColor} strokeWidth={2.5} />
                   </TouchableOpacity>
                 </View>
               </View>
             ))}
 
-            <View className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mt-4">
+            <View className="bg-gray-50 dark:bg-[#18181B] border border-gray-200 dark:border-zinc-800 rounded-2xl p-4 mt-4 shadow-sm">
               {isLoadingConfig ? (
                 <ActivityIndicator color="#059669" />
               ) : (
                 <>
                   <View className="flex-row justify-between py-1.5">
-                    <Text className="text-sm text-gray-600">Subtotal</Text>
-                    <Text className="text-sm font-medium text-gray-800">₦{summary.subtotal.toLocaleString()}</Text>
+                    <Text className="text-sm text-gray-600 dark:text-zinc-400">Subtotal</Text>
+                    <Text className="text-sm font-medium text-gray-800 dark:text-zinc-200">₦{summary.subtotal.toLocaleString()}</Text>
                   </View>
                   <View className="flex-row justify-between py-1.5">
-                    <Text className="text-sm text-gray-600">VAT ({(vatRate * 100).toFixed(1)}%)</Text>
-                    <Text className="text-sm font-medium text-gray-800">₦{summary.appliedVat.toLocaleString()}</Text>
+                    <Text className="text-sm text-gray-600 dark:text-zinc-400">VAT ({(vatRate * 100).toFixed(1)}%)</Text>
+                    <Text className="text-sm font-medium text-gray-800 dark:text-zinc-200">₦{summary.appliedVat.toLocaleString()}</Text>
                   </View>
                   {summary.appliedDelivery > 0 && (
                     <View className="flex-row justify-between py-1.5">
-                      <Text className="text-sm text-gray-600">Logistics / Delivery Fee</Text>
-                      <Text className="text-sm font-medium text-gray-800">₦{summary.appliedDelivery.toLocaleString()}</Text>
+                      <Text className="text-sm text-gray-600 dark:text-zinc-400">Logistics / Delivery Fee</Text>
+                      <Text className="text-sm font-medium text-gray-800 dark:text-zinc-200">₦{summary.appliedDelivery.toLocaleString()}</Text>
                     </View>
                   )}
-                  <View className="h-px bg-gray-200 my-2.5" />
+                  <View className="h-px bg-gray-200 dark:bg-zinc-700 my-2.5" />
                   <View className="flex-row justify-between py-1.5">
-                    <Text className="text-base font-bold text-gray-800">Total Amount</Text>
+                    <Text className="text-base font-bold text-gray-800 dark:text-white">Total Amount</Text>
                     <Text className="text-lg font-extrabold text-primary">₦{summary.grandTotal.toLocaleString()}</Text>
                   </View>
                 </>
@@ -118,7 +122,7 @@ export default function CartDrawerScreen({ navigation, route }: Props) {
             </View>
           </ScrollView>
 
-          <View className="p-4 border-t border-gray-100">
+          <View className="p-4 border-t border-gray-100 dark:border-zinc-800">
             <TouchableOpacity
               className={cn('rounded-xl py-4 items-center', isLoadingConfig ? 'bg-primary/60' : 'bg-primary')}
               disabled={isLoadingConfig}

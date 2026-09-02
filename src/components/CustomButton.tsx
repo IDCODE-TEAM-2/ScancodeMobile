@@ -44,7 +44,7 @@ export default function CustomButton({
   const content = loading ? (
     <ActivityIndicator color={spinnerColor} />
   ) : (
-    <Text className={cn('text-base font-bold', VARIANT_TEXT_CLASSES[variant], textClassName)}>
+    <Text className={cn('text-base font-bold text-center', VARIANT_TEXT_CLASSES[variant], textClassName)}>
       {title}
     </Text>
   );

@@ -1,7 +1,7 @@
 import './global.css';
 import { Sentry } from './src/utils/crashReporting';
-import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,7 +13,7 @@ import { demoEngine } from './src/demo/demoEngine';
 import { getToken, deleteToken, onUnauthorized } from './src/api';
 import { registerForPushNotificationsAsync } from './src/utils/pushNotifications';
 import { initOfflineQueue } from './src/utils/offlineQueue';
-import { AppContext, type AppState } from './src/context/AppContext';
+import { AppContextProvider, useAppContext, type AppState } from './src/context/AppContext';
 import { CartProvider } from './src/context/CartContext';
 import HeaderBackButton from './src/components/HeaderBackButton';
 
@@ -58,7 +58,6 @@ const AuthStack = createNativeStackNavigator<RootStackParamList>();
 const AdminStack = createNativeStackNavigator<RootStackParamList>();
 const CustomerStack = createNativeStackNavigator<RootStackParamList>();
 
-// Shared Configuration Defaults
 const hiddenHeader: NativeStackNavigationOptions = { headerShown: false };
 const checkoutOptions: NativeStackNavigationOptions = { title: 'Checkout', headerBackTitle: 'Back' };
 const wishlistOptions: NativeStackNavigationOptions = { title: 'Wishlist', headerBackTitle: 'Back' };
@@ -67,33 +66,21 @@ const orderTrackerOptions: NativeStackNavigationOptions = { title: 'Order Status
 const accessPageGuestOptions: NativeStackNavigationOptions = { title: 'Event Check-In', headerBackTitle: 'Back' };
 const settingsOptions: NativeStackNavigationOptions = { title: 'Settings', headerBackTitle: 'Back' };
 
-const sharedScreenOptions: NativeStackNavigationOptions = {
-  headerStyle: { backgroundColor: '#ffffff' },
-  headerTintColor: '#059669',
-  headerTitleStyle: { fontWeight: '700' },
-  contentStyle: { backgroundColor: '#F3F4F6' },
-  headerLeft: ({ canGoBack }) => <HeaderBackButton canGoBack={canGoBack} />,
-  headerBackButtonDisplayMode: 'minimal',
-};
-
 // ==========================================
 // 2. SUB-STACK DESIGNATED FLOWS
 // ==========================================
 
-function AuthNavigator() {
+function AuthNavigator({ screenOptions }: { screenOptions: NativeStackNavigationOptions }) {
   return (
-    <AuthStack.Navigator screenOptions={sharedScreenOptions}>
+    <AuthStack.Navigator screenOptions={screenOptions}>
       <AuthStack.Screen name="Login" component={LoginScreen} options={hiddenHeader} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={hiddenHeader} />
       <AuthStack.Screen name="Register" component={RegisterScreen} options={hiddenHeader} />
       <AuthStack.Screen name="VerifyOtp" component={VerifyOtpScreen} options={hiddenHeader} />
       <AuthStack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ title: 'Terms of Service', headerBackTitle: 'Back' }} />
       <AuthStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy', headerBackTitle: 'Back' }} />
-      {/* Splash kept for backward compatibility but auth routing is handled in App */}
       <AuthStack.Screen name="Splash" component={SplashScreen} options={hiddenHeader} />
 
-      {/* Customer storefront flow — accessible without signing in. Customers reach the
-          app anonymously by scanning a table QR code; only merchants authenticate. */}
       <AuthStack.Screen
         name="CameraQRScanner"
         component={CameraQRScannerScreen}
@@ -111,17 +98,14 @@ function AuthNavigator() {
       <AuthStack.Screen name="CartDrawer" component={CartDrawerScreen} options={cartOptions} />
       <AuthStack.Screen name="Checkout" component={CheckoutScreen} options={checkoutOptions} />
       <AuthStack.Screen name="OrderReceiptTracker" component={OrderReceiptTrackerScreen} options={orderTrackerOptions} />
-
-      {/* Guest check-in for event Access Pages — public, no login required (e.g. a wedding
-          guest scanning a shared link shouldn't need an account). */}
       <AuthStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
     </AuthStack.Navigator>
   );
 }
 
-function AdminNavigator() {
+function AdminNavigator({ screenOptions }: { screenOptions: NativeStackNavigationOptions }) {
   return (
-    <AdminStack.Navigator screenOptions={sharedScreenOptions}>
+    <AdminStack.Navigator screenOptions={screenOptions}>
       <AdminStack.Screen name="Dashboard" component={DashboardScreen} options={hiddenHeader} />
       <AdminStack.Screen
         name="MerchantProfileBank"
@@ -214,7 +198,6 @@ function AdminNavigator() {
       <AdminStack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ title: 'Terms of Service', headerBackTitle: 'Back' }} />
       <AdminStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy', headerBackTitle: 'Back' }} />
 
-      {/* Customer Preview & Dev Tool Screens accessible in Admin Context */}
       <AdminStack.Screen
         name="Storefront"
         component={StorefrontScreen}
@@ -236,12 +219,9 @@ function AdminNavigator() {
   );
 }
 
-function CustomerNavigator() {
+function CustomerNavigator({ screenOptions }: { screenOptions: NativeStackNavigationOptions }) {
   return (
-    <CustomerStack.Navigator screenOptions={sharedScreenOptions}>
-      {/* Landing screen for a logged-in customer: browse all registered storefronts,
-          sortable by rating/location/alphabetical. Scanning a table QR is still reachable
-          from here (top-right icon) for the anonymous ordering flow. */}
+    <CustomerStack.Navigator screenOptions={screenOptions}>
       <CustomerStack.Screen name="StorefrontDirectory" component={StorefrontDirectoryScreen} options={hiddenHeader} />
       <CustomerStack.Screen
         name="CameraQRScanner"
@@ -271,9 +251,9 @@ function CustomerNavigator() {
 // ==========================================
 // 3. LOADING SCREEN
 // ==========================================
-function BootScreen() {
+function BootScreen({ isDark }: { isDark: boolean }) {
   return (
-    <View className="flex-1 bg-white items-center justify-center">
+    <View className={`flex-1 items-center justify-center ${isDark ? 'bg-[#09090B]' : 'bg-white'}`}>
       <Text className="text-[32px] font-bold text-primary tracking-wide">ScanCode</Text>
       <ActivityIndicator size="large" color="#059669" className="mt-6" />
     </View>
@@ -281,22 +261,79 @@ function BootScreen() {
 }
 
 // ==========================================
-// 4. MAIN CONTAINER & STATE GATEKEEPER
+// 4. INNER APP CONTENT WITH THEME AWARENESS
+// ==========================================
+function AppContent() {
+  const { appState, isDark } = useAppContext();
+
+  const dynamicScreenOptions: NativeStackNavigationOptions = useMemo(
+    () => ({
+      headerStyle: { backgroundColor: isDark ? '#18181B' : '#ffffff' },
+      headerTintColor: isDark ? '#34D399' : '#059669',
+      headerTitleStyle: { color: isDark ? '#F9FAFB' : '#111827', fontWeight: '700' },
+      contentStyle: { backgroundColor: isDark ? '#09090B' : '#F3F4F6' },
+      headerLeft: ({ canGoBack }) => <HeaderBackButton canGoBack={canGoBack} />,
+      headerBackButtonDisplayMode: 'minimal',
+    }),
+    [isDark]
+  );
+
+  const navTheme = useMemo(() => {
+    const base = isDark ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      dark: isDark,
+      colors: {
+        ...base.colors,
+        primary: '#059669',
+        background: isDark ? '#09090B' : '#F3F4F6',
+        card: isDark ? '#18181B' : '#ffffff',
+        text: isDark ? '#F9FAFB' : '#111827',
+        border: isDark ? '#27272A' : '#E5E7EB',
+        notification: '#EF4444',
+      },
+      fonts: base.fonts ?? {
+        regular: { fontFamily: '', fontWeight: 'normal' },
+        medium: { fontFamily: '', fontWeight: '500' },
+        bold: { fontFamily: '', fontWeight: 'bold' },
+        heavy: { fontFamily: '', fontWeight: '900' },
+      },
+    };
+  }, [isDark]);
+
+  return (
+    <SafeAreaProvider>
+      <NavigationContainer theme={navTheme}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+
+        {appState === 'loading' ? (
+          <BootScreen isDark={isDark} />
+        ) : appState === 'logged_out' ? (
+          <AuthNavigator screenOptions={dynamicScreenOptions} />
+        ) : appState === 'admin' ? (
+          <AdminNavigator screenOptions={dynamicScreenOptions} />
+        ) : (
+          <CustomerNavigator screenOptions={dynamicScreenOptions} />
+        )}
+      </NavigationContainer>
+    </SafeAreaProvider>
+  );
+}
+
+// ==========================================
+// 5. MAIN CONTAINER & STATE GATEKEEPER
 // ==========================================
 function App() {
   const [appState, setAppState] = useState<AppState>('loading');
 
   useEffect(() => {
     async function bootstrap() {
-      // Initialise demo engine first (loads persisted role from AsyncStorage)
       await demoEngine.init();
 
       if (demoEngine.isDemoModeEnabled()) {
-        // Demo mode: trust the role stored in the demo engine directly
         const role = demoEngine.getActiveRole();
         setAppState(role);
       } else {
-        // Live mode: check real JWT token to determine auth state
         try {
           const token = await getToken();
           setAppState(token ? 'admin' : 'logged_out');
@@ -308,24 +345,16 @@ function App() {
     bootstrap();
   }, []);
 
-  // Central 401 handler: any authenticated API call that comes back unauthorized logs
-  // the user out from wherever they are, instead of each screen needing its own handling.
   useEffect(() => {
     return onUnauthorized(() => {
       deleteToken().finally(() => setAppState('logged_out'));
     });
   }, []);
 
-  // Flushes any orders queued while offline (see CheckoutScreen/offlineQueue.ts) the moment
-  // connectivity returns — independent of appState, since a queued order can outlive login.
   useEffect(() => {
     initOfflineQueue();
   }, []);
 
-  // Request push permission and register the device's Expo push token once the user is
-  // actually signed in — never on the loading/logged_out states. Silently no-ops on
-  // simulators/emulators, without an EAS project configured, or if permission is denied
-  // (see pushNotifications.ts) — there's no user-facing error to surface for any of those.
   useEffect(() => {
     if (appState === 'admin' || appState === 'customer') {
       registerForPushNotificationsAsync();
@@ -334,28 +363,13 @@ function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-    <BottomSheetModalProvider>
-    <AppContext.Provider value={{ appState, setAppState }}>
-    <CartProvider>
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-
-        {appState === 'loading' ? (
-          <BootScreen />
-        ) : appState === 'logged_out' ? (
-          <AuthNavigator />
-        ) : appState === 'admin' ? (
-          <AdminNavigator />
-        ) : (
-          <CustomerNavigator />
-        )}
-
-      </NavigationContainer>
-    </SafeAreaProvider>
-    </CartProvider>
-    </AppContext.Provider>
-    </BottomSheetModalProvider>
+      <BottomSheetModalProvider>
+        <AppContextProvider appState={appState} setAppState={setAppState}>
+          <CartProvider>
+            <AppContent />
+          </CartProvider>
+        </AppContextProvider>
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }

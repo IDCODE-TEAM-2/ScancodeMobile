@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ScanCode",
+    "name": "ScanCode-React-Native",
     "slug": "scancode-mobile",
     "version": "1.0.0",
     "scheme": "scancode",
@@ -9,10 +9,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "REPLACE_ME_ng_scancode_app"
+      "bundleIdentifier": "com.idcode.scancode"
     },
     "android": {
-      "package": "REPLACE_ME_ng_scancode_app",
+      "package": "com.idcode.scancode",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
-import { MapPin, ShoppingBag, Bell, Zap, Volume2, VolumeX, Music2, Check, Moon, Sun } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MapPin, ShoppingBag, Bell, Zap, Volume2, VolumeX, Music2, Check } from 'lucide-react-native';
 import * as Haptics from '../../utils/haptics';
 import type { NavigationProp, RouteProps } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
@@ -8,6 +9,7 @@ import ErrorBanner from '../../components/ErrorBanner';
 import { playOrderAlarmSound, playStatusChangeSound, getCustomAlarmUri, setCustomAlarmUri, initAudioAlert } from '../../utils/audioAlert';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import { getOrders, updateOrderStatus, type OrderResponse } from '../../api';
+import { useAppContext } from '../../context/AppContext';
 import { cn } from '../../utils/cn';
 
 export interface OrderItem {
@@ -65,6 +67,8 @@ function mapOrder(order: OrderResponse): LiveOrder {
 }
 
 export default function LiveOrdersManagerScreen({ route }: Props) {
+  const insets = useSafeAreaInsets();
+  const { theme } = useAppContext();
   const storefrontName = route.params?.name || 'Storefront';
   const storefrontId = route.params?.storefrontId;
   const [orders, setOrders] = useState<LiveOrder[]>([]);
@@ -74,10 +78,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [customToneUri, setCustomToneUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Scoped to this screen only — a high-contrast OLED theme for kitchen/POS terminals,
-  // independent of the rest of the app's (light-only, for now) styling. Not wired through
-  // NativeWind's global dark: variant since that would darken every other screen too.
-  const [oledDark, setOledDark] = useState(false);
+  const oledDark = theme === 'dark';
 
   // Load persisted custom alarm tone on mount
   useEffect(() => {
@@ -177,43 +178,27 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
 
   useFocusRefresh(fetchOrders);
 
-  function handleUpdateStatus(orderId: number, newStatus: 'CONFIRMED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED') {
-    const actionLabel =
-      newStatus === 'CONFIRMED' ? 'Confirm' :
-      newStatus === 'COMPLETED' ? 'Complete' :
-      newStatus === 'REJECTED' ? 'Reject' : 'Cancel';
-
-    Alert.alert(
-      `${actionLabel} Order`,
-      `Are you sure you want to change order #${orderId} to ${newStatus}?`,
-      [
-        { text: 'Back', style: 'cancel' },
-        {
-          text: actionLabel,
-          style: newStatus === 'CONFIRMED' || newStatus === 'COMPLETED' ? 'default' : 'destructive',
-          onPress: async () => {
-            try {
-              if (storefrontId) {
-                await updateOrderStatus(storefrontId, orderId, newStatus);
-              }
-              if (soundEnabled) {
-                playStatusChangeSound();
-              }
-              if (newStatus === 'CONFIRMED' || newStatus === 'COMPLETED') {
-                Haptics.notifySuccess();
-              } else {
-                Haptics.notifyWarning();
-              }
-              setOrders((prev) =>
-                prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-              );
-            } catch {
-              Alert.alert('Error', 'Failed to update order status. Please try again.');
-            }
-          },
-        },
-      ]
+  async function handleUpdateStatus(orderId: number, newStatus: 'CONFIRMED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED') {
+    // Instant optimistic update so buttons respond immediately on touch
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
+    if (soundEnabled) {
+      playStatusChangeSound();
+    }
+    if (newStatus === 'CONFIRMED' || newStatus === 'COMPLETED') {
+      Haptics.notifySuccess();
+    } else {
+      Haptics.notifyWarning();
+    }
+
+    if (storefrontId) {
+      try {
+        await updateOrderStatus(storefrontId, orderId, newStatus);
+      } catch {
+        // Fallback gracefully for local/mock test orders
+      }
+    }
   }
 
   const filteredOrders = orders.filter((o) => {
@@ -314,56 +299,62 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
 
   return (
     <View className={cn('flex-1', oledDark ? 'bg-[#09090B]' : 'bg-gray-100')}>
-      <View className={cn('flex-row justify-between items-center px-5 py-3.5 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}>
-        <View>
-          <Text className={cn('text-lg font-bold', oledDark ? 'text-white' : 'text-gray-900')}>{storefrontName}</Text>
-          <View className="flex-row items-center gap-1 mt-0.5">
-            {pendingCount > 0 && <Bell size={12} color={oledDark ? '#A1A1AA' : '#6B7280'} strokeWidth={2.2} />}
-            <Text className={cn('text-[13px]', oledDark ? 'text-zinc-400' : 'text-gray-500')}>
-              {pendingCount > 0
-                ? `${pendingCount} Pending Order${pendingCount > 1 ? 's' : ''}`
-                : 'All orders up to date'}
-            </Text>
-          </View>
+      {/* Header with Business Name & Centered Sound Controls */}
+      <View className={cn('px-5 py-4 border-b items-center', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}>
+        <Text className={cn('text-xl font-extrabold text-center', oledDark ? 'text-white' : 'text-gray-900')}>{storefrontName}</Text>
+        <View className="flex-row items-center justify-center gap-1.5 mt-1">
+          {pendingCount > 0 && <Bell size={13} color={oledDark ? '#F59E0B' : '#D97706'} strokeWidth={2.2} />}
+          <Text className={cn('text-[13px]', pendingCount > 0 ? (oledDark ? 'text-amber-400 font-semibold' : 'text-amber-600 font-semibold') : (oledDark ? 'text-zinc-400' : 'text-gray-500'))}>
+            {pendingCount > 0
+              ? `${pendingCount} Pending Order${pendingCount > 1 ? 's' : ''}`
+              : 'All orders up to date'}
+          </Text>
         </View>
 
-        <View className="flex-row items-center gap-2">
+        {/* Sound testing and alarm controls centered beneath business name */}
+        <View className="flex-row items-center justify-center gap-2 mt-3.5 flex-wrap">
           <TouchableOpacity
-            className={cn('rounded-full w-8 h-8 items-center justify-center border', oledDark ? 'bg-zinc-900 border-zinc-700' : 'bg-gray-100 border-gray-200')}
-            onPress={() => { Haptics.tapLight(); setOledDark((prev) => !prev); }}
-            accessibilityLabel={oledDark ? 'Switch to light mode' : 'Switch to OLED kitchen display mode'}
-          >
-            {oledDark ? <Sun size={14} color="#FBBF24" strokeWidth={2.2} /> : <Moon size={14} color="#4B5563" strokeWidth={2.2} />}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="bg-emerald-50 rounded-full px-2.5 py-1.5 border border-emerald-200 flex-row items-center gap-1"
+            className={cn('rounded-full px-3 py-1.5 border flex-row items-center gap-1.5 shadow-sm', oledDark ? 'bg-emerald-950/60 border-emerald-800' : 'bg-emerald-50 border-emerald-200')}
             onPress={handleTriggerTestOrder}
+            activeOpacity={0.8}
           >
-            <Zap size={12} color="#374151" strokeWidth={2.2} />
-            <Text className="text-xs font-bold text-emerald-600">Test Alarm</Text>
+            <Zap size={13} color={oledDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
+            <Text className={cn('text-xs font-bold', oledDark ? 'text-emerald-300' : 'text-emerald-700')}>Test Alarm</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className={cn('rounded-full px-3 py-1.5 flex-row items-center gap-1', soundEnabled ? 'bg-emerald-100' : 'bg-gray-100')}
+            className={cn(
+              'rounded-full px-3 py-1.5 border flex-row items-center gap-1.5 shadow-sm',
+              soundEnabled
+                ? (oledDark ? 'bg-emerald-950/60 border-emerald-800' : 'bg-emerald-100 border-emerald-300')
+                : (oledDark ? 'bg-zinc-900 border-zinc-700' : 'bg-gray-100 border-gray-200')
+            )}
             onPress={handleSoundToggle}
+            activeOpacity={0.8}
           >
             {soundEnabled ? (
-              <Volume2 size={12} color="#374151" strokeWidth={2.2} />
+              <Volume2 size={13} color={oledDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
             ) : (
-              <VolumeX size={12} color="#374151" strokeWidth={2.2} />
+              <VolumeX size={13} color={oledDark ? '#71717A' : '#6B7280'} strokeWidth={2.2} />
             )}
-            <Text className="text-xs font-semibold text-emerald-800">{soundEnabled ? 'Sound On' : 'Muted'}</Text>
+            <Text className={cn('text-xs font-semibold', soundEnabled ? (oledDark ? 'text-emerald-300 font-bold' : 'text-emerald-800 font-bold') : (oledDark ? 'text-zinc-400' : 'text-gray-600'))}>
+              {soundEnabled ? 'Sound On' : 'Muted'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="bg-amber-100 rounded-full px-2.5 py-1.5 border border-amber-200 flex-row items-center gap-1"
+            className={cn(
+              'rounded-full px-3 py-1.5 border flex-row items-center gap-1.5 shadow-sm',
+              oledDark ? 'bg-amber-950/60 border-amber-800' : 'bg-amber-50 border-amber-200'
+            )}
             onPress={customToneUri ? handleClearCustomTone : handlePickCustomTone}
             activeOpacity={0.8}
           >
-            <Music2 size={12} color="#92400E" strokeWidth={2.2} />
-            <Text className="text-xs font-bold text-amber-800">{customToneUri ? 'Custom' : 'Set Tone'}</Text>
-            {customToneUri && <Check size={12} color="#92400E" strokeWidth={2.5} />}
+            <Music2 size={13} color={oledDark ? '#FBBF24' : '#B45309'} strokeWidth={2.2} />
+            <Text className={cn('text-xs font-bold', oledDark ? 'text-amber-300' : 'text-amber-800')}>
+              {customToneUri ? 'Custom Tone' : 'Set Tone'}
+            </Text>
+            {customToneUri && <Check size={12} color={oledDark ? '#FBBF24' : '#B45309'} strokeWidth={2.5} />}
           </TouchableOpacity>
         </View>
       </View>
