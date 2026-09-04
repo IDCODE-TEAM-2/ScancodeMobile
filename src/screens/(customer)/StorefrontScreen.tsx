@@ -65,94 +65,12 @@ function getCategoryIcon(category: string) {
 
 const HEADER_COLLAPSE_THRESHOLD = 150;
 
-const DUMMY_VENDOR: Vendor = {
-    name: "ScanCode Lounge & Bistro",
-    description: "Premium dining, craft drinks & instant table service.",
-    phone: "+234 801 234 5678",
-    email: "orders@scancodelounge.ng",
-    bankName: "GTBank PLC",
-    accountNumber: "0123456789",
-    images: [],
-    estimatedDeliveryTime: "20-30 minutes",
-};
-
-const DUMMY_WEEKLY_EVENTS: WeeklyEvents = {
-    Friday: [
-        { id: 'ev-1', time: '8:00 PM', name: 'Afrobeats & DJ Night', description: 'Live DJ set by DJ Spin & cocktail specials.' },
-    ],
-    Saturday: [
-        { id: 'ev-2', time: '7:00 PM', name: 'Karaoke & Open Mic', description: 'Request songs via ScanCode toolbar and sing your heart out!' },
-    ],
-    Sunday: [
-        { id: 'ev-3', time: '1:00 PM', name: 'Sunday BBQ Brunch', description: 'Unlimited grilled meats & acoustic live session.' },
-    ],
-};
-
-const DUMMY_PRODUCTS: Product[] = [
-    {
-        id: 'p-1',
-        name: 'Classic Cheeseburger',
-        description: 'Flame-grilled beef patty, melted cheddar, lettuce, pickles & secret sauce.',
-        price: 4500,
-        stock: 15,
-        isDelisted: false,
-        media: ['https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80'],
-        category: 'Meals',
-        isPopular: true,
-    },
-    {
-        id: 'p-2',
-        name: 'Smokey Jollof Rice & Chicken',
-        description: 'Authentic Nigerian firewood Jollof served with fried plantain & grilled chicken.',
-        price: 5200,
-        stock: 20,
-        isDelisted: false,
-        media: ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80'],
-        category: 'Meals',
-        isPopular: true,
-    },
-    {
-        id: 'p-3',
-        name: 'Crispy Golden Fries',
-        description: 'Hand-cut seasoned potato fries served with garlic mayo dip.',
-        price: 1800,
-        stock: 30,
-        isDelisted: false,
-        media: ['https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=400&q=80'],
-        category: 'Sides',
-        isPopular: false,
-    },
-    {
-        id: 'p-4',
-        name: 'Tropical Citrus Mojito',
-        description: 'Refreshing blend of fresh mint, lime, passion fruit & sparkling soda.',
-        price: 2500,
-        stock: 50,
-        isDelisted: false,
-        media: ['https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=400&q=80'],
-        category: 'Drinks',
-        isPopular: true,
-    },
-    {
-        id: 'p-5',
-        name: 'Triple Chocolate Lava Cake',
-        description: 'Warm chocolate cake with molten center, served with vanilla bean ice cream.',
-        price: 3000,
-        stock: 10,
-        isDelisted: false,
-        media: ['https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=400&q=80'],
-        category: 'Desserts',
-        isPopular: false,
-    },
-];
-
 export default function StorefrontScreen({ navigation, route }: Props) {
     const { carts, favorites, addToCart: addToCartCtx, toggleFavorite: toggleFavoriteCtx } = useCart();
     const { isDark } = useAppContext();
     const itemDetailsRef = useRef<ItemDetailsModalHandle>(null);
 
-    const rawSlug = route.params?.slug;
-    const slug = rawSlug && rawSlug.trim() ? rawSlug.trim() : 'demo';
+    const slug = route.params?.slug?.trim() || '';
     const scannedTableCode = route.params?.tableCode;
 
     const [storefront, setStorefront] = useState<StorefrontResponse | null>(null);
@@ -169,41 +87,16 @@ export default function StorefrontScreen({ navigation, route }: Props) {
     const [headerCollapsed, setHeaderCollapsed] = useState(false);
     const headerCollapsedRef = useRef(false);
 
-    const applyDummyData = () => {
-        setStorefront({
-            id: 999,
-            userId: 1,
-            businessType: 'RESTAURANT',
-            slug: 'demo',
-            publicUrl: 'http://localhost/store/demo',
-            name: DUMMY_VENDOR.name,
-            description: DUMMY_VENDOR.description,
-            logoUrl: null,
-            bannerUrl: null,
-            data: DUMMY_VENDOR,
-            active: true,
-            isPublished: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        });
-        setVendor(DUMMY_VENDOR);
-        setProducts(DUMMY_PRODUCTS);
-        setWeeklyEvents(DUMMY_WEEKLY_EVENTS);
-        setVatRate(0.075);
-        setDeliveryFee(2000);
-        setIsDeliveryEnabled(true);
-    };
-
     useEffect(() => {
         const fetchVendor = async () => {
+            if (!slug) {
+                setError('Storefront not found.');
+                setIsLoading(false);
+                return;
+            }
             try {
                 setIsLoading(true);
                 setError(null);
-
-                if (slug === 'demo') {
-                    applyDummyData();
-                    return;
-                }
 
                 const storefrontData = await getStorefrontBySlug(slug);
                 const customData = parseStorefrontData(storefrontData.data);
@@ -212,24 +105,24 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                 setVendor({
                     name: storefrontData.name,
                     description: storefrontData.description,
-                    phone: customData.phone ?? DUMMY_VENDOR.phone,
-                    email: customData.email ?? DUMMY_VENDOR.email,
-                    bankName: customData.bankName ?? DUMMY_VENDOR.bankName,
-                    accountNumber: customData.accountNumber ?? DUMMY_VENDOR.accountNumber,
+                    phone: customData.phone ?? '',
+                    email: customData.email ?? '',
+                    bankName: customData.bankName ?? '',
+                    accountNumber: customData.accountNumber ?? '',
                     images: customData.images ?? [],
                     logoUrl: storefrontData.logoUrl ?? undefined,
                     bannerUrl: storefrontData.bannerUrl ?? undefined,
-                    estimatedDeliveryTime: customData.estimatedDeliveryTime ?? DUMMY_VENDOR.estimatedDeliveryTime,
+                    estimatedDeliveryTime: customData.estimatedDeliveryTime ?? '20-30 minutes',
                 });
                 setWeeklyEvents(customData.weeklyEvents ?? {});
 
                 const [productData, configData] = await Promise.all([
-                    getProducts(storefrontData.id),
+                    getProducts(storefrontData.id).catch(() => []),
                     getStoreConfig(storefrontData.id).catch(() => null),
                 ]);
 
                 const mapped = productData.filter((product) => !product.isDelisted).map(mapProduct);
-                setProducts(mapped.length > 0 ? mapped : DUMMY_PRODUCTS);
+                setProducts(mapped);
 
                 if (configData) {
                     const rawVat = configData.vatRate ?? 7.5;
@@ -237,8 +130,8 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                     setDeliveryFee(configData.deliveryFee ?? 2000);
                     setIsDeliveryEnabled(true);
                 }
-            } catch {
-                applyDummyData();
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : 'Failed to load storefront details.');
             } finally {
                 setIsLoading(false);
             }

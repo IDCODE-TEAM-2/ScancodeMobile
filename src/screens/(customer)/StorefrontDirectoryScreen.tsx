@@ -56,9 +56,9 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
     try {
       setLoading(true);
       const [all, ratingsData, mine] = await Promise.all([
-        getAllStorefronts(),
-        getStorefrontRatings(),
-        isVendor ? getMyStorefronts() : Promise.resolve([]),
+        getAllStorefronts().catch(() => []),
+        getStorefrontRatings().catch(() => []),
+        isVendor ? getMyStorefronts().catch(() => []) : Promise.resolve([]),
       ]);
       setStorefronts(all);
       setRatings(ratingsData);
@@ -160,7 +160,7 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
           <View className="flex-row items-center gap-2">
             {navigation.canGoBack() && (
               <TouchableOpacity onPress={() => navigation.goBack()} className="p-1 -ml-1" accessibilityLabel="Go back">
-                <ArrowLeft size={20} color={isDark ? '#F9FAFB' : '#111827'} strokeWidth={2.2} />
+                <ArrowLeft size={20} color={iconColor} strokeWidth={2.2} />
               </TouchableOpacity>
             )}
             <Text className="text-xl font-bold text-gray-900 dark:text-white">Discover</Text>

@@ -8,10 +8,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { QrCode, FlaskConical, Briefcase, ShoppingCart, Store } from 'lucide-react-native';
+import { QrCode, Compass } from 'lucide-react-native';
 import { login, saveToken } from '../../api';
-import { demoEngine } from '../../demo/demoEngine';
-import { DEMO_ACCOUNTS } from '../../demo/mockData';
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import CustomInput from '../../components/CustomInput';
@@ -23,12 +21,11 @@ interface Props {
 
 export default function LoginScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { setAppState } = useAppContext();
+  const { setAppState, clearSession } = useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isDemoMode = demoEngine.isDemoModeEnabled();
 
   async function performLogin(loginEmail: string, loginPassword: string) {
     setError(null);
@@ -36,7 +33,8 @@ export default function LoginScreen({ navigation }: Props) {
     try {
       const res = await login(loginEmail.trim(), loginPassword);
       await saveToken(res.token);
-      setAppState(res.roles.includes('ROLE_MERCHANT') ? 'admin' : 'customer');
+      const isMerchant = Array.isArray(res.roles) && res.roles.includes('ROLE_MERCHANT');
+      setAppState(isMerchant ? 'admin' : 'customer');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed. Try again.');
     } finally {
@@ -52,8 +50,15 @@ export default function LoginScreen({ navigation }: Props) {
     performLogin(email, password);
   }
 
-  function handleQuickDemoLogin(role: 'admin' | 'customer') {
-    performLogin(DEMO_ACCOUNTS[role].email, 'demo');
+  async function handleBrowseAsGuest() {
+    setLoading(true);
+    try {
+      await clearSession('customer');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -74,16 +79,28 @@ export default function LoginScreen({ navigation }: Props) {
             <Text className="text-sm text-gray-500 dark:text-zinc-400 text-center mt-1">Smart digital storefronts & tableside ordering</Text>
           </View>
 
-          {/* Guest Scanner Quick Action */}
-          <TouchableOpacity
-            className="bg-white dark:bg-[#18181B] border-[1.5px] border-emerald-600/30 dark:border-emerald-700/50 rounded-2xl py-3.5 px-4 items-center flex-row justify-center gap-2.5 shadow-sm mb-6"
-            onPress={() => navigation.navigate('CameraQRScanner')}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            <QrCode size={20} color="#059669" strokeWidth={2.2} />
-            <Text className="text-emerald-700 dark:text-emerald-300 text-[15px] font-bold">Scan Table QR Code</Text>
-          </TouchableOpacity>
+          {/* Guest Quick Actions */}
+          <View className="flex-row gap-3 mb-6">
+            <TouchableOpacity
+              className="flex-1 bg-white dark:bg-[#18181B] border-[1.5px] border-emerald-600/30 dark:border-emerald-700/50 rounded-2xl py-3.5 px-3 items-center flex-row justify-center gap-2 shadow-sm"
+              onPress={() => navigation.navigate('CameraQRScanner')}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <QrCode size={18} color="#059669" strokeWidth={2.2} />
+              <Text className="text-emerald-700 dark:text-emerald-300 text-sm font-bold">Scan Table QR</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="flex-1 bg-white dark:bg-[#18181B] border-[1.5px] border-gray-200 dark:border-zinc-800 rounded-2xl py-3.5 px-3 items-center flex-row justify-center gap-2 shadow-sm"
+              onPress={handleBrowseAsGuest}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Compass size={18} color="#059669" strokeWidth={2.2} />
+              <Text className="text-gray-800 dark:text-zinc-200 text-sm font-bold">Browse as Guest</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Form Card */}
           <View className="bg-white dark:bg-[#18181B] rounded-3xl p-6 border border-gray-200 dark:border-zinc-800 shadow-sm">
@@ -134,35 +151,6 @@ export default function LoginScreen({ navigation }: Props) {
                 className="w-full shadow-sm"
               />
             </View>
-
-            {isDemoMode && (
-              <View className="bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-3.5 mt-5">
-                <View className="flex-row items-center justify-center gap-1.5 mb-2.5">
-                  <FlaskConical size={14} color="#059669" strokeWidth={2.2} />
-                  <Text className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Quick Demo Accounts</Text>
-                </View>
-                <View className="flex-row gap-2">
-                  <TouchableOpacity
-                    className="flex-1 bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded-xl py-2.5 items-center flex-row justify-center gap-1.5 shadow-sm"
-                    onPress={() => handleQuickDemoLogin('admin')}
-                    disabled={loading}
-                    activeOpacity={0.8}
-                  >
-                    <Briefcase size={14} color="#059669" strokeWidth={2.2} />
-                    <Text className="text-xs font-bold text-emerald-900 dark:text-emerald-300">Admin</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    className="flex-1 bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded-xl py-2.5 items-center flex-row justify-center gap-1.5 shadow-sm"
-                    onPress={() => handleQuickDemoLogin('customer')}
-                    disabled={loading}
-                    activeOpacity={0.8}
-                  >
-                    <ShoppingCart size={14} color="#059669" strokeWidth={2.2} />
-                    <Text className="text-xs font-bold text-emerald-900 dark:text-emerald-300">Customer</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
           </View>
 
           {/* Footer Sign Up Link */}

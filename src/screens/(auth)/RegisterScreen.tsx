@@ -158,7 +158,7 @@ export default function RegisterScreen({ navigation }: Props) {
               </Text>
             </TouchableOpacity>
 
-            <CustomButton title="Create Account" onPress={handleRegister} loading={loading} disabled={!agreed} />
+            <CustomButton title="Create Account" onPress={handleRegister} loading={loading} />
           </View>
 
           <TouchableOpacity

@@ -14,7 +14,6 @@ import {
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
-import DevTestBanner from '../../components/DevTestBanner';
 import Skeleton from '../../components/Skeleton';
 import { confirmAction } from '../../utils/alerts';
 import { cn } from '../../utils/cn';
@@ -273,8 +272,6 @@ export default function DashboardScreen({ navigation }: Props) {
           </View>
         </View>
       </View>
-
-      {__DEV__ && <DevTestBanner />}
 
       {loading ? (
         <View className="p-4 gap-3">

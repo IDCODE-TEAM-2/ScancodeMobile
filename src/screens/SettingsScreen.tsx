@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
-import { User, LogOut, Trash2, ShieldAlert, FileText, Lock, Sun, Moon, Smartphone, Check } from 'lucide-react-native';
-import { getMe, deleteToken, deleteAccount, type MeResponse } from '../api';
+import { User, LogOut, Trash2, ShieldAlert, FileText, Lock, Sun, Moon, Smartphone, Check, LogIn } from 'lucide-react-native';
+import { getMe, getToken, deleteToken, deleteAccount, type MeResponse } from '../api';
 import type { NavigationProp } from '../types';
 import { useAppContext, type ThemeMode } from '../context/AppContext';
 import { confirmAction } from '../utils/alerts';
@@ -14,19 +14,35 @@ interface Props {
 export default function SettingsScreen({ navigation }: Props) {
   const { setAppState, theme, setTheme, isDark } = useAppContext();
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    getMe()
-      .then(setMe)
-      .catch(() => {
+    async function checkSession() {
+      try {
+        const token = await getToken();
+        if (!token) {
+          setIsGuest(true);
+          setLoading(false);
+          return;
+        }
+        const data = await getMe();
+        setMe(data);
+      } catch {
         // Not fatal — the rest of the screen still works without the profile summary.
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    }
+    checkSession();
   }, []);
 
   const handleSignOut = () => {
+    if (isGuest) {
+      setAppState('logged_out');
+      return;
+    }
     confirmAction(
       'Sign Out',
       'Are you sure you want to sign out?',
@@ -92,6 +108,23 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
         {loading ? (
           <ActivityIndicator color="#059669" />
+        ) : isGuest ? (
+          <View className="items-center w-full">
+            <View className="bg-emerald-100 dark:bg-emerald-950/70 px-2.5 py-0.5 rounded-full mb-1">
+              <Text className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Guest Shopper</Text>
+            </View>
+            <Text className="text-xs text-gray-500 dark:text-zinc-400 text-center mb-3">
+              You are currently browsing without an account.
+            </Text>
+            <TouchableOpacity
+              className="bg-primary px-4 py-2 rounded-xl flex-row items-center gap-2"
+              onPress={() => setAppState('logged_out')}
+              activeOpacity={0.8}
+            >
+              <LogIn size={15} color="#FFFFFF" strokeWidth={2.2} />
+              <Text className="text-white text-xs font-bold">Sign In or Register</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <>
             <Text className="text-base font-bold text-gray-900 dark:text-white">{me?.username ?? 'Account'}</Text>
@@ -160,27 +193,36 @@ export default function SettingsScreen({ navigation }: Props) {
       <Text className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-2 px-1">Account</Text>
       <View className="bg-white dark:bg-[#18181B] rounded-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden mb-5 shadow-sm">
         <TouchableOpacity
-          className="flex-row items-center gap-3 px-4 py-3.5 border-b border-gray-100 dark:border-zinc-800"
+          className={cn(
+            'flex-row items-center gap-3 px-4 py-3.5',
+            !isGuest && 'border-b border-gray-100 dark:border-zinc-800'
+          )}
           onPress={handleSignOut}
         >
           <LogOut size={16} color={iconColor} strokeWidth={2} />
-          <Text className="text-sm font-semibold text-gray-800 dark:text-zinc-200 flex-1">Sign Out</Text>
+          <Text className="text-sm font-semibold text-gray-800 dark:text-zinc-200 flex-1">
+            {isGuest ? 'Exit Guest Mode' : 'Sign Out'}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          className="flex-row items-center gap-3 px-4 py-3.5"
-          onPress={handleDeleteAccount}
-        >
-          <Trash2 size={16} color="#EF4444" strokeWidth={2} />
-          <Text className="text-sm font-semibold text-red-600 dark:text-red-400 flex-1">Delete My Account</Text>
-        </TouchableOpacity>
+        {!isGuest && (
+          <TouchableOpacity
+            className="flex-row items-center gap-3 px-4 py-3.5"
+            onPress={handleDeleteAccount}
+          >
+            <Trash2 size={16} color="#EF4444" strokeWidth={2} />
+            <Text className="text-sm font-semibold text-red-600 dark:text-red-400 flex-1">Delete My Account</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <View className="flex-row items-start gap-2 px-1">
-        <ShieldAlert size={14} color={isDark ? '#6B7280' : '#9CA3AF'} strokeWidth={2} className="mt-0.5" />
-        <Text className="text-xs text-gray-400 dark:text-zinc-500 flex-1 leading-4">
-          Deleting your account removes your storefronts, orders, and history permanently. This cannot be undone.
-        </Text>
-      </View>
+      {!isGuest && (
+        <View className="flex-row items-start gap-2 px-1">
+          <ShieldAlert size={14} color={isDark ? '#6B7280' : '#9CA3AF'} strokeWidth={2} className="mt-0.5" />
+          <Text className="text-xs text-gray-400 dark:text-zinc-500 flex-1 leading-4">
+            Deleting your account removes your storefronts, orders, and history permanently. This cannot be undone.
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 }

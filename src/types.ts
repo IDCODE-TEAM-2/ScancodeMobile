@@ -181,6 +181,7 @@ export type RootStackParamList = {
   EventsManager: { storefrontId: number; slug?: string; name?: string };
   ProductCatalogEditor: { storefrontId: number; slug?: string; name?: string };
   Services: undefined;
+  CreateEvent: undefined;
   StorefrontDirectory: undefined;
   AccessPageManager: { storefrontId: number; slug?: string; name?: string };
   AccessPageGuest: { accessPageSlug: string };

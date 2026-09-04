@@ -9,7 +9,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { View, Text, ActivityIndicator } from 'react-native';
 import type { RootStackParamList } from './src/types';
-import { demoEngine } from './src/demo/demoEngine';
 import { getToken, deleteToken, onUnauthorized } from './src/api';
 import { registerForPushNotificationsAsync } from './src/utils/pushNotifications';
 import { initOfflineQueue } from './src/utils/offlineQueue';
@@ -38,6 +37,7 @@ import CameraQRScannerScreen from './src/screens/(customer)/CameraQRScannerScree
 import DashboardScreen from './src/screens/(admin)/DashboardScreen';
 import MerchantProfileBankScreen from './src/screens/(admin)/MerchantProfileBankScreen';
 import CreateStorefrontScreen from './src/screens/(admin)/CreateStorefrontScreen';
+import CreateEventScreen from './src/screens/(admin)/CreateEventScreen';
 import ActivateQRScreen from './src/screens/(admin)/ActivateQRScreen';
 import QRScreen from './src/screens/(admin)/QRScreen';
 import StoreChargesConfigScreen from './src/screens/(admin)/StoreChargesConfigScreen';
@@ -122,6 +122,14 @@ function AdminNavigator({ screenOptions }: { screenOptions: NativeStackNavigatio
           title: route.params?.editStorefrontId !== undefined ? 'Edit Storefront' : 'New Storefront',
           headerBackTitle: 'Back',
         })}
+      />
+      <AdminStack.Screen
+        name="CreateEvent"
+        component={CreateEventScreen}
+        options={{
+          title: 'Create Event',
+          headerBackTitle: 'Back',
+        }}
       />
       <AdminStack.Screen
         name="ActivateQR"
@@ -328,18 +336,11 @@ function App() {
 
   useEffect(() => {
     async function bootstrap() {
-      await demoEngine.init();
-
-      if (demoEngine.isDemoModeEnabled()) {
-        const role = demoEngine.getActiveRole();
-        setAppState(role);
-      } else {
-        try {
-          const token = await getToken();
-          setAppState(token ? 'admin' : 'logged_out');
-        } catch {
-          setAppState('logged_out');
-        }
+      try {
+        const token = await getToken();
+        setAppState(token ? 'admin' : 'logged_out');
+      } catch {
+        setAppState('logged_out');
       }
     }
     bootstrap();
