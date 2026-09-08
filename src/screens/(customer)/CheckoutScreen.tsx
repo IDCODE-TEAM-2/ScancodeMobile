@@ -216,7 +216,11 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                   <Phone size={18} color="#374151" strokeWidth={2} />
                   <View className="flex-1">
                     <Text className="text-[12px] text-gray-500 dark:text-zinc-400">
-                      {vendor.businessType === 'HOTEL' ? 'Front desk contact' : 'Restaurant / waiter contact'}
+                      {vendor.businessType === 'HOTEL'
+                        ? 'Front desk contact'
+                        : vendor.businessType === 'RESTAURANT'
+                        ? 'Restaurant / waiter contact'
+                        : 'Contact'}
                     </Text>
                     <Text className="text-sm font-bold text-gray-900 dark:text-white">{vendor.phone}</Text>
                   </View>

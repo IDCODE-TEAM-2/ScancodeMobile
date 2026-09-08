@@ -3,6 +3,7 @@ import { useColorScheme as useRNColorScheme } from 'react-native';
 import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { deleteToken } from '../api';
+import { clearIntendedMerchant } from '../utils/resolveAppState';
 
 export type AppState = 'loading' | 'logged_out' | 'admin' | 'customer';
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -63,6 +64,7 @@ export function AppContextProvider({
     try {
       await deleteToken();
       await AsyncStorage.multiRemove(['token', 'auth_token', 'user_roles', 'user_profile']);
+      await clearIntendedMerchant();
     } catch (error) {
       console.error('Error clearing storage session keys:', error);
     } finally {

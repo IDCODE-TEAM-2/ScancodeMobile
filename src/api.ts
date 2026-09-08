@@ -160,7 +160,7 @@ export interface RegisterResponse {
   message: string;
 }
 
-export type AccountRole = 'vendor' | 'customer';
+export type AccountRole = 'merchant' | 'customer';
 
 // ─── Storefronts ──────────────────────────────────────────────────────────────
 
