@@ -11,8 +11,10 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CheckCircle2, WifiOff, Phone } from 'lucide-react-native';
+import { CheckCircle2, WifiOff, Phone, CreditCard, Copy, Check } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
 import { createOrder, getStoreConfig, getStorefrontBySlug, type OrderResponse } from '../../api';
+import { payWithPaystack } from '../../utils/paystack';
 import * as Haptics from '../../utils/haptics';
 import { isOffline, queueOrder } from '../../utils/offlineQueue';
 import type { CartItem, NavigationProp, RouteProps } from '../../types';
@@ -58,6 +60,52 @@ export default function CheckoutScreen({ navigation, route }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<OrderResponse | null>(null);
   const [queuedLocally, setQueuedLocally] = useState(false);
+  const [isPayingWithPaystack, setIsPayingWithPaystack] = useState(false);
+  const [copiedAccount, setCopiedAccount] = useState(false);
+
+  async function handleCopyAccountNumber(numberToCopy?: string) {
+    if (!numberToCopy) return;
+    await Clipboard.setStringAsync(numberToCopy);
+    setCopiedAccount(true);
+    setTimeout(() => setCopiedAccount(false), 2000);
+  }
+
+  async function handlePayWithPaystack() {
+    if (!placedOrder) return;
+    setIsPayingWithPaystack(true);
+    await payWithPaystack({
+      purpose: 'ORDER',
+      payload: {
+        orderId: placedOrder.id,
+        amount: placedOrder.total,
+        slug,
+        storefrontId: storefrontId ?? placedOrder.storefrontId,
+        email: 'customer@scancode.ng',
+      },
+      title: 'Order Payment',
+      onSuccess: () => {
+        setIsPayingWithPaystack(false);
+        Alert.alert('Payment Successful!', 'Your payment has been received and verified.', [
+          {
+            text: 'Track Order',
+            onPress: () =>
+              navigation.navigate('OrderReceiptTracker', {
+                orderId: placedOrder.id,
+                slug,
+                storefrontId: storefrontId ?? placedOrder.storefrontId,
+              }),
+          },
+        ]);
+      },
+      onError: (msg) => {
+        setIsPayingWithPaystack(false);
+        Alert.alert('Payment Error', msg);
+      },
+      onCancel: () => {
+        setIsPayingWithPaystack(false);
+      },
+    });
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -227,20 +275,61 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                 <Text className="text-sm text-gray-500 dark:text-zinc-400 text-center">Payment Due</Text>
                 <Text className="text-[28px] font-extrabold text-primary text-center mt-1">₦{placedOrder.total.toLocaleString()}</Text>
 
-                <View className="h-px bg-gray-100 dark:bg-zinc-700 my-2.5" />
+                <View className="h-px bg-gray-100 dark:bg-zinc-700 my-3" />
 
-                <Text className="text-[13px] text-gray-600 dark:text-zinc-300 mb-3 leading-[18px]">
-                  Please transfer the exact total amount to the store account below:
-                </Text>
+                {/* Primary Online Payment with Paystack */}
+                <TouchableOpacity
+                  className={cn(
+                    'bg-emerald-600 rounded-xl py-3.5 px-4 items-center self-stretch flex-row justify-center gap-2 shadow-sm',
+                    isPayingWithPaystack && 'opacity-70',
+                  )}
+                  onPress={handlePayWithPaystack}
+                  disabled={isPayingWithPaystack}
+                  activeOpacity={0.85}
+                >
+                  {isPayingWithPaystack ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <CreditCard size={18} color="#FFFFFF" strokeWidth={2.5} />
+                      <Text className="text-white text-[15px] font-bold">
+                        Pay ₦{placedOrder.total.toLocaleString()} with Paystack
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
 
-                <View className="bg-gray-100 dark:bg-zinc-800 rounded-xl p-3 gap-1.5">
+                {/* Or Divider */}
+                <View className="flex-row items-center gap-2 my-3 self-stretch">
+                  <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
+                  <Text className="text-[10px] font-semibold tracking-wider text-gray-400 dark:text-zinc-500 uppercase">
+                    Or Transfer to Store Bank
+                  </Text>
+                  <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
+                </View>
+
+                <View className="bg-gray-100 dark:bg-zinc-800 rounded-xl p-3 gap-2">
                   <View className="flex-row justify-between">
                     <Text className="text-[13px] text-gray-500 dark:text-zinc-400">Bank Name:</Text>
                     <Text className="text-[13px] font-semibold text-gray-800 dark:text-zinc-200">{bankName}</Text>
                   </View>
-                  <View className="flex-row justify-between">
+                  <View className="flex-row justify-between items-center">
                     <Text className="text-[13px] text-gray-500 dark:text-zinc-400">Account Number:</Text>
-                    <Text className="text-sm font-extrabold text-gray-900 dark:text-white">{accountNumber}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleCopyAccountNumber(accountNumber)}
+                      className="flex-row items-center gap-1.5 py-1 px-2 rounded-lg bg-gray-200/70 dark:bg-zinc-700/60"
+                      activeOpacity={0.7}
+                    >
+                      <Text className="text-sm font-extrabold text-gray-900 dark:text-white font-mono">{accountNumber}</Text>
+                      {copiedAccount ? (
+                        <View className="flex-row items-center gap-1 bg-emerald-600 px-1.5 py-0.5 rounded">
+                          <Check size={10} color="#FFFFFF" strokeWidth={3} />
+                          <Text className="text-[10px] text-white font-bold">Copied</Text>
+                        </View>
+                      ) : (
+                        <Copy size={13} color="#6B7280" strokeWidth={2} />
+                      )}
+                    </TouchableOpacity>
                   </View>
                   <View className="flex-row justify-between">
                     <Text className="text-[13px] text-gray-500 dark:text-zinc-400">Account Name:</Text>

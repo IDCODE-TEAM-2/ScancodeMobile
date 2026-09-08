@@ -160,7 +160,7 @@ export interface RegisterResponse {
   message: string;
 }
 
-export type AccountRole = 'vendor' | 'customer';
+export type AccountRole = 'merchant' | 'customer';
 
 // ─── Storefronts ──────────────────────────────────────────────────────────────
 
@@ -299,7 +299,13 @@ export interface PaymentVerifyResponse {
   createdSlug: string | null;
 }
 
-export type PaymentPurpose = 'STOREFRONT_CREATION' | 'EVENT_CREATION';
+export type PaymentPurpose =
+  | 'STOREFRONT_CREATION'
+  | 'EVENT_CREATION'
+  | 'ORDER'
+  | 'TIP'
+  | 'REQUEST'
+  | (string & {});
 
 // ─── Waiter Calls ─────────────────────────────────────────────────────────────
 
@@ -1084,18 +1090,25 @@ export function getAccessPageGuests(accessPageId: number): Promise<AccessPageGue
 
 // ─── Payments ─────────────────────────────────────────────────────────────────
 
-export function initializePayment(purpose: PaymentPurpose, slug: string) {
-  return request<PaymentInitResponse>('POST', '/api/payments/initialize', {
-    purpose,
-    payload: JSON.stringify({ slug }),
-    // Lets Paystack redirect straight back into the app instead of the web /pay/callback
-    // page, so WebBrowser.openAuthSessionAsync (see ActivateQRScreen) can auto-close.
-    redirectUrl: 'scancode://payment-complete',
-  });
+export function initializePayment(
+  purpose: PaymentPurpose,
+  payload: string | Record<string, unknown>,
+  requireAuth = false,
+) {
+  const payloadStr = typeof payload === 'string' ? JSON.stringify({ slug: payload }) : JSON.stringify(payload);
+  return request<PaymentInitResponse>(
+    'POST',
+    '/api/payments/initialize',
+    {
+      purpose,
+      payload: payloadStr,
+    },
+    requireAuth,
+  );
 }
 
-export function verifyPayment(reference: string) {
-  return request<PaymentVerifyResponse>('POST', '/api/payments/verify', { reference });
+export function verifyPayment(reference: string, requireAuth = false) {
+  return request<PaymentVerifyResponse>('POST', '/api/payments/verify', { reference }, requireAuth);
 }
 
 // ─── Event Type Catalog ────────────────────────────────────────────────────────
