@@ -152,6 +152,8 @@ export interface MeResponse {
   email: string;
   roles: string[];
   isPaid: boolean;
+  planType: string | null;
+  paidExpiresAt: string | null;
 }
 
 export interface RegisterResponse {
@@ -691,7 +693,7 @@ export function getStorefrontBySlug(slug: string) {
 // All published storefronts across every vendor — the customer/vendor discovery directory.
 // Distinct from getMyStorefronts(), which is scoped to the signed-in vendor's own stores.
 export function getAllStorefronts() {
-  return request<StorefrontResponse[]>('GET', '/api/business/storefronts', undefined, false);
+  return request<StorefrontResponse[]>('GET', '/api/business/storefronts/all', undefined, false);
 }
 
 export function getStorefrontRatings(): Promise<StorefrontRating[]> {

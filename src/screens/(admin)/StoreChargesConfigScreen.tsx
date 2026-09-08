@@ -72,7 +72,7 @@ export default function StoreChargesConfigScreen() {
       return;
     }
 
-    const vatFraction = rawVat > 1 ? rawVat / 100 : rawVat;
+    const vatFraction = rawVat;
     const finalDeliveryFee = deliveryEnabled ? rawDelivery : 0;
 
     try {

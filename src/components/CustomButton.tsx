@@ -9,6 +9,8 @@ export interface CustomButtonProps {
   loading?: boolean;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+  /** 'md' = default height, 'lg' = taller / more prominent */
+  size?: 'md' | 'lg';
   className?: string;
   textClassName?: string;
   activeOpacity?: number;
@@ -34,17 +36,22 @@ export default function CustomButton({
   loading = false,
   disabled = false,
   variant = 'primary',
+  size = 'md',
   className,
   textClassName,
   activeOpacity = 0.8,
 }: CustomButtonProps) {
+  const verticalPadding = size === 'lg' ? 'py-5' : 'py-3.5';
   const isOutlineOrSecondary = variant === 'outline' || variant === 'secondary';
   const spinnerColor = isOutlineOrSecondary ? '#059669' : '#ffffff';
 
   const content = loading ? (
-    <ActivityIndicator color={spinnerColor} />
+    <ActivityIndicator
+      size="small"
+      className='p-3 my-auto'
+      color={spinnerColor} />
   ) : (
-    <Text className={cn('text-base font-bold text-center', VARIANT_TEXT_CLASSES[variant], textClassName)}>
+    <Text className={cn('text-base p-3 font-bold text-center', VARIANT_TEXT_CLASSES[variant], textClassName)}>
       {title}
     </Text>
   );
@@ -63,7 +70,7 @@ export default function CustomButton({
           colors={['#10B981', '#047857']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          className="py-3.5 px-4 items-center justify-center"
+          className={cn('px-6 items-center justify-center', verticalPadding)}
         >
           {content}
         </LinearGradient>
@@ -74,7 +81,8 @@ export default function CustomButton({
   return (
     <TouchableOpacity
       className={cn(
-        'rounded-[10px] py-3.5 px-4 items-center justify-center',
+        'rounded-[10px] px-4 items-center justify-center',
+        verticalPadding,
         VARIANT_BUTTON_CLASSES[variant],
         (disabled || loading) && 'opacity-50',
         className

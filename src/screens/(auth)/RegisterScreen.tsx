@@ -20,13 +20,13 @@ interface Props {
 }
 
 const ROLE_OPTIONS: { role: AccountRole; label: string; icon: typeof Briefcase }[] = [
-  { role: 'vendor', label: 'Vendor', icon: Briefcase },
+  { role: 'merchant', label: 'Merchant', icon: Briefcase },
   { role: 'customer', label: 'Customer', icon: ShoppingCart },
 ];
 
 export default function RegisterScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const [role, setRole] = useState<AccountRole>('vendor');
+  const [role, setRole] = useState<AccountRole>('merchant');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

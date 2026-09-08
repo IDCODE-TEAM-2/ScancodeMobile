@@ -75,7 +75,10 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
           <Text className="text-[22px] font-bold text-gray-900 dark:text-white text-center mb-2.5">Verify your email</Text>
           <Text className="text-[15px] text-gray-500 dark:text-zinc-400 text-center leading-[22px] mb-8">
             Enter the 6-digit code we sent to{'\n'}
-            <Text className="text-primary font-semibold">{email}</Text>
+            <Text className="text-primary font-semibold">{email}</Text>{'\n'}
+            <Text className="text-[15px] text-gray-500 dark:text-zinc-400 text-center leading-[22px] mb-8">
+              This code is valid for 60 seconds
+            </Text>
           </Text>
 
           {error && (
@@ -88,9 +91,8 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
               <Text className="text-emerald-800 dark:text-emerald-300 text-sm text-center">{success}</Text>
             </View>
           )}
-
           <TextInput
-            className="border-2 border-primary rounded-2xl px-3.5 py-[18px] text-[28px] font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-zinc-900 mb-5 tracking-[12px]"
+            className="border-2 border-primary rounded-2xl px-3.5 py-[18px] text-[28px] font-bold text-center text-gray-900 dark:text-white bg-gray-50 dark:bg-zinc-900 mb-5 tracking-[12px]"
             value={otp}
             onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))}
             keyboardType="number-pad"
