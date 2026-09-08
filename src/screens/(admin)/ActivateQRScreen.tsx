@@ -92,7 +92,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
 
           <View className="bg-emerald-50 rounded-xl p-4 items-center mb-4">
             <Text className="text-[13px] text-gray-500 mb-0.5">One-time Activation Fee</Text>
-            <Text className="text-[28px] font-extrabold text-primary">₦15,000</Text>
+            <Text className="text-[28px] font-extrabold text-primary">₦5,000</Text>
           </View>
 
           <View className="gap-2 mb-5">
@@ -137,7 +137,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text className="text-white text-base font-bold">
-                  {step === 'waiting' ? 'Verify Payment' : 'Pay ₦15,000 with Paystack'}
+                  {step === 'waiting' ? 'Verify Payment' : 'Pay ₦5,000 with Paystack'}
                 </Text>
               )}
             </TouchableOpacity>

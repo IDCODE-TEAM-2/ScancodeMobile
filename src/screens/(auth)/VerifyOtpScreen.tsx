@@ -77,7 +77,7 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
             Enter the 6-digit code we sent to{'\n'}
             <Text className="text-primary font-semibold">{email}</Text>{'\n'}
             <Text className="text-[15px] text-gray-500 dark:text-zinc-400 text-center leading-[22px] mb-8">
-              This code is valid for 60 seconds
+              This code is valid for 10 minutes
             </Text>
           </Text>
 

@@ -1088,6 +1088,9 @@ export function initializePayment(purpose: PaymentPurpose, slug: string) {
   return request<PaymentInitResponse>('POST', '/api/payments/initialize', {
     purpose,
     payload: JSON.stringify({ slug }),
+    // Lets Paystack redirect straight back into the app instead of the web /pay/callback
+    // page, so WebBrowser.openAuthSessionAsync (see ActivateQRScreen) can auto-close.
+    redirectUrl: 'scancode://payment-complete',
   });
 }
 

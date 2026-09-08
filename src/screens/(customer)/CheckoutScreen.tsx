@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CheckCircle2, WifiOff } from 'lucide-react-native';
+import { CheckCircle2, WifiOff, Phone } from 'lucide-react-native';
 import { createOrder, getStoreConfig, getStorefrontBySlug, type OrderResponse } from '../../api';
 import * as Haptics from '../../utils/haptics';
 import { isOffline, queueOrder } from '../../utils/offlineQueue';
@@ -20,6 +20,10 @@ import { useCart } from '../../context/CartContext';
 import { useAppContext } from '../../context/AppContext';
 import { parseStorefrontData } from '../../utils/parseStorefrontData';
 import { cn } from '../../utils/cn';
+
+// Table/room concept only exists for these business types — a plain product or business-
+// card storefront has nowhere to deliver a "table," so the field never applies to it.
+const TABLE_AWARE_BUSINESS_TYPES = new Set(['RESTAURANT', 'HOTEL']);
 
 interface Props {
   navigation: NavigationProp<'Checkout'>;
@@ -33,12 +37,19 @@ export default function CheckoutScreen({ navigation, route }: Props) {
 
   const [cart] = useState<CartItem[]>(initialCart || []);
   const [storefrontId, setStorefrontId] = useState<number | null>(initialStorefrontId || null);
-  const [vendor, setVendor] = useState<{ name: string; bankName?: string; accountNumber?: string } | null>(null);
+  const [vendor, setVendor] = useState<{
+    name: string;
+    bankName?: string;
+    accountNumber?: string;
+    phone?: string;
+    businessType?: string;
+  } | null>(null);
 
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [tableCode, setTableCode] = useState(table || '');
+  const [manualTableCode, setManualTableCode] = useState('');
+  // Already known (customer scanned a table's QR code) — never ask again. Otherwise, only
+  // restaurant/hotel storefronts have a table/room to ask for in the first place.
+  const needsTableInput = !table && TABLE_AWARE_BUSINESS_TYPES.has(vendor?.businessType ?? '');
+  const tableCode = table || manualTableCode;
 
   const [vatRate, setVatRate] = useState(0.075);
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -65,6 +76,8 @@ export default function CheckoutScreen({ navigation, route }: Props) {
           name: sf.name,
           bankName: customData.bankName,
           accountNumber: customData.accountNumber,
+          phone: customData.phone,
+          businessType: sf.businessType,
         });
 
         const config = await getStoreConfig(activeStoreId).catch(() => null);
@@ -88,7 +101,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
   }, [slug]);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const vat = Math.round(subtotal * vatRate);
+  const vat = Number((subtotal * vatRate).toFixed(2));
   const total = subtotal + vat + deliveryFee;
 
   const handlePlaceOrder = async () => {
@@ -96,19 +109,19 @@ export default function CheckoutScreen({ navigation, route }: Props) {
       Alert.alert('Empty Cart', 'Your cart has no items.');
       return;
     }
-    if (!customerName.trim() || !customerPhone.trim()) {
-      Alert.alert('Required Fields', 'Please enter your name and phone number.');
-      return;
-    }
     if (!storefrontId) {
       Alert.alert('Storefront Missing', 'Could not resolve the storefront identifier.');
       return;
     }
+    if (needsTableInput && !manualTableCode.trim()) {
+      Alert.alert(
+        vendor?.businessType === 'HOTEL' ? 'Room Code Required' : 'Table Code Required',
+        `Please enter your ${vendor?.businessType === 'HOTEL' ? 'room' : 'table'} code so staff know where to bring your order.`
+      );
+      return;
+    }
 
     const body = {
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      customerEmail: customerEmail.trim() || undefined,
       tableCode: tableCode.trim() || undefined,
       items: cart.map((i) => ({
         id: String(i.id),
@@ -189,9 +202,26 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                 <CheckCircle2 size={34} color="#059669" strokeWidth={2} />
               </View>
               <Text className="text-[22px] font-extrabold text-gray-900 dark:text-white text-center mb-1.5">Order Placed Successfully!</Text>
-              <Text className="text-sm text-gray-600 dark:text-zinc-400 text-center mb-6">
-                Order #{placedOrder.id} is registered as <Text className="font-bold text-amber-600 dark:text-amber-400">PENDING PAYMENT</Text>
+              <Text className="text-sm text-gray-600 dark:text-zinc-400 text-center mb-4">
+                Your order code is registered as <Text className="font-bold text-amber-600 dark:text-amber-400">PENDING PAYMENT</Text>
               </Text>
+
+              <View className="bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl px-5 py-3 mb-4 items-center border border-emerald-100 dark:border-emerald-900">
+                <Text className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 tracking-wide">YOUR ORDER CODE</Text>
+                <Text className="text-2xl font-extrabold text-emerald-800 dark:text-emerald-300">#{placedOrder.id}</Text>
+              </View>
+
+              {vendor?.phone ? (
+                <View className="flex-row items-center gap-2 bg-white dark:bg-[#18181B] rounded-2xl p-3.5 mb-4 border border-gray-200 dark:border-zinc-800 w-full shadow-sm">
+                  <Phone size={18} color="#374151" strokeWidth={2} />
+                  <View className="flex-1">
+                    <Text className="text-[12px] text-gray-500 dark:text-zinc-400">
+                      {vendor.businessType === 'HOTEL' ? 'Front desk contact' : 'Restaurant / waiter contact'}
+                    </Text>
+                    <Text className="text-sm font-bold text-gray-900 dark:text-white">{vendor.phone}</Text>
+                  </View>
+                </View>
+              ) : null}
 
               <View className="bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-4 border border-gray-200 dark:border-zinc-800 w-full shadow-sm">
                 <Text className="text-sm text-gray-500 dark:text-zinc-400 text-center">Payment Due</Text>
@@ -279,52 +309,21 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                 </View>
               </View>
 
-              <Text className="text-base font-bold text-gray-900 dark:text-white mb-2.5 mt-2">Customer Details</Text>
-
-              <View className="bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-4 border border-gray-200 dark:border-zinc-800 shadow-sm">
-                <Text className="text-[13px] font-semibold text-gray-700 dark:text-zinc-300 mb-1 mt-2">Full Name *</Text>
-                <TextInput
-                  className="border border-gray-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-900"
-                  value={customerName}
-                  onChangeText={setCustomerName}
-                  placeholder="e.g. John Doe"
-                  placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
-                  editable={!isSubmitting}
-                />
-
-                <Text className="text-[13px] font-semibold text-gray-700 dark:text-zinc-300 mb-1 mt-2">Phone Number *</Text>
-                <TextInput
-                  className="border border-gray-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-900"
-                  value={customerPhone}
-                  onChangeText={setCustomerPhone}
-                  keyboardType="phone-pad"
-                  placeholder="e.g. 08012345678"
-                  placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
-                  editable={!isSubmitting}
-                />
-
-                <Text className="text-[13px] font-semibold text-gray-700 dark:text-zinc-300 mb-1 mt-2">Email Address (Optional)</Text>
-                <TextInput
-                  className="border border-gray-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-900"
-                  value={customerEmail}
-                  onChangeText={setCustomerEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholder="you@example.com"
-                  placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
-                  editable={!isSubmitting}
-                />
-
-                <Text className="text-[13px] font-semibold text-gray-700 dark:text-zinc-300 mb-1 mt-2">Table / Room Code (Optional)</Text>
-                <TextInput
-                  className="border border-gray-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-900"
-                  value={tableCode}
-                  onChangeText={setTableCode}
-                  placeholder="e.g. T-04"
-                  placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
-                  editable={!isSubmitting}
-                />
-              </View>
+              {needsTableInput && (
+                <View className="bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-4 border border-gray-200 dark:border-zinc-800 shadow-sm">
+                  <Text className="text-[13px] font-semibold text-gray-700 dark:text-zinc-300 mb-1">
+                    {vendor?.businessType === 'HOTEL' ? 'Room Code' : 'Table Code'} *
+                  </Text>
+                  <TextInput
+                    className="border border-gray-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-900"
+                    value={manualTableCode}
+                    onChangeText={setManualTableCode}
+                    placeholder={vendor?.businessType === 'HOTEL' ? 'e.g. Room 204' : 'e.g. T-04'}
+                    placeholderTextColor={isDark ? '#71717A' : '#9CA3AF'}
+                    editable={!isSubmitting}
+                  />
+                </View>
+              )}
 
               <TouchableOpacity
                 className={cn('bg-primary rounded-xl py-4 items-center mt-2 self-stretch', isSubmitting && 'opacity-60')}
