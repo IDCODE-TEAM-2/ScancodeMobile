@@ -48,7 +48,8 @@
           "photosPermission": "ScanCode uses your photo library so you can upload a storefront logo, images, or product photos.",
           "cameraPermission": false
         }
-      ]
+      ],
+      "expo-asset"
     ]
   }
 }
