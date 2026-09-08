@@ -10,6 +10,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { View, Text, ActivityIndicator } from 'react-native';
 import type { RootStackParamList } from './src/types';
 import { getToken, deleteToken, onUnauthorized } from './src/api';
+import { resolveAppState } from './src/utils/resolveAppState';
 import { registerForPushNotificationsAsync } from './src/utils/pushNotifications';
 import { initOfflineQueue } from './src/utils/offlineQueue';
 import { AppContextProvider, useAppContext, type AppState } from './src/context/AppContext';
@@ -338,7 +339,11 @@ function App() {
     async function bootstrap() {
       try {
         const token = await getToken();
-        setAppState(token ? 'admin' : 'logged_out');
+        if (!token) {
+          setAppState('logged_out');
+          return;
+        }
+        setAppState(await resolveAppState());
       } catch {
         setAppState('logged_out');
       }

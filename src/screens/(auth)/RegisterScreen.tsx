@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Briefcase, ShoppingCart, Check } from 'lucide-react-native';
 import { register, type AccountRole } from '../../api';
+import { setIntendedMerchant } from '../../utils/resolveAppState';
 import type { NavigationProp } from '../../types';
 import CustomInput from '../../components/CustomInput';
 import CustomButton from '../../components/CustomButton';
@@ -47,6 +48,11 @@ export default function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await register(username.trim(), email.trim(), password, role);
+      // The server doesn't persist which role was chosen (see resolveAppState.ts), so a
+      // merchant who hasn't created their first storefront yet needs this local flag to
+      // land on the Dashboard after verifying — otherwise they'd have no storefronts to be
+      // detected by, and would be routed to the customer view instead.
+      await setIntendedMerchant(role === 'merchant');
       // Server sends an OTP to the email — navigate to the verify screen
       navigation.navigate('VerifyOtp', { email: email.trim().toLowerCase() });
     } catch (err: unknown) {

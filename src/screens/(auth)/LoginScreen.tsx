@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QrCode, Compass } from 'lucide-react-native';
 import { login, saveToken } from '../../api';
+import { resolveAppState } from '../../utils/resolveAppState';
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import CustomInput from '../../components/CustomInput';
@@ -33,8 +34,7 @@ export default function LoginScreen({ navigation }: Props) {
     try {
       const res = await login(loginEmail.trim(), loginPassword);
       await saveToken(res.token);
-      const isMerchant = Array.isArray(res.roles) && res.roles.includes('ROLE_MERCHANT');
-      setAppState(isMerchant ? 'admin' : 'customer');
+      setAppState(await resolveAppState());
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed. Try again.');
     } finally {
