@@ -1096,6 +1096,9 @@ export function initializePayment(
     {
       purpose,
       payload: payloadStr,
+      // Lets Paystack redirect straight back into the app instead of the web /pay/callback
+      // page, so WebBrowser.openAuthSessionAsync (see utils/paystack.ts) can auto-close.
+      redirectUrl: 'scancode://payment-complete',
     },
     requireAuth,
   );
