@@ -182,7 +182,7 @@ export default function AccessPageGuestScreen({ route }: Props) {
               </View>
             ) : (
               <TextInput
-                className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 dark:text-white bg-white dark:bg-[#18181B]"
+                className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-[#18181B]"
                 value={responses[f.id] ?? ''}
                 onChangeText={(v) => setResponse(f.id, v)}
                 placeholder={f.type === 'number' ? '0' : f.type === 'date' ? 'YYYY-MM-DD' : `Enter ${f.label.toLowerCase()}`}

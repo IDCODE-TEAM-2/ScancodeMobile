@@ -27,7 +27,7 @@ export default function CustomInput({
       <View className="relative">
         <TextInput
           className={cn(
-            'border-[1.5px] border-gray-300 dark:border-zinc-700 rounded-[10px] px-3.5 py-3 text-[15px] text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-900',
+            'border-[1.5px] border-gray-300 dark:border-zinc-700 rounded-[10px] px-3 py-2.5 text-sm text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-900',
             isPassword && 'pr-11',
             error && 'border-red-500 dark:border-red-500',
             !editable && 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500',

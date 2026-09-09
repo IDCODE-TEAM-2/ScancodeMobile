@@ -244,7 +244,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
 
           <Text className="text-sm font-semibold text-gray-700 mb-1.5">Name <Text className="text-red-600">*</Text></Text>
           <TextInput
-            className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
+            className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4"
             value={form.name}
             onChangeText={(v) => setForm((p) => ({ ...p, name: v }))}
             placeholder="e.g. Jollof Rice & Chicken"
@@ -253,7 +253,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
 
           <Text className="text-sm font-semibold text-gray-700 mb-1.5">Description</Text>
           <TextInput
-            className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4 h-[80px]"
+            className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4 h-[80px]"
             value={form.description}
             onChangeText={(v) => setForm((p) => ({ ...p, description: v }))}
             placeholder="Describe this item…"
@@ -266,7 +266,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
             <View className="flex-1">
               <Text className="text-sm font-semibold text-gray-700 mb-1.5">Price (₦) <Text className="text-red-600">*</Text></Text>
               <TextInput
-                className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
+                className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4"
                 value={form.price}
                 onChangeText={(v) => setForm((p) => ({ ...p, price: v.replace(/[^0-9.]/g, '') }))}
                 placeholder="2500"
@@ -277,7 +277,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
             <View className="flex-1">
               <Text className="text-sm font-semibold text-gray-700 mb-1.5">Stock <Text className="text-red-600">*</Text></Text>
               <TextInput
-                className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
+                className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4"
                 value={form.stock}
                 onChangeText={(v) => setForm((p) => ({ ...p, stock: v.replace(/\D/g, '') }))}
                 placeholder="50"
@@ -289,7 +289,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
 
           <Text className="text-sm font-semibold text-gray-700 mb-1.5">Category</Text>
           <TextInput
-            className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
+            className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4"
             value={form.category}
             onChangeText={(v) => setForm((p) => ({ ...p, category: v }))}
             placeholder="e.g. Main Course"

@@ -238,7 +238,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
               </Text>
 
               <TouchableOpacity
-                className="rounded-xl py-4 items-center mt-2 self-stretch border-[1.5px] border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800"
+                className="rounded-xl py-3 items-center mt-2 self-stretch border-[1.5px] border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800"
                 onPress={() => navigation.navigate('Storefront', { slug })}
               >
                 <Text className="text-gray-600 dark:text-zinc-200 text-[15px] font-semibold">Return to Storefront</Text>
@@ -343,7 +343,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
               </View>
 
               <TouchableOpacity
-                className="bg-primary rounded-xl py-4 items-center mt-2 self-stretch"
+                className="bg-primary rounded-xl py-3 items-center mt-2 self-stretch"
                 onPress={() =>
                   navigation.navigate('OrderReceiptTracker', {
                     orderId: placedOrder.id,
@@ -419,7 +419,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
               )}
 
               <TouchableOpacity
-                className={cn('bg-primary rounded-xl py-4 items-center mt-2 self-stretch', isSubmitting && 'opacity-60')}
+                className={cn('bg-primary rounded-xl py-3 items-center mt-2 self-stretch', isSubmitting && 'opacity-60')}
                 onPress={handlePlaceOrder}
                 disabled={isSubmitting || isLoadingConfig}
                 activeOpacity={0.8}

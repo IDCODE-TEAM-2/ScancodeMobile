@@ -42,7 +42,7 @@ export default function GradientButton({
         end={{ x: 1, y: 1 }}
         style={{ flex: 1 }}
       >
-        <View className={cn('items-center justify-center flex-1 flex-row gap-2', contentClassName ?? 'px-6 py-4')}>
+        <View className={cn('items-center justify-center flex-1 flex-row gap-2', contentClassName ?? 'px-5 py-3')}>
           {children}
         </View>
       </LinearGradient>

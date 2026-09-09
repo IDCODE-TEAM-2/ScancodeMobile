@@ -41,7 +41,7 @@ export default function CustomButton({
   textClassName,
   activeOpacity = 0.8,
 }: CustomButtonProps) {
-  const verticalPadding = size === 'lg' ? 'py-5' : 'py-3.5';
+  const verticalPadding = size === 'lg' ? 'py-4' : 'py-3';
   const isOutlineOrSecondary = variant === 'outline' || variant === 'secondary';
   const spinnerColor = isOutlineOrSecondary ? '#059669' : '#ffffff';
 

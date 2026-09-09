@@ -353,7 +353,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
 
         <Text className="text-sm font-semibold text-gray-700 mb-1.5">Business Name <Text className="text-red-600">*</Text></Text>
         <TextInput
-          className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
+          className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4"
           value={name}
           onChangeText={setName}
           placeholder="e.g. Mama Ade's Kitchen"
@@ -364,7 +364,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
 
         <Text className="text-sm font-semibold text-gray-700 mb-1.5">Business Description <Text className="text-red-600">*</Text></Text>
         <TextInput
-          className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4 h-[90px]"
+          className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4 h-[90px]"
           value={description}
           onChangeText={setDescription}
           placeholder="Describe what your business sells or offers…"
@@ -380,7 +380,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
           <View className="flex-1">
             <Text className="text-sm font-semibold text-gray-700 mb-1.5">Phone Number</Text>
             <TextInput
-              className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
+              className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4"
               value={phone}
               onChangeText={setPhone}
               placeholder="e.g. 08000000000"
@@ -392,7 +392,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
           <View className="flex-1">
             <Text className="text-sm font-semibold text-gray-700 mb-1.5">Email Address</Text>
             <TextInput
-              className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-4"
+              className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4"
               value={email}
               onChangeText={setEmail}
               placeholder="info@company.com"
@@ -460,7 +460,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
         )}
         <View className="flex-row gap-2 mb-1">
           <TextInput
-            className="flex-1 border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white"
+            className="flex-1 border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white"
             value={categoryInput}
             onChangeText={setCategoryInput}
             placeholder={businessType === 'PRODUCT' ? "e.g. Sneakers" : "e.g. Single Room"}
@@ -469,7 +469,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
             maxLength={30}
             onSubmitEditing={handleAddCategory}
           />
-          <TouchableOpacity className="bg-primary rounded-xl px-4.5 py-3 justify-center" onPress={handleAddCategory}>
+          <TouchableOpacity className="bg-primary rounded-xl px-4 py-2.5 justify-center" onPress={handleAddCategory}>
             <Text className="text-white font-bold text-sm">Add</Text>
           </TouchableOpacity>
         </View>
@@ -479,7 +479,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
           <Text className="text-base font-bold text-gray-900 mb-0.5">Bank Account Details</Text>
           <Text className="text-xs text-gray-500 mb-3.5">For customer transfers</Text>
           <TextInput
-            className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-3"
+            className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-3"
             value={bankName}
             onChangeText={setBankName}
             placeholder="Bank Name (e.g. Access Bank)"
@@ -487,7 +487,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
             editable={!loading}
           />
           <TextInput
-            className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white"
+            className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white"
             value={accountNumber}
             onChangeText={(v) => setAccountNumber(v.replace(/\D/g, ''))}
             placeholder="Account Number (10 digits)"

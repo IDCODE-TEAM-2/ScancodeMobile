@@ -104,7 +104,7 @@ export default function DashboardScreen({ navigation }: Props) {
     const counts = notifCounts[item.id] ?? EMPTY_NOTIF_COUNTS;
     const hasNotifications = counts.orders + counts.activity > 0;
     return (
-      <View className="bg-white dark:bg-[#18181B] rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-zinc-800">
+      <View className="bg-white dark:bg-[#18181B] rounded-xl p-4 shadow-sm border border-gray-200 dark:border-zinc-800">
         <View className="flex-row justify-between items-start mb-1.5">
           <View className="flex-row items-center flex-1 mr-2 gap-1.5 shrink">
             {hasNotifications && (
@@ -297,7 +297,7 @@ export default function DashboardScreen({ navigation }: Props) {
       {loading ? (
         <View className="p-4 gap-3">
           {[0, 1, 2].map((i) => (
-            <View key={i} className="bg-white dark:bg-[#18181B] rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-zinc-800">
+            <View key={i} className="bg-white dark:bg-[#18181B] rounded-xl p-4 shadow-sm border border-gray-200 dark:border-zinc-800">
               <View className="flex-row justify-between items-start mb-2.5">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-4 w-16 rounded-full" />

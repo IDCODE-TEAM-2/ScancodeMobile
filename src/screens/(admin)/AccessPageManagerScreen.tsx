@@ -266,7 +266,7 @@ export default function AccessPageManagerScreen({ route }: Props) {
 
           <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-1.5">Title <Text className="text-red-600">*</Text></Text>
           <TextInput
-            className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 dark:text-white bg-white dark:bg-[#18181B] mb-4"
+            className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-[#18181B] mb-4"
             value={title}
             onChangeText={setTitle}
             placeholder="e.g. Tolu & Ada's Wedding"
@@ -275,7 +275,7 @@ export default function AccessPageManagerScreen({ route }: Props) {
 
           <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-1.5">Description</Text>
           <TextInput
-            className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 dark:text-white bg-white dark:bg-[#18181B] mb-4 h-[70px]"
+            className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-[#18181B] mb-4 h-[70px]"
             value={description}
             onChangeText={setDescription}
             placeholder="Optional details shown to guests…"
@@ -286,7 +286,7 @@ export default function AccessPageManagerScreen({ route }: Props) {
 
           <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-1.5">Exclusive Content</Text>
           <TextInput
-            className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 dark:text-white bg-white dark:bg-[#18181B] mb-4 h-[70px]"
+            className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-[#18181B] mb-4 h-[70px]"
             value={exclusiveContent}
             onChangeText={setExclusiveContent}
             placeholder="Shown to guests after they check in (e.g. venue directions, wifi code)…"
