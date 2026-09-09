@@ -12,13 +12,14 @@ import {
   Image,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { Camera, X, Plus, Info, MapPin, Save } from 'lucide-react-native';
+import { Camera, X, Plus, Info, MapPin } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { createStorefront, updateStorefront, getMyStorefronts, API_BASE, getToken } from '../../api';
 import { NIGERIA_STATES, type NavigationProp, type RouteProps } from '../../types';
 import { parseStorefrontData } from '../../utils/parseStorefrontData';
 import * as FileSystem from 'expo-file-system/legacy';
 import { isImageTooLarge } from '../../utils/validateImageSize';
+import GradientButton from '../../components/GradientButton';
 import { cn } from '../../utils/cn';
 
 interface Props {
@@ -506,23 +507,20 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        <TouchableOpacity
-          className={cn('rounded-xl py-4 items-center flex-row justify-center gap-2', loading ? 'bg-primary/55' : 'bg-primary')}
+        <GradientButton
+          className="rounded-xl"
           onPress={handleSubmit}
           disabled={loading}
           activeOpacity={0.85}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
-          ) : isEditMode ? (
-            <>
-              <Text className="text-white text-base font-bold tracking-wide">Save Changes</Text>
-              <Save size={17} color="#FFFFFF" strokeWidth={2.2} />
-            </>
           ) : (
-            <Text className="text-white text-base font-bold tracking-wide">Launch Storefront</Text>
+            <Text className="text-white text-base font-bold tracking-wide">
+              {isEditMode ? 'Save Changes' : 'Launch Storefront'}
+            </Text>
           )}
-        </TouchableOpacity>
+        </GradientButton>
       </ScrollView>
     </KeyboardAvoidingView>
   );

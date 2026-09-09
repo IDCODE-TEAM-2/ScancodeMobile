@@ -15,6 +15,7 @@ import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import Skeleton from '../../components/Skeleton';
+import GradientButton from '../../components/GradientButton';
 import { confirmAction } from '../../utils/alerts';
 import { cn } from '../../utils/cn';
 
@@ -112,8 +113,8 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text className="text-base font-bold text-gray-900 dark:text-white shrink" numberOfLines={1}>{item.name}</Text>
           </View>
           <View className="flex-row items-center gap-2">
-            <View className={cn('rounded-full px-2.5 py-[3px]', published ? 'bg-emerald-100 dark:bg-emerald-950' : 'bg-amber-100 dark:bg-amber-950')}>
-              <Text className={cn('text-xs font-semibold', published ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300')}>
+            <View className={cn('rounded-full px-2.5 py-[3px]', published ? 'bg-emerald-100 dark:bg-emerald-950' : 'bg-gray-200 dark:bg-zinc-800')}>
+              <Text className={cn('text-xs font-semibold', published ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-600 dark:text-zinc-400')}>
                 {published ? 'Published' : 'QR Locked'}
               </Text>
             </View>
@@ -152,8 +153,9 @@ export default function DashboardScreen({ navigation }: Props) {
               </TouchableOpacity>
             </>
           ) : (
-            <TouchableOpacity
-              className="flex-1 border-[1.5px] border-primary bg-primary rounded-lg py-2 items-center"
+            <GradientButton
+              className="flex-1 rounded-lg"
+              contentClassName="py-2"
               onPress={() =>
                 navigation.navigate('ActivateQR', {
                   storefrontId: item.id,
@@ -164,7 +166,7 @@ export default function DashboardScreen({ navigation }: Props) {
               activeOpacity={0.7}
             >
               <Text className="text-white font-semibold text-sm">Activate QR</Text>
-            </TouchableOpacity>
+            </GradientButton>
           )}
         </View>
 
@@ -347,14 +349,14 @@ export default function DashboardScreen({ navigation }: Props) {
         />
       )}
 
-      <TouchableOpacity
-        className="absolute bottom-6 left-5 right-5 bg-primary rounded-xl py-4 items-center flex-row justify-center gap-2 shadow-lg"
+      <GradientButton
+        className="absolute bottom-6 left-5 right-5 rounded-xl shadow-lg"
         onPress={() => navigation.navigate('CreateStorefront')}
         activeOpacity={0.85}
       >
         <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
         <Text className="text-white text-base font-bold">New Storefront</Text>
-      </TouchableOpacity>
+      </GradientButton>
     </View>
   );
 }
