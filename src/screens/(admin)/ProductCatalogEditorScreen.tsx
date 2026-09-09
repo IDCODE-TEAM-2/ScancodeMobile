@@ -26,6 +26,7 @@ import {
 } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
+import { isImageTooLarge } from '../../utils/validateImageSize';
 import { cn } from '../../utils/cn';
 
 interface Props {
@@ -114,6 +115,11 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
       quality: 0.85,
     });
     if (result.canceled || !result.assets?.length) return;
+
+    if (isImageTooLarge(result.assets[0].fileSize)) {
+      Alert.alert('Image Too Large', 'This image is larger than 3 MB. Please choose a smaller file.');
+      return;
+    }
 
     setUploadingImage(true);
     try {

@@ -938,16 +938,13 @@ export function createStoreRequest(storefrontId: number, body: {
   return request<{ id: number }>('POST', `/api/storefronts/${storefrontId}/requests`, body, false);
 }
 
-export async function getStorefrontRequests(storefrontId: number): Promise<StoreRequestRecord[]> {
-  const raw = await request<any[]>('GET', `/api/storefronts/${storefrontId}/requests`);
-  return raw.map((item) => ({
-    ...item,
-    status: 'PENDING',
-  }));
+export function getStorefrontRequests(storefrontId: number): Promise<StoreRequestRecord[]> {
+  return request<StoreRequestRecord[]>('GET', `/api/storefronts/${storefrontId}/requests`);
 }
 
-export function acknowledgeStoreRequest(storefrontId: number, requestId: number): Promise<void> {
-  return Promise.resolve();
+/** Matches PATCH /api/storefronts/{id}/requests/{requestId}/acknowledge */
+export function acknowledgeStoreRequest(storefrontId: number, requestId: number): Promise<StoreRequestRecord> {
+  return request<StoreRequestRecord>('PATCH', `/api/storefronts/${storefrontId}/requests/${requestId}/acknowledge`);
 }
 
 // ─── Tips ─────────────────────────────────────────────────────────────────────
@@ -960,16 +957,13 @@ export function createStoreTip(storefrontId: number, body: {
   return request<{ id: number }>('POST', `/api/storefronts/${storefrontId}/tips`, body, false);
 }
 
-export async function getStorefrontTips(storefrontId: number): Promise<TipRecord[]> {
-  const raw = await request<any[]>('GET', `/api/storefronts/${storefrontId}/tips`);
-  return raw.map((item) => ({
-    ...item,
-    status: 'PENDING',
-  }));
+export function getStorefrontTips(storefrontId: number): Promise<TipRecord[]> {
+  return request<TipRecord[]>('GET', `/api/storefronts/${storefrontId}/tips`);
 }
 
-export function acknowledgeTip(storefrontId: number, tipId: number): Promise<void> {
-  return Promise.resolve();
+/** Matches PATCH /api/storefronts/{id}/tips/{tipId}/acknowledge */
+export function acknowledgeTip(storefrontId: number, tipId: number): Promise<TipRecord> {
+  return request<TipRecord>('PATCH', `/api/storefronts/${storefrontId}/tips/${tipId}/acknowledge`);
 }
 
 // ─── Feedback ─────────────────────────────────────────────────────────────────

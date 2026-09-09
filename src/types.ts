@@ -180,6 +180,7 @@ export type RootStackParamList = {
   ToolbarRequestsAdmin: { storefrontId: number; name?: string; slug?: string };
   EventsManager: { storefrontId: number; slug?: string; name?: string };
   ProductCatalogEditor: { storefrontId: number; slug?: string; name?: string };
+  ManageTables: { storefrontId: number; slug: string; name?: string };
   Services: undefined;
   CreateEvent: undefined;
   StorefrontDirectory: undefined;

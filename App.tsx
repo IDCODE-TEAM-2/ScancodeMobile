@@ -47,6 +47,7 @@ import ToolbarRequestsAdminScreen from './src/screens/(admin)/ToolbarRequestsAdm
 import EventsManagerScreen from './src/screens/(admin)/EventsManagerScreen';
 import ServicesScreen from './src/screens/(admin)/ServicesScreen';
 import ProductCatalogEditorScreen from './src/screens/(admin)/ProductCatalogEditorScreen';
+import ManageTablesScreen from './src/screens/(admin)/ManageTablesScreen';
 import AccessPageManagerScreen from './src/screens/(admin)/AccessPageManagerScreen';
 import StorefrontDirectoryScreen from './src/screens/(customer)/StorefrontDirectoryScreen';
 import AccessPageGuestScreen from './src/screens/(customer)/AccessPageGuestScreen';
@@ -185,6 +186,14 @@ function AdminNavigator({ screenOptions }: { screenOptions: NativeStackNavigatio
         component={ProductCatalogEditorScreen}
         options={({ route }) => ({
           title: route.params?.name ? `${route.params.name} - Products` : 'Product Catalog',
+          headerBackTitle: 'Back',
+        })}
+      />
+      <AdminStack.Screen
+        name="ManageTables"
+        component={ManageTablesScreen}
+        options={({ route }) => ({
+          title: route.params?.name ? `${route.params.name} - Tables` : 'Manage Tables',
           headerBackTitle: 'Back',
         })}
       />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
-import { Store, PlusCircle, Ticket, ChevronRight, Calendar, Sparkles } from 'lucide-react-native';
+import { Store, PlusCircle, Ticket, ChevronRight, Calendar, CalendarPlus } from 'lucide-react-native';
 import { getMyStorefronts, type StorefrontResponse } from '../../api';
 import type { NavigationProp } from '../../types';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
@@ -57,8 +57,8 @@ export default function ServicesScreen({ navigation }: Props) {
       <View className="mb-8">
         <View className="flex-row justify-between items-center mb-3">
           <View className="flex-row items-center gap-2">
-            <View className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-zinc-800 items-center justify-center">
-              <Ticket size={16} color={isDark ? '#FBBF24' : '#D97706'} />
+            <View className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-zinc-800 items-center justify-center">
+              <Ticket size={16} color={isDark ? '#D4D4D8' : '#374151'} />
             </View>
             <Text className="text-base font-extrabold text-gray-900 dark:text-white">
               Events &amp; Access Pages
@@ -71,12 +71,12 @@ export default function ServicesScreen({ navigation }: Props) {
 
         {/* Create Event Card */}
         <TouchableOpacity
-          className="flex-row items-center bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-3 border border-amber-200/80 dark:border-amber-900/30 shadow-sm"
+          className="flex-row items-center bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-3 border border-gray-200 dark:border-zinc-800 shadow-sm"
           onPress={() => navigation.navigate('CreateEvent')}
           activeOpacity={0.75}
         >
-          <View className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 items-center justify-center mr-3.5">
-            <Sparkles size={22} color={isDark ? '#FBBF24' : '#D97706'} strokeWidth={2} />
+          <View className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 items-center justify-center mr-3.5">
+            <CalendarPlus size={22} color={isDark ? '#34D399' : '#059669'} strokeWidth={2} />
           </View>
           <View className="flex-1">
             <Text className="text-base font-bold text-gray-900 dark:text-white">

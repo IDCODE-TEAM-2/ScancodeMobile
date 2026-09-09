@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ShoppingBag, Bell, Settings2, Settings as SettingsIcon, Calendar, Plus, LayoutGrid, Landmark, Compass, Package, Pencil } from 'lucide-react-native';
+import { ShoppingBag, Bell, Settings2, Settings as SettingsIcon, Calendar, Plus, LayoutGrid, Landmark, Compass, Package, Pencil, QrCode } from 'lucide-react-native';
 import {
   getMyStorefronts,
   deleteToken,
@@ -244,6 +244,25 @@ export default function DashboardScreen({ navigation }: Props) {
           <Package size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
           <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">Product Catalog</Text>
         </TouchableOpacity>
+
+        {(item.businessType === 'RESTAURANT' || item.businessType === 'HOTEL') && (
+          <TouchableOpacity
+            className="border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
+            onPress={() =>
+              navigation.navigate('ManageTables', {
+                storefrontId: item.id,
+                slug: item.slug,
+                name: item.name,
+              })
+            }
+            activeOpacity={0.7}
+          >
+            <QrCode size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
+            <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">
+              {item.businessType === 'HOTEL' ? 'Manage Rooms' : 'Manage Tables'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }

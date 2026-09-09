@@ -12,12 +12,13 @@ import {
   Image,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { Camera, X, Plus, Info, Rocket, MapPin, Save } from 'lucide-react-native';
+import { Camera, X, Plus, Info, MapPin, Save } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { createStorefront, updateStorefront, getMyStorefronts, API_BASE, getToken } from '../../api';
 import { NIGERIA_STATES, type NavigationProp, type RouteProps } from '../../types';
 import { parseStorefrontData } from '../../utils/parseStorefrontData';
 import * as FileSystem from 'expo-file-system/legacy';
+import { isImageTooLarge } from '../../utils/validateImageSize';
 import { cn } from '../../utils/cn';
 
 interface Props {
@@ -132,6 +133,11 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
     });
     if (result.canceled || !result.assets?.length) return;
 
+    if (isImageTooLarge(result.assets[0].fileSize)) {
+      setLogoError('This image is larger than 3 MB. Please choose a smaller file.');
+      return;
+    }
+
     setUploadingLogo(true);
     setLogoError(null);
     try {
@@ -156,6 +162,11 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
 
     const remaining = MAX_IMAGES - imageUris.length;
     const picked = result.assets.slice(0, remaining);
+
+    if (picked.some((a) => isImageTooLarge(a.fileSize))) {
+      setImageError('One or more images are larger than 3 MB. Please choose smaller files.');
+      return;
+    }
 
     setUploadingImages(true);
     setImageError(null);
@@ -273,7 +284,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
         )}
 
         <Text className="text-sm font-semibold text-gray-700 mb-1.5">Business Logo <Text className="text-red-600">*</Text></Text>
-        {logoError && <Text className="text-red-600 text-[13px] mb-1.5 -mt-1">{logoError}</Text>}
+        {logoError && <Text className="text-red-600 text-xs mb-1.5 -mt-1">{logoError}</Text>}
         <View className="flex-row items-center gap-4 mb-5">
           <TouchableOpacity
             className="w-[88px] h-[88px] rounded-full bg-gray-100 border-2 border-gray-300 border-dashed items-center justify-center overflow-hidden"
@@ -298,14 +309,14 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
                 {uploadingLogo ? 'Uploading…' : logoUri ? 'Change Logo' : 'Upload Logo'}
               </Text>
             </TouchableOpacity>
-            <Text className="text-xs text-gray-400 mb-4 mt-1">Max image size recommended: 10 MB.</Text>
+            <Text className="text-xs text-gray-400 mb-4 mt-1">Max image size: 3 MB.</Text>
           </View>
         </View>
 
         <Text className="text-sm font-semibold text-gray-700 mb-1.5">
-          Storefront Images <Text className="text-gray-400 font-normal text-[13px]">(up to {MAX_IMAGES}, optional)</Text>
+          Storefront Images <Text className="text-gray-400 font-normal text-xs">(up to {MAX_IMAGES}, optional)</Text>
         </Text>
-        {imageError && <Text className="text-red-600 text-[13px] mb-1.5 -mt-1">{imageError}</Text>}
+        {imageError && <Text className="text-red-600 text-xs mb-1.5 -mt-1">{imageError}</Text>}
         <View className="flex-row flex-wrap gap-2.5 mb-5">
           {imageUris.map((uri, idx) => (
             <View key={idx} className="w-[72px] h-[72px] rounded-[10px] overflow-hidden border border-gray-200">
@@ -331,8 +342,8 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
                 <ActivityIndicator color="#9CA3AF" />
               ) : (
                 <>
-                  <Plus size={22} color="#9CA3AF" strokeWidth={2.2} />
-                  <Text className="text-[10px] text-gray-400 mt-0.5">Add Image</Text>
+                  <Plus size={20} color="#9CA3AF" strokeWidth={2.2} />
+                  <Text className="text-xs text-gray-400 mt-0.5">Add Image</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -454,17 +465,18 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
             placeholder={businessType === 'PRODUCT' ? "e.g. Sneakers" : "e.g. Single Room"}
             placeholderTextColor="#9CA3AF"
             editable={!loading}
+            maxLength={30}
             onSubmitEditing={handleAddCategory}
           />
-          <TouchableOpacity className="bg-primary rounded-xl px-4.5 justify-center" onPress={handleAddCategory}>
+          <TouchableOpacity className="bg-primary rounded-xl px-4.5 py-3 justify-center" onPress={handleAddCategory}>
             <Text className="text-white font-bold text-sm">Add</Text>
           </TouchableOpacity>
         </View>
         <Text className="text-xs text-gray-400 mb-4 mt-1">Tap Add to set up menu categories.</Text>
 
         <View className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-5">
-          <Text className="text-[15px] font-bold text-gray-900 mb-0.5">Bank Account Details</Text>
-          <Text className="text-[13px] text-gray-500 mb-3.5">For customer transfers</Text>
+          <Text className="text-base font-bold text-gray-900 mb-0.5">Bank Account Details</Text>
+          <Text className="text-xs text-gray-500 mb-3.5">For customer transfers</Text>
           <TextInput
             className="border-[1.5px] border-gray-300 rounded-xl px-3.5 py-3 text-[15px] text-gray-900 bg-white mb-3"
             value={bankName}
@@ -495,7 +507,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
         )}
 
         <TouchableOpacity
-          className={cn('rounded-2xl py-4.5 items-center flex-row justify-center gap-2', loading ? 'bg-primary/55' : 'bg-primary')}
+          className={cn('rounded-xl py-4 items-center flex-row justify-center gap-2', loading ? 'bg-primary/55' : 'bg-primary')}
           onPress={handleSubmit}
           disabled={loading}
           activeOpacity={0.85}
@@ -508,10 +520,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
               <Save size={17} color="#FFFFFF" strokeWidth={2.2} />
             </>
           ) : (
-            <>
-              <Text className="text-white text-base font-bold tracking-wide">Launch Storefront</Text>
-              <Rocket size={17} color="#FFFFFF" strokeWidth={2.2} />
-            </>
+            <Text className="text-white text-base font-bold tracking-wide">Launch Storefront</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

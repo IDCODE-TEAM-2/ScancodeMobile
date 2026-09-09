@@ -179,6 +179,8 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
   useFocusRefresh(fetchOrders);
 
   async function handleUpdateStatus(orderId: number, newStatus: 'CONFIRMED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED') {
+    const previousStatus = orders.find((o) => o.id === orderId)?.status;
+
     // Instant optimistic update so buttons respond immediately on touch
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
@@ -192,12 +194,18 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
       Haptics.notifyWarning();
     }
 
-    if (storefrontId) {
-      try {
-        await updateOrderStatus(storefrontId, orderId, newStatus);
-      } catch {
-        // Fallback gracefully for local/mock test orders
-      }
+    if (!storefrontId) return;
+
+    try {
+      await updateOrderStatus(storefrontId, orderId, newStatus);
+    } catch (err: unknown) {
+      // The server rejected the update — revert the optimistic change instead of
+      // leaving the UI showing a status that was never actually saved.
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: previousStatus ?? o.status } : o))
+      );
+      const msg = err instanceof Error ? err.message : 'Could not update this order.';
+      Alert.alert("Couldn't Update Order", msg);
     }
   }
 
