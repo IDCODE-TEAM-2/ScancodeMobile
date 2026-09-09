@@ -156,7 +156,7 @@ export default function LoginScreen({ navigation }: Props) {
 
           {/* Footer Sign Up Link */}
           <TouchableOpacity
-            className="flex-row justify-center items-center py-6 mt-2"
+            className="flex-row justify-center items-center py-4 mt-2"
             onPress={() => navigation.navigate('Register')}
             disabled={loading}
           >

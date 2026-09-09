@@ -39,7 +39,6 @@ const expectedOperations: Record<string, string[]> = {
   '/api/storefronts/{storefrontId}/feedbacks': ['get', 'post'],
   '/api/storefronts/{storefrontId}/access-content': ['get', 'post'],
   '/api/storefronts/{storefrontId}/access-content/all': ['get'],
-  '/api/storefronts/{storefrontId}/registration-form': ['get', 'put'],
   '/api/event-types': ['get'],
   '/api/event-types/{type}/template': ['get'],
   '/api/payments/initialize': ['post'],

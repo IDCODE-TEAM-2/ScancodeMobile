@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, CalendarDays, HandCoins, Music2, Star, X, Check, Copy } from 'lucide-react-native';
+import { Bell, CalendarDays, HandCoins, Music2, Star, X, Check, Copy, CreditCard } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import {
   ActivityIndicator,
@@ -22,11 +22,20 @@ import {
 } from '../api';
 import { DAYS_OF_WEEK, type WeeklyEvents } from '../types';
 import { useAppContext } from '../context/AppContext';
+import { payWithPaystack } from '../utils/paystack';
 import { cn } from '../utils/cn';
 
 export type { DayEvent, WeeklyEvents } from '../types';
 
 type ToolPopup = 'assistance' | 'request' | 'tip' | 'feedback' | 'events';
+
+interface PendingPayment {
+  id: number;
+  type: 'REQUEST' | 'TIP';
+  title: string;
+  details: string;
+  amount: number;
+}
 
 interface StorefrontToolbarProps {
   storefrontId?: number | null;
@@ -68,6 +77,42 @@ export default function StorefrontToolbar({
   const [callEntities, setCallEntities] = useState(DEFAULT_CALL_ENTITIES);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
+  const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
+  const [isPayingOnline, setIsPayingOnline] = useState(false);
+
+  const handleCopyAccount = async () => {
+    if (!vendor?.accountNumber) return;
+    await Clipboard.setStringAsync(vendor.accountNumber);
+    setCopiedAccount(true);
+    setTimeout(() => setCopiedAccount(false), 2000);
+  };
+
+  const handlePayOnline = async () => {
+    if (!pendingPayment || !storefrontId) return;
+    setIsPayingOnline(true);
+    await payWithPaystack({
+      purpose: pendingPayment.type,
+      payload: {
+        storefrontId,
+        id: pendingPayment.id,
+        amount: pendingPayment.amount,
+        title: pendingPayment.title,
+      },
+      title: `${pendingPayment.title} Payment`,
+      onSuccess: () => {
+        setIsPayingOnline(false);
+        setPendingPayment(null);
+        Alert.alert('Payment Confirmed!', 'Your payment was successfully received and verified.');
+      },
+      onError: (msg) => {
+        setIsPayingOnline(false);
+        Alert.alert('Payment Error', msg);
+      },
+      onCancel: () => {
+        setIsPayingOnline(false);
+      },
+    });
+  };
 
   const [tableNumber, setTableNumber] = useState(tableCode ?? '');
   const [callTarget, setCallTarget] = useState(DEFAULT_CALL_ENTITIES[0]);
@@ -132,13 +177,6 @@ export default function StorefrontToolbar({
     return true;
   };
 
-  const handleCopyAccount = async () => {
-    if (!vendor?.accountNumber) return;
-    await Clipboard.setStringAsync(vendor.accountNumber);
-    setCopiedAccount(true);
-    setTimeout(() => setCopiedAccount(false), 2500);
-  };
-
   const submitAssistance = async () => {
     if (!requireStorefront()) return;
     if (!tableNumber.trim()) {
@@ -187,14 +225,32 @@ export default function StorefrontToolbar({
 
     try {
       setIsSubmitting(true);
-      await createStoreRequest(storefrontId!, {
+      const res = await createStoreRequest(storefrontId!, {
         requestType,
         details: requestDetails.trim(),
         amount: requestType === 'KARAOKE' ? 0 : requestAmount,
       });
+
+      const details = requestDetails.trim();
+      const currentType = requestType;
+      const amount = requestAmount;
+
       setRequestDetails('');
       setRequestAmount(5000);
-      showSuccess('Your request has been submitted.');
+      setActivePopup(null);
+
+      if (currentType === 'KARAOKE') {
+        showSuccess('Your karaoke request has been submitted.');
+      } else {
+        const title = currentType === 'SHOUTOUT' ? 'Special Shoutout Request' : `Song: ${details}`;
+        setPendingPayment({
+          id: res.id ?? Date.now(),
+          type: 'REQUEST',
+          title,
+          details,
+          amount,
+        });
+      }
     } catch {
       Alert.alert('Request failed', 'Unable to submit this request right now. Please try again.');
     } finally {
@@ -216,15 +272,27 @@ export default function StorefrontToolbar({
 
     try {
       setIsSubmitting(true);
-      await createStoreTip(storefrontId!, {
+      const res = await createStoreTip(storefrontId!, {
         recipient: tipRecipient.toUpperCase(),
         customRecipient: tipRecipient === 'Other' ? recipient : null,
         amount: tipAmount,
       });
+
+      const submittedRecipient = recipient;
+      const submittedAmount = tipAmount;
+
       setTipRecipient('Waiter');
       setCustomTipRecipient('');
       setTipAmount(100);
-      showSuccess(`Your ${money(tipAmount)} tip has been sent.`);
+      setActivePopup(null);
+
+      setPendingPayment({
+        id: res.id ?? Date.now(),
+        type: 'TIP',
+        title: `Tip to ${submittedRecipient}`,
+        details: `Tip amount: ₦${submittedAmount.toLocaleString()}`,
+        amount: submittedAmount,
+      });
     } catch {
       Alert.alert('Tip failed', 'Unable to submit this tip right now. Please try again.');
     } finally {
@@ -539,6 +607,110 @@ export default function StorefrontToolbar({
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* PAYMENT PENDING MODAL (Paystack & Bank Transfer) */}
+      {pendingPayment && (
+        <Modal
+          visible={!!pendingPayment}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPendingPayment(null)}
+        >
+          <Pressable
+            className="flex-1 bg-black/60 justify-center items-center p-4"
+            onPress={() => setPendingPayment(null)}
+          >
+            <Pressable
+              className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl p-5 border border-gray-200 dark:border-zinc-800 shadow-2xl"
+              onPress={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <View className="flex-row items-center justify-between pb-3 border-b border-gray-100 dark:border-zinc-800">
+                <View className="flex-row items-center gap-2.5">
+                  <View className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 items-center justify-center">
+                    {pendingPayment.type === 'TIP' ? (
+                      <HandCoins size={20} color="#059669" strokeWidth={2.5} />
+                    ) : (
+                      <Music2 size={20} color="#059669" strokeWidth={2.5} />
+                    )}
+                  </View>
+                  <View>
+                    <Text className="text-base font-bold text-gray-900 dark:text-white">Complete Payment</Text>
+                    <Text className="text-[11px] text-gray-500 dark:text-zinc-400">Transaction Pending</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setPendingPayment(null)}
+                  className="p-1.5 rounded-full bg-gray-100 dark:bg-zinc-800"
+                >
+                  <X size={16} color={isDark ? '#D4D4D8' : '#6B7280'} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Service Requested Summary */}
+              <View className="bg-gray-50 dark:bg-zinc-800/60 rounded-2xl p-3.5 my-3.5 border border-gray-100 dark:border-zinc-800">
+                <View className="flex-row justify-between items-start mb-1.5">
+                  <Text className="text-xs text-gray-500 dark:text-zinc-400 font-medium">Item:</Text>
+                  <Text className="text-xs font-bold text-gray-900 dark:text-white text-right flex-1 ml-2" numberOfLines={2}>
+                    {pendingPayment.title}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between items-center pt-2 border-t border-gray-200/60 dark:border-zinc-700/60">
+                  <Text className="text-xs text-gray-500 dark:text-zinc-400 font-medium">Amount Due:</Text>
+                  <Text className="text-lg font-extrabold text-primary">
+                    ₦{pendingPayment.amount.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Pay with Paystack Button */}
+              <TouchableOpacity
+                className={cn(
+                  'bg-emerald-600 rounded-xl py-3.5 px-4 items-center flex-row justify-center gap-2 shadow-sm mb-3',
+                  isPayingOnline && 'opacity-70',
+                )}
+                onPress={handlePayOnline}
+                disabled={isPayingOnline}
+                activeOpacity={0.85}
+              >
+                {isPayingOnline ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <CreditCard size={18} color="#FFFFFF" strokeWidth={2.5} />
+                    <Text className="text-white font-bold text-[15px]">
+                      Pay ₦{pendingPayment.amount.toLocaleString()} with Paystack
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Or Divider */}
+              <View className="flex-row items-center gap-2 mb-1">
+                <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
+                <Text className="text-[10px] font-semibold tracking-wider text-gray-400 dark:text-zinc-500 uppercase">
+                  Or Transfer to Store Bank
+                </Text>
+                <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
+              </View>
+
+              {/* Payment Account Block */}
+              <PaymentAccountBlock
+                vendor={vendor}
+                copied={copiedAccount}
+                onCopy={handleCopyAccount}
+              />
+
+              <TouchableOpacity
+                onPress={() => setPendingPayment(null)}
+                className="py-2.5 rounded-xl border border-gray-200 dark:border-zinc-800 items-center mt-3"
+              >
+                <Text className="text-xs font-semibold text-gray-600 dark:text-zinc-400">Close / I'll Pay Later</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
     </>
   );
 }
