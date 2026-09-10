@@ -1125,6 +1125,14 @@ export function verifyPayment(reference: string, requireAuth = false) {
   return request<PaymentVerifyResponse>('POST', '/api/payments/verify', { reference }, requireAuth);
 }
 
+// TEMPORARY — TestFlight/beta testing only. The server refuses this (403) unless its own
+// app.dev-skip-payment-enabled flag is explicitly turned on, which must never happen on the
+// production backend once real users are on it. Remove this call site (and the "Dev Skip"
+// button that uses it) before the build submitted for public App Store review.
+export function devSkipPayment(): Promise<void> {
+  return request<void>('POST', '/api/payments/dev-skip', undefined, true);
+}
+
 // ─── Event Type Catalog ────────────────────────────────────────────────────────
 
 /** Lists all available event types (CONCERT, WEDDING, etc.) with labels and icons. */

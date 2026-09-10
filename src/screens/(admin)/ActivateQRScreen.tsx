@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { CheckCircle2, PartyPopper } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { initializePayment, verifyPayment } from '../../api';
+import { initializePayment, verifyPayment, devSkipPayment } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
 import { cn } from '../../utils/cn';
 
@@ -62,6 +62,21 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
       await handleVerify(initRes.reference);
     } catch {
       handleVerify(initRes.reference);
+    }
+  }
+
+  async function handleDevSkip() {
+    setErrorMsg(null);
+    setStep('verifying');
+    try {
+      await devSkipPayment();
+      setStep('success');
+    } catch (err: unknown) {
+      // Expected on any server where the dev flag isn't explicitly enabled — 403 "not
+      // enabled". Not a real error state, just means this build's backend has it off.
+      const msg = err instanceof Error ? err.message : 'Dev skip is not enabled on this server.';
+      setErrorMsg(msg);
+      setStep('error');
     }
   }
 
@@ -140,6 +155,22 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                   {step === 'waiting' ? 'Verify Payment' : 'Pay ₦5,000 with Paystack'}
                 </Text>
               )}
+            </TouchableOpacity>
+          )}
+
+          {/* TEMPORARY — TestFlight testing only. Only works if the backend explicitly has
+              app.dev-skip-payment-enabled turned on (default off); otherwise this just shows
+              a "not enabled" error. Remove before the build submitted for App Store review. */}
+          {step !== 'success' && (
+            <TouchableOpacity
+              className={cn(
+                'border border-dashed border-gray-300 rounded-xl py-2.5 items-center mt-2.5',
+                (step === 'initializing' || step === 'verifying') && 'opacity-60'
+              )}
+              onPress={handleDevSkip}
+              disabled={step === 'initializing' || step === 'verifying'}
+            >
+              <Text className="text-gray-500 text-xs font-semibold">Dev Skip (Test Only)</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -4,7 +4,9 @@ import * as Clipboard from 'expo-clipboard';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -352,6 +354,10 @@ export default function StorefrontToolbar({
         transparent
         onRequestClose={closePopup}
       >
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
         <Pressable className="flex-1 bg-black/55 justify-end" onPress={closePopup}>
           <Pressable className="bg-white dark:bg-[#18181B] rounded-t-3xl px-5 pt-2.5 pb-[34px] max-h-[84%] border-t border-transparent dark:border-zinc-800" onPress={(event) => event.stopPropagation()}>
             <View className="w-10 h-[5px] rounded-full bg-gray-200 dark:bg-zinc-700 self-center mb-4" />
@@ -606,6 +612,7 @@ export default function StorefrontToolbar({
             </ScrollView>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* PAYMENT PENDING MODAL (Paystack & Bank Transfer) */}
