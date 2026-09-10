@@ -123,41 +123,6 @@ export interface ProductInput {
   isPopular?: boolean;
 }
 
-// ─── Access Page (event pages / guest check-in / exclusive content) ────────
-
-export type AccessPageType = 'CUSTOM' | 'WEDDING' | 'CONFERENCE' | 'CONCERT';
-
-export type AccessPageFieldType = 'text' | 'number' | 'date' | 'yesno' | 'dropdown';
-
-export interface AccessPageField {
-  id: string;
-  label: string;
-  type: AccessPageFieldType;
-  required?: boolean;
-  options?: string[]; // only for 'dropdown'
-}
-
-export interface AccessPage {
-  id: number;
-  storefrontId: number;
-  slug: string;
-  type: AccessPageType;
-  title: string;
-  description?: string;
-  fields: AccessPageField[];
-  exclusiveContent?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AccessPageGuestEntry {
-  id: number;
-  accessPageId: number;
-  responses: Record<string, string>;
-  checkedInAt: string;
-}
-
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
@@ -185,7 +150,7 @@ export type RootStackParamList = {
   CreateEvent: undefined;
   StorefrontDirectory: undefined;
   AccessPageManager: { storefrontId: number; slug?: string; name?: string };
-  AccessPageGuest: { accessPageSlug: string };
+  AccessPageGuest: { storefrontId: number; name?: string };
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
   Settings: undefined;

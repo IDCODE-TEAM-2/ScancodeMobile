@@ -19,7 +19,6 @@ import {
   createStorefront,
   saveEventDetails,
   saveRegistrationForm,
-  createAccessPage,
   API_BASE,
   getToken,
   type EventType,
@@ -32,13 +31,23 @@ interface Props {
   navigation: NavigationProp<'CreateEvent'>;
 }
 
+// Two picker options intentionally excluded even though the server accepts them: SPORTS
+// (a duplicate of SPORT already offered below) and PARTY (a duplicate of BIRTHDAY/Party
+// covers the common case) -- keeps the picker from offering confusing near-identical twins.
+// Both stay valid in the EventType union for compatibility with any existing data.
 const EVENT_TYPES: { type: EventType; label: string }[] = [
   { type: 'WEDDING', label: 'Wedding' },
   { type: 'CONCERT', label: 'Concert / Show' },
   { type: 'CONFERENCE', label: 'Conference / Summit' },
   { type: 'BIRTHDAY', label: 'Birthday / Party' },
-  { type: 'CORPORATE', label: 'Corporate Event' },
+  { type: 'WORKSHOP', label: 'Workshop' },
+  { type: 'FUNDRAISER', label: 'Fundraiser' },
+  { type: 'NETWORKING', label: 'Networking' },
+  { type: 'WEBINAR', label: 'Webinar' },
   { type: 'SPORT', label: 'Sports Event' },
+  { type: 'RELIGIOUS', label: 'Religious Event' },
+  { type: 'TRADE_SHOW', label: 'Trade Show' },
+  { type: 'CORPORATE', label: 'Corporate Event' },
   { type: 'OTHER', label: 'Custom Event' },
 ];
 
@@ -202,31 +211,14 @@ export default function CreateEventScreen({ navigation }: Props) {
         { key: 'phone', label: 'Phone Number', type: 'PHONE', required: true, placeholder: '08012345678' },
       ];
 
-      try {
-        await saveRegistrationForm(eventStorefront.id, {
-          eventTypeOverride: eventType,
-          title: `${title.trim()} Registration`,
-          description: `RSVP and access pass for ${title.trim()}`,
-          fields: defaultFields,
-          ticketTiers,
-          isOpen: true,
-        });
-      } catch {
-        // Fallback to legacy access page creation if demo or offline
-        try {
-          await createAccessPage(eventStorefront.id, {
-            type: eventType === 'WEDDING' ? 'WEDDING' : eventType === 'CONCERT' ? 'CONCERT' : eventType === 'CONFERENCE' ? 'CONFERENCE' : 'CUSTOM',
-            title: `${title.trim()} Access Pass`,
-            description: `Event at ${venue.trim()}`,
-            fields: [
-              { id: 'f-1', label: 'Full Name', type: 'text', required: true },
-              { id: 'f-2', label: 'Phone Number', type: 'text', required: true },
-            ],
-          });
-        } catch {
-          // ignore fallback error
-        }
-      }
+      await saveRegistrationForm(eventStorefront.id, {
+        eventTypeOverride: eventType,
+        title: `${title.trim()} Registration`,
+        description: `RSVP and access pass for ${title.trim()}`,
+        fields: defaultFields,
+        ticketTiers,
+        isOpen: true,
+      });
 
       Alert.alert('Event Created! 🎉', `"${title.trim()}" is ready. You can now manage registrations, invite guests, and scan tickets at the door.`, [
         {

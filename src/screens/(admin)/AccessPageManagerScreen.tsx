@@ -11,25 +11,21 @@ import {
   Platform,
   Switch,
 } from 'react-native';
-import { Plus, Trash2, X, Users, Link2, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Plus, Trash2, X, Users, Link2, CheckCircle2, Lock, Unlock } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import {
-  getAccessPages,
-  createAccessPage,
-  updateAccessPage,
-  deleteAccessPage,
-  getAccessPageGuests,
-  type CreateAccessPageBody,
+  getRegistrationForm,
+  saveRegistrationForm,
+  listGuests,
+  checkInGuest,
+  listAllAccessContent,
+  createAccessContent,
+  type RegistrationFormResponse,
+  type FormField,
+  type GuestResponse,
+  type AccessContentResponse,
 } from '../../api';
-import type {
-  AccessPage,
-  AccessPageField,
-  AccessPageFieldType,
-  AccessPageGuestEntry,
-  AccessPageType,
-  NavigationProp,
-  RouteProps,
-} from '../../types';
+import type { NavigationProp, RouteProps } from '../../types';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import { cn } from '../../utils/cn';
 
@@ -38,72 +34,56 @@ interface Props {
   route: RouteProps<'AccessPageManager'>;
 }
 
-const TYPE_OPTIONS: { type: AccessPageType; label: string }[] = [
-  { type: 'CUSTOM', label: 'Custom Event' },
-  { type: 'WEDDING', label: 'Wedding' },
-  { type: 'CONFERENCE', label: 'Conference / Summit' },
-  { type: 'CONCERT', label: 'Concert' },
-];
+const FIELD_TYPES: FormField['type'][] = ['TEXT', 'EMAIL', 'PHONE', 'TEXTAREA', 'DATE', 'SELECT', 'CHECKBOX'];
 
-const FIELD_TYPES: AccessPageFieldType[] = ['text', 'number', 'date', 'yesno', 'dropdown'];
-
-function makeFieldId() {
-  return `f-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-}
-
-function presetFields(type: AccessPageType): AccessPageField[] {
-  switch (type) {
-    case 'WEDDING':
-      return [
-        { id: makeFieldId(), label: 'Guest Name', type: 'text', required: true },
-        { id: makeFieldId(), label: 'Attending', type: 'yesno', required: true },
-        { id: makeFieldId(), label: 'Number of Guests', type: 'number' },
-        { id: makeFieldId(), label: 'Meal Preference', type: 'dropdown', options: ['Chicken', 'Fish', 'Vegetarian'] },
-      ];
-    case 'CONFERENCE':
-      return [
-        { id: makeFieldId(), label: 'Full Name', type: 'text', required: true },
-        { id: makeFieldId(), label: 'Organization', type: 'text' },
-        { id: makeFieldId(), label: 'Email', type: 'text', required: true },
-        { id: makeFieldId(), label: 'Session Track', type: 'dropdown', options: ['General', 'Technical', 'Business'] },
-      ];
-    case 'CONCERT':
-      return [
-        { id: makeFieldId(), label: 'Full Name', type: 'text', required: true },
-        { id: makeFieldId(), label: 'Ticket Type', type: 'dropdown', options: ['General Admission', 'VIP', 'Backstage'] },
-        { id: makeFieldId(), label: 'Phone Number', type: 'text', required: true },
-      ];
-    default:
-      return [];
+function makeFieldKey(label: string, existing: FormField[]) {
+  const base = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'field';
+  let key = base;
+  let i = 2;
+  while (existing.some((f) => f.key === key)) {
+    key = `${base}_${i}`;
+    i++;
   }
+  return key;
 }
 
 export default function AccessPageManagerScreen({ route }: Props) {
-  const { storefrontId } = route.params;
+  const { storefrontId, slug } = route.params;
 
-  const [pages, setPages] = useState<AccessPage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [formOpen, setFormOpen] = useState(false);
-  const [expandedGuests, setExpandedGuests] = useState<number | null>(null);
-  const [guests, setGuests] = useState<AccessPageGuestEntry[]>([]);
-  const [guestsLoading, setGuestsLoading] = useState(false);
+  const [form, setForm] = useState<RegistrationFormResponse | null>(null);
+  const [guests, setGuests] = useState<GuestResponse[]>([]);
+  const [content, setContent] = useState<AccessContentResponse[]>([]);
 
-  const [type, setType] = useState<AccessPageType>('CUSTOM');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [exclusiveContent, setExclusiveContent] = useState('');
-  const [fields, setFields] = useState<AccessPageField[]>([]);
+  const [editingForm, setEditingForm] = useState(false);
+  const [fields, setFields] = useState<FormField[]>([]);
   const [newFieldLabel, setNewFieldLabel] = useState('');
-  const [newFieldType, setNewFieldType] = useState<AccessPageFieldType>('text');
+  const [newFieldType, setNewFieldType] = useState<FormField['type']>('TEXT');
   const [newFieldOptions, setNewFieldOptions] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [newFieldRequired, setNewFieldRequired] = useState(false);
+  const [savingForm, setSavingForm] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const [manualCode, setManualCode] = useState('');
+  const [checkingIn, setCheckingIn] = useState(false);
+
+  const [addingContent, setAddingContent] = useState(false);
+  const [contentTitle, setContentTitle] = useState('');
+  const [contentBody, setContentBody] = useState('');
+  const [contentGated, setContentGated] = useState(true);
+  const [savingContent, setSavingContent] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getAccessPages(storefrontId);
-      setPages(data);
+      const [formData, guestData, contentData] = await Promise.all([
+        getRegistrationForm(storefrontId),
+        listGuests(storefrontId),
+        listAllAccessContent(storefrontId),
+      ]);
+      setForm(formData);
+      setGuests(guestData);
+      setContent(contentData);
     } catch {
       // Keep whatever's already in state if the load fails.
     } finally {
@@ -113,110 +93,128 @@ export default function AccessPageManagerScreen({ route }: Props) {
 
   useFocusRefresh(load);
 
-  const resetForm = () => {
-    setType('CUSTOM');
-    setTitle('');
-    setDescription('');
-    setExclusiveContent('');
-    setFields([]);
-    setNewFieldLabel('');
-    setNewFieldType('text');
-    setNewFieldOptions('');
-    setError(null);
+  const handleToggleOpen = async () => {
+    if (!form) return;
+    const next = { ...form, isOpen: !form.isOpen };
+    setForm(next);
+    try {
+      await saveRegistrationForm(storefrontId, {
+        eventTypeOverride: form.eventType ?? undefined,
+        title: form.title,
+        description: form.description,
+        fields: form.fields,
+        ticketTiers: form.ticketTiers,
+        isOpen: next.isOpen,
+      });
+    } catch {
+      setForm(form);
+      Alert.alert('Error', 'Could not update registration status.');
+    }
   };
 
-  const handleSelectType = (t: AccessPageType) => {
-    setType(t);
-    setFields(presetFields(t));
+  const startEditingForm = () => {
+    if (!form) return;
+    setFields(form.fields);
+    setFormError(null);
+    setEditingForm(true);
   };
 
-  const handleAddCustomField = () => {
+  const handleAddField = () => {
     if (!newFieldLabel.trim()) return;
-    const field: AccessPageField = {
-      id: makeFieldId(),
+    const field: FormField = {
+      key: makeFieldKey(newFieldLabel, fields),
       label: newFieldLabel.trim(),
       type: newFieldType,
-      options: newFieldType === 'dropdown'
+      required: newFieldRequired,
+      options: newFieldType === 'SELECT'
         ? newFieldOptions.split(',').map((o) => o.trim()).filter(Boolean)
         : undefined,
     };
     setFields((prev) => [...prev, field]);
     setNewFieldLabel('');
     setNewFieldOptions('');
-    setNewFieldType('text');
+    setNewFieldType('TEXT');
+    setNewFieldRequired(false);
   };
 
-  const handleRemoveField = (id: string) => {
-    setFields((prev) => prev.filter((f) => f.id !== id));
+  const handleRemoveField = (key: string) => {
+    setFields((prev) => prev.filter((f) => f.key !== key));
   };
 
-  const handleCreate = async () => {
-    if (!title.trim()) {
-      setError('Please enter a title for this event page.');
-      return;
-    }
-    if (fields.length === 0) {
-      setError('Add at least one field for guests to fill in.');
-      return;
-    }
-    setError(null);
-    setSaving(true);
+  const handleSaveForm = async () => {
+    if (!form) return;
+    setSavingForm(true);
+    setFormError(null);
     try {
-      const body: CreateAccessPageBody = {
-        type,
-        title: title.trim(),
-        description: description.trim() || undefined,
+      const updated = await saveRegistrationForm(storefrontId, {
+        eventTypeOverride: form.eventType ?? undefined,
+        title: form.title,
+        description: form.description,
         fields,
-        exclusiveContent: exclusiveContent.trim() || undefined,
-      };
-      await createAccessPage(storefrontId, body);
-      setFormOpen(false);
-      resetForm();
+        ticketTiers: form.ticketTiers,
+        isOpen: form.isOpen,
+      });
+      setForm(updated);
+      setEditingForm(false);
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : 'Failed to save the registration form.');
+    } finally {
+      setSavingForm(false);
+    }
+  };
+
+  const handleManualCheckIn = async () => {
+    if (!manualCode.trim()) return;
+    setCheckingIn(true);
+    try {
+      const res = await checkInGuest(storefrontId, manualCode.trim());
+      Alert.alert(res.alreadyCheckedIn ? 'Already Checked In' : 'Checked In', `${res.guestName} (${res.ticketTier})`);
+      setManualCode('');
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create access page.');
+      Alert.alert('Check-In Failed', e instanceof Error ? e.message : 'That guest code was not found.');
     } finally {
-      setSaving(false);
+      setCheckingIn(false);
     }
   };
 
-  const handleToggleActive = async (p: AccessPage) => {
-    await updateAccessPage(p.id, { isActive: !p.isActive });
-    await load();
-  };
-
-  const handleDelete = (p: AccessPage) => {
-    Alert.alert('Delete Access Page', `Remove "${p.title}"? Guest check-in data will be lost.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteAccessPage(p.id);
-          await load();
-        },
-      },
-    ]);
-  };
-
-  const handleCopyLink = async (slug: string) => {
-    await Clipboard.setStringAsync(`https://scancode.live/access/${slug}`);
-    Alert.alert('Copied', 'Guest link copied to clipboard.');
-  };
-
-  const handleToggleGuests = async (p: AccessPage) => {
-    if (expandedGuests === p.id) {
-      setExpandedGuests(null);
-      return;
-    }
-    setExpandedGuests(p.id);
-    setGuestsLoading(true);
+  const handleQuickCheckIn = async (guest: GuestResponse) => {
+    setCheckingIn(true);
     try {
-      const data = await getAccessPageGuests(p.id);
-      setGuests(data);
+      await checkInGuest(storefrontId, guest.guestCode);
+      await load();
+    } catch (e: unknown) {
+      Alert.alert('Check-In Failed', e instanceof Error ? e.message : 'Could not check in this guest.');
     } finally {
-      setGuestsLoading(false);
+      setCheckingIn(false);
     }
+  };
+
+  const handleAddContent = async () => {
+    if (!contentTitle.trim() || !contentBody.trim()) return;
+    setSavingContent(true);
+    try {
+      const created = await createAccessContent(storefrontId, {
+        title: contentTitle.trim(),
+        body: contentBody.trim(),
+        requiresCheckIn: contentGated,
+      });
+      setContent((prev) => [...prev, created]);
+      setContentTitle('');
+      setContentBody('');
+      setContentGated(true);
+      setAddingContent(false);
+    } catch (e: unknown) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to add content.');
+    } finally {
+      setSavingContent(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!slug) return;
+    await Clipboard.setStringAsync(`https://scancode.ng/store/${slug}`);
+    Alert.alert('Copied', 'Guest link copied to clipboard.');
   };
 
   if (loading) {
@@ -227,87 +225,36 @@ export default function AccessPageManagerScreen({ route }: Props) {
     );
   }
 
-  if (formOpen) {
+  if (editingForm) {
     return (
       <KeyboardAvoidingView className="flex-1 bg-gray-50 dark:bg-[#09090B]" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="p-5 pb-12" keyboardShouldPersistTaps="handled">
           <View className="flex-row justify-between items-center mb-5">
-            <Text className="text-lg font-bold text-gray-900 dark:text-white">New Access Page</Text>
-            <TouchableOpacity onPress={() => { setFormOpen(false); resetForm(); }} className="p-1">
+            <Text className="text-lg font-bold text-gray-900 dark:text-white">Registration Form</Text>
+            <TouchableOpacity onPress={() => setEditingForm(false)} className="p-1">
               <X size={20} color="#9CA3AF" strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
-          {error && (
+          {formError && (
             <View className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-3 mb-4">
-              <Text className="text-red-600 dark:text-red-300 text-sm">{error}</Text>
+              <Text className="text-red-600 dark:text-red-300 text-sm">{formError}</Text>
             </View>
           )}
 
-          <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-1.5">Event Type</Text>
-          <View className="flex-row flex-wrap gap-2 mb-4">
-            {TYPE_OPTIONS.map((opt) => (
-              <TouchableOpacity
-                key={opt.type}
-                className={cn(
-                  'border-[1.5px] rounded-xl px-3.5 py-2.5',
-                  type === opt.type
-                    ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40'
-                    : 'bg-white dark:bg-[#18181B] border-gray-300 dark:border-zinc-800'
-                )}
-                onPress={() => handleSelectType(opt.type)}
-              >
-                <Text className={cn('text-sm font-semibold', type === opt.type ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-zinc-400')}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-1.5">Title <Text className="text-red-600">*</Text></Text>
-          <TextInput
-            className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-[#18181B] mb-4"
-            value={title}
-            onChangeText={setTitle}
-            placeholder="e.g. Tolu & Ada's Wedding"
-            placeholderTextColor="#9CA3AF"
-          />
-
-          <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-1.5">Description</Text>
-          <TextInput
-            className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-[#18181B] mb-4 h-[70px]"
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Optional details shown to guests…"
-            placeholderTextColor="#9CA3AF"
-            multiline
-            textAlignVertical="top"
-          />
-
-          <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-1.5">Exclusive Content</Text>
-          <TextInput
-            className="border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-[#18181B] mb-4 h-[70px]"
-            value={exclusiveContent}
-            onChangeText={setExclusiveContent}
-            placeholder="Shown to guests after they check in (e.g. venue directions, wifi code)…"
-            placeholderTextColor="#9CA3AF"
-            multiline
-            textAlignVertical="top"
-          />
-
-          <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">Guest Form Fields</Text>
+          <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-300 mb-2">Form Fields</Text>
           {fields.length === 0 ? (
             <Text className="text-[13px] text-gray-400 dark:text-zinc-500 mb-3">No fields yet — add one below.</Text>
           ) : (
             fields.map((f) => (
-              <View key={f.id} className="flex-row items-center justify-between bg-white dark:bg-[#18181B] border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 mb-2">
+              <View key={f.key} className="flex-row items-center justify-between bg-white dark:bg-[#18181B] border border-gray-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 mb-2">
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-gray-800 dark:text-zinc-200">{f.label}{f.required ? ' *' : ''}</Text>
                   <Text className="text-[11px] text-gray-400 dark:text-zinc-500 mt-0.5">
                     {f.type}{f.options?.length ? ` — ${f.options.join(', ')}` : ''}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => handleRemoveField(f.id)}>
+                <TouchableOpacity onPress={() => handleRemoveField(f.key)}>
                   <Trash2 size={15} color="#DC2626" strokeWidth={2} />
                 </TouchableOpacity>
               </View>
@@ -327,17 +274,14 @@ export default function AccessPageManagerScreen({ route }: Props) {
               {FIELD_TYPES.map((t) => (
                 <TouchableOpacity
                   key={t}
-                  className={cn(
-                    'rounded-lg px-3 py-1.5',
-                    newFieldType === t ? 'bg-emerald-600' : 'bg-gray-100 dark:bg-zinc-800'
-                  )}
+                  className={cn('rounded-lg px-3 py-1.5', newFieldType === t ? 'bg-emerald-600' : 'bg-gray-100 dark:bg-zinc-800')}
                   onPress={() => setNewFieldType(t)}
                 >
                   <Text className={cn('text-xs font-semibold', newFieldType === t ? 'text-white' : 'text-gray-600 dark:text-zinc-300')}>{t}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-            {newFieldType === 'dropdown' && (
+            {newFieldType === 'SELECT' && (
               <TextInput
                 className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl px-3.5 py-3 text-sm text-gray-900 dark:text-white mb-2.5"
                 value={newFieldOptions}
@@ -347,8 +291,15 @@ export default function AccessPageManagerScreen({ route }: Props) {
               />
             )}
             <TouchableOpacity
+              className="flex-row items-center gap-2 mb-2.5"
+              onPress={() => setNewFieldRequired((v) => !v)}
+            >
+              <Switch value={newFieldRequired} onValueChange={setNewFieldRequired} trackColor={{ false: '#71717A', true: '#059669' }} />
+              <Text className="text-xs text-gray-500 dark:text-zinc-400">Required</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               className="flex-row gap-1.5 bg-emerald-600 rounded-xl py-3 justify-center items-center"
-              onPress={handleAddCustomField}
+              onPress={handleAddField}
               activeOpacity={0.8}
             >
               <Plus size={16} color="#FFFFFF" strokeWidth={2.5} />
@@ -357,12 +308,12 @@ export default function AccessPageManagerScreen({ route }: Props) {
           </View>
 
           <TouchableOpacity
-            className={cn('rounded-2xl py-4 items-center mt-4 bg-emerald-600', saving && 'opacity-70')}
-            onPress={handleCreate}
-            disabled={saving}
+            className={cn('rounded-2xl py-4 items-center mt-4 bg-emerald-600', savingForm && 'opacity-70')}
+            onPress={handleSaveForm}
+            disabled={savingForm}
             activeOpacity={0.85}
           >
-            {saving ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-base font-bold">Create Access Page</Text>}
+            {savingForm ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-base font-bold">Save Form</Text>}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -370,96 +321,156 @@ export default function AccessPageManagerScreen({ route }: Props) {
   }
 
   return (
-    <View className="flex-1 bg-gray-50 dark:bg-[#09090B]">
-      <ScrollView contentContainerClassName="p-5 pb-28">
-        {pages.length === 0 ? (
-          <View className="bg-white dark:bg-[#18181B] rounded-2xl p-6 items-center border border-gray-200 dark:border-zinc-800 mt-4">
-            <Text className="text-sm text-gray-500 dark:text-zinc-400 text-center">No access pages yet. Create one for your next event.</Text>
-          </View>
-        ) : (
-          pages.map((p) => (
-            <View key={p.id} className="bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-3 border border-gray-200 dark:border-zinc-800">
-              <View className="flex-row justify-between items-start mb-1">
-                <Text className="text-[15px] font-bold text-gray-900 dark:text-white flex-1 mr-2">{p.title}</Text>
-                <View className={cn('rounded-full px-2.5 py-[3px]', p.isActive ? 'bg-emerald-100 dark:bg-emerald-950/60' : 'bg-gray-100 dark:bg-zinc-800')}>
-                  <Text className={cn('text-[11px] font-semibold', p.isActive ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-500 dark:text-zinc-400')}>
-                    {p.isActive ? 'Active' : 'Inactive'}
-                  </Text>
-                </View>
+    <KeyboardAvoidingView className="flex-1 bg-gray-50 dark:bg-[#09090B]" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerClassName="p-5 pb-16" keyboardShouldPersistTaps="handled">
+        {form && (
+          <View className="bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-4 border border-gray-200 dark:border-zinc-800">
+            <View className="flex-row justify-between items-start mb-1">
+              <Text className="text-[15px] font-bold text-gray-900 dark:text-white flex-1 mr-2">{form.title}</Text>
+              <View className={cn('rounded-full px-2.5 py-[3px]', form.isOpen ? 'bg-emerald-100 dark:bg-emerald-950/60' : 'bg-gray-100 dark:bg-zinc-800')}>
+                <Text className={cn('text-[11px] font-semibold', form.isOpen ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-500 dark:text-zinc-400')}>
+                  {form.isOpen ? 'Open' : 'Closed'}
+                </Text>
               </View>
-              <Text className="text-xs text-gray-400 dark:text-zinc-500 uppercase tracking-wide mb-3">{p.type}</Text>
+            </View>
+            {!!form.description && <Text className="text-[13px] text-gray-500 dark:text-zinc-400 mb-3">{form.description}</Text>}
 
-              <View className="flex-row gap-2 mb-2">
+            <View className="flex-row gap-2 mb-2">
+              <TouchableOpacity
+                className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg py-2"
+                onPress={startEditingForm}
+              >
+                <Text className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs">Edit Fields ({form.fields.length})</Text>
+              </TouchableOpacity>
+              {!!slug && (
                 <TouchableOpacity
                   className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg py-2"
-                  onPress={() => handleCopyLink(p.slug)}
+                  onPress={handleCopyLink}
                 >
                   <Link2 size={13} color="#059669" strokeWidth={2.2} />
                   <Text className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs">Copy Link</Text>
                 </TouchableOpacity>
+              )}
+            </View>
+
+            <View className="flex-row justify-between items-center border-t border-gray-100 dark:border-zinc-800 pt-2.5 mt-1">
+              <View className="flex-row items-center gap-2">
+                <Switch value={form.isOpen} onValueChange={handleToggleOpen} trackColor={{ false: '#71717A', true: '#059669' }} />
+                <Text className="text-xs text-gray-500 dark:text-zinc-400">Accepting registrations</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        <View className="flex-row items-center gap-1.5 mb-2">
+          <Users size={15} color="#374151" strokeWidth={2} />
+          <Text className="text-sm font-bold text-gray-900 dark:text-white">Guests ({guests.length})</Text>
+        </View>
+
+        <View className="bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-3 border border-gray-200 dark:border-zinc-800">
+          <Text className="text-xs font-semibold text-gray-700 dark:text-zinc-300 mb-1.5">Check In by Code</Text>
+          <View className="flex-row gap-2">
+            <TextInput
+              className="flex-1 border-[1.5px] border-gray-300 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-[#18181B]"
+              value={manualCode}
+              onChangeText={setManualCode}
+              placeholder="Guest code"
+              placeholderTextColor="#9CA3AF"
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              className={cn('bg-emerald-600 rounded-xl px-4 justify-center items-center', checkingIn && 'opacity-70')}
+              onPress={handleManualCheckIn}
+              disabled={checkingIn}
+            >
+              <Text className="text-white text-sm font-bold">Check In</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {guests.length === 0 ? (
+          <View className="bg-white dark:bg-[#18181B] rounded-2xl p-6 items-center border border-gray-200 dark:border-zinc-800 mb-4">
+            <Text className="text-sm text-gray-500 dark:text-zinc-400 text-center">No guests have RSVPed yet.</Text>
+          </View>
+        ) : (
+          guests.map((g) => (
+            <View key={g.id} className="bg-white dark:bg-[#18181B] rounded-2xl p-3.5 mb-2 border border-gray-200 dark:border-zinc-800 flex-row items-center justify-between">
+              <View className="flex-1 mr-2">
+                <Text className="text-sm font-semibold text-gray-800 dark:text-zinc-200">{g.name}</Text>
+                <Text className="text-[11px] text-gray-400 dark:text-zinc-500 mt-0.5">{g.ticketTier} · {g.email}</Text>
+              </View>
+              {g.checkedIn ? (
+                <View className="flex-row items-center gap-1">
+                  <CheckCircle2 size={16} color="#059669" strokeWidth={2} />
+                  <Text className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold">Checked In</Text>
+                </View>
+              ) : (
                 <TouchableOpacity
-                  className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg py-2"
-                  onPress={() => handleToggleGuests(p)}
+                  className="border-[1.5px] border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-2.5 py-1.5"
+                  onPress={() => handleQuickCheckIn(g)}
+                  disabled={checkingIn}
                 >
-                  <Users size={13} color="#059669" strokeWidth={2.2} />
-                  <Text className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs">Guests</Text>
-                  {expandedGuests === p.id ? (
-                    <ChevronUp size={13} color="#059669" strokeWidth={2.2} />
-                  ) : (
-                    <ChevronDown size={13} color="#059669" strokeWidth={2.2} />
-                  )}
+                  <Text className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs">Check In</Text>
                 </TouchableOpacity>
-              </View>
-
-              <View className="flex-row justify-between items-center border-t border-gray-100 dark:border-zinc-800 pt-2.5 mt-1">
-                <View className="flex-row items-center gap-2">
-                  <Switch
-                    value={p.isActive}
-                    onValueChange={() => handleToggleActive(p)}
-                    trackColor={{ false: '#71717A', true: '#059669' }}
-                  />
-                  <Text className="text-xs text-gray-500 dark:text-zinc-400">Accepting check-ins</Text>
-                </View>
-                <TouchableOpacity onPress={() => handleDelete(p)}>
-                  <Trash2 size={16} color="#DC2626" strokeWidth={2} />
-                </TouchableOpacity>
-              </View>
-
-              {expandedGuests === p.id && (
-                <View className="mt-3 border-t border-gray-100 dark:border-zinc-800 pt-3">
-                  {guestsLoading ? (
-                    <ActivityIndicator color="#059669" />
-                  ) : guests.length === 0 ? (
-                    <Text className="text-xs text-gray-400 dark:text-zinc-500">No guests have checked in yet.</Text>
-                  ) : (
-                    guests.map((g) => (
-                      <View key={g.id} className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-2.5 mb-1.5">
-                        {Object.entries(g.responses).map(([k, v]) => (
-                          <Text key={k} className="text-xs text-gray-600 dark:text-zinc-300">
-                            <Text className="font-semibold">{k}:</Text> {v}
-                          </Text>
-                        ))}
-                        <Text className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">
-                          Checked in {new Date(g.checkedInAt).toLocaleString()}
-                        </Text>
-                      </View>
-                    ))
-                  )}
-                </View>
               )}
             </View>
           ))
         )}
-      </ScrollView>
 
-      <TouchableOpacity
-        className="absolute bottom-6 left-5 right-5 bg-emerald-600 rounded-xl py-4 items-center flex-row justify-center gap-2 shadow-lg"
-        onPress={() => { resetForm(); setFormOpen(true); }}
-        activeOpacity={0.85}
-      >
-        <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
-        <Text className="text-white text-base font-bold">New Access Page</Text>
-      </TouchableOpacity>
-    </View>
+        <View className="flex-row items-center justify-between mt-5 mb-2">
+          <Text className="text-sm font-bold text-gray-900 dark:text-white">Exclusive Content ({content.length})</Text>
+          <TouchableOpacity onPress={() => setAddingContent((v) => !v)} className="p-1">
+            {addingContent ? <X size={18} color="#9CA3AF" strokeWidth={2} /> : <Plus size={18} color="#059669" strokeWidth={2.2} />}
+          </TouchableOpacity>
+        </View>
+
+        {addingContent && (
+          <View className="bg-white dark:bg-[#18181B] rounded-2xl p-4 mb-3 border border-gray-200 dark:border-zinc-800">
+            <TextInput
+              className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl px-3.5 py-3 text-sm text-gray-900 dark:text-white mb-2.5"
+              value={contentTitle}
+              onChangeText={setContentTitle}
+              placeholder="Title (e.g. Venue Directions)"
+              placeholderTextColor="#9CA3AF"
+            />
+            <TextInput
+              className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl px-3.5 py-3 text-sm text-gray-900 dark:text-white mb-2.5 h-[80px]"
+              value={contentBody}
+              onChangeText={setContentBody}
+              placeholder="Content shown to guests…"
+              placeholderTextColor="#9CA3AF"
+              multiline
+              textAlignVertical="top"
+            />
+            <TouchableOpacity className="flex-row items-center gap-2 mb-3" onPress={() => setContentGated((v) => !v)}>
+              <Switch value={contentGated} onValueChange={setContentGated} trackColor={{ false: '#71717A', true: '#059669' }} />
+              <Text className="text-xs text-gray-500 dark:text-zinc-400">Only unlock after check-in</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className={cn('flex-row gap-1.5 bg-emerald-600 rounded-xl py-3 justify-center items-center', savingContent && 'opacity-70')}
+              onPress={handleAddContent}
+              disabled={savingContent}
+              activeOpacity={0.8}
+            >
+              {savingContent ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-sm font-bold">Add Content</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {content.map((c) => (
+          <View key={c.id} className="bg-white dark:bg-[#18181B] rounded-2xl p-3.5 mb-2 border border-gray-200 dark:border-zinc-800">
+            <View className="flex-row items-center justify-between mb-1">
+              <Text className="text-sm font-semibold text-gray-800 dark:text-zinc-200 flex-1 mr-2">{c.title}</Text>
+              {c.requiresCheckIn ? (
+                <Lock size={13} color="#9CA3AF" strokeWidth={2} />
+              ) : (
+                <Unlock size={13} color="#059669" strokeWidth={2} />
+              )}
+            </View>
+            <Text className="text-[13px] text-gray-500 dark:text-zinc-400">{c.body}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

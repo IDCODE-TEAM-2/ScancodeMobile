@@ -13,6 +13,9 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "android": {
@@ -25,6 +28,12 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
@@ -69,6 +78,9 @@
         "projectId": "33348cf0-bd6e-4297-8faa-5b4e6938b0f0"
       }
     },
-    "owner": "digitalreciept"
+    "owner": "digitalreciept",
+    "updates": {
+      "url": "https://u.expo.dev/33348cf0-bd6e-4297-8faa-5b4e6938b0f0"
+    }
   }
 }
