@@ -370,22 +370,28 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        className={cn('flex-row px-4 py-2 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}
-        contentContainerClassName="gap-2"
+        className={cn('flex-row px-4 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}
+        contentContainerClassName="gap-4 pr-6"
       >
         {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED'] as const).map((tab) => {
           const active = activeTab === tab;
           const count =
             tab === 'ALL' ? orders.length : orders.filter((o) => o.status === tab).length;
 
+          // Underline-style tabs, not filled pill buttons — reads as a tab bar rather than
+          // repeating the same rounded-pill look already used by Test Alarm/Sound/Set Tone
+          // right above, and stays compact enough that most phones need no horizontal scroll.
           return (
             <TouchableOpacity
               key={tab}
-              className={cn('px-3 py-1.5 rounded-lg', active ? 'bg-primary' : oledDark ? 'bg-zinc-900' : 'bg-gray-100')}
+              className={cn('items-center py-2.5 border-b-2', active ? 'border-primary' : 'border-transparent')}
               onPress={() => { Haptics.tapLight(); setActiveTab(tab); }}
             >
-              <Text className={cn('text-xs font-semibold', active ? 'text-white' : oledDark ? 'text-zinc-400' : 'text-gray-600')}>
-                {tab} ({count})
+              <Text className={cn(
+                'text-xs font-semibold',
+                active ? 'text-primary' : oledDark ? 'text-zinc-500' : 'text-gray-500'
+              )}>
+                {tab}{count > 0 ? ` (${count})` : ''}
               </Text>
             </TouchableOpacity>
           );
