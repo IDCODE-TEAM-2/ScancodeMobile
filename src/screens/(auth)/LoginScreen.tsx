@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QrCode, Compass } from 'lucide-react-native';
-import { login, saveToken } from '../../api';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { login, loginWithApple, saveToken } from '../../api';
 import { resolveAppState } from '../../utils/resolveAppState';
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
@@ -48,6 +49,32 @@ export default function LoginScreen({ navigation }: Props) {
       return;
     }
     performLogin(email, password);
+  }
+
+  async function handleAppleSignIn() {
+    setError(null);
+    setLoading(true);
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) {
+        throw new Error('Apple did not return an identity token.');
+      }
+      const res = await loginWithApple(credential.identityToken);
+      await saveToken(res.token);
+      setAppState(await resolveAppState());
+    } catch (err: unknown) {
+      const isCancel = err instanceof Error && 'code' in err && (err as unknown as { code: string }).code === 'ERR_REQUEST_CANCELED';
+      if (!isCancel) {
+        setError(err instanceof Error ? err.message : 'Apple sign-in failed. Try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleBrowseAsGuest() {
@@ -151,6 +178,23 @@ export default function LoginScreen({ navigation }: Props) {
                 size="lg"
                 className="w-full shadow-sm"
               />
+
+              {Platform.OS === 'ios' && (
+                <>
+                  <View className="flex-row items-center gap-2 my-3">
+                    <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
+                    <Text className="text-[11px] font-semibold text-gray-400 dark:text-zinc-500">OR</Text>
+                    <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
+                  </View>
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                    cornerRadius={12}
+                    style={{ width: '100%', height: 50 }}
+                    onPress={handleAppleSignIn}
+                  />
+                </>
+              )}
             </View>
           </View>
 

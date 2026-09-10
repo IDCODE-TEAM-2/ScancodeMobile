@@ -9,7 +9,8 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.idcode.scancode"
+      "bundleIdentifier": "com.idcode.scancode",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.idcode.scancode",

@@ -610,6 +610,23 @@ export async function login(email: string, password: string, rememberMe = false)
   };
 }
 
+/** Matches POST /api/auth/apple — exchanges a verified Sign in with Apple identityToken for a session. */
+export async function loginWithApple(identityToken: string): Promise<AuthResponse> {
+  const raw = await request<{
+    token: string;
+    user?: { id?: number; username?: string; email?: string; roles?: string[]; isPaid?: boolean };
+  }>('POST', '/api/auth/apple', { identityToken }, false);
+
+  const u = raw.user;
+  return {
+    token: raw.token,
+    username: u?.username ?? '',
+    email: u?.email ?? '',
+    roles: u?.roles ?? [],
+    isPaid: u?.isPaid ?? false,
+  };
+}
+
 export function register(username: string, email: string, password: string, role?: AccountRole) {
   return request<RegisterResponse>('POST', '/auth/register', { username, email, password }, false);
 }
