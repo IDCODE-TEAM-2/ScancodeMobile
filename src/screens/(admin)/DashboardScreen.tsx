@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ShoppingBag, Bell, Settings2, Settings as SettingsIcon, Calendar, Plus, LayoutGrid, Landmark, Compass, Package, Pencil, QrCode } from 'lucide-react-native';
+import { ShoppingBag, Bell, Settings2, Settings as SettingsIcon, Calendar, Plus, LayoutGrid, Landmark, Compass, Package, Pencil, QrCode, LogOut } from 'lucide-react-native';
 import {
   getMyStorefronts,
   deleteToken,
@@ -272,9 +272,9 @@ export default function DashboardScreen({ navigation }: Props) {
   return (
     <View className="flex-1 bg-gray-100 dark:bg-[#09090B]">
       <View className="bg-white dark:bg-[#18181B] border-b border-gray-200 dark:border-zinc-800" style={{ paddingTop: insets.top }}>
-        <View className="flex-row justify-between items-center px-5 py-4">
-          <Text className="text-xl font-bold text-gray-900 dark:text-white">My Storefronts</Text>
-          <View className="flex-row items-center gap-1">
+        <View className="flex-row justify-between items-center px-5 py-4 gap-2">
+          <Text className="text-xl font-bold text-gray-900 dark:text-white shrink" numberOfLines={1}>My Storefronts</Text>
+          <View className="flex-row items-center gap-1 shrink-0">
             <TouchableOpacity onPress={() => navigation.navigate('StorefrontDirectory')} className="p-2" accessibilityLabel="Discover storefronts">
               <Compass size={19} color={iconColor} strokeWidth={2} />
             </TouchableOpacity>
@@ -287,8 +287,8 @@ export default function DashboardScreen({ navigation }: Props) {
             <TouchableOpacity onPress={() => navigation.navigate('Settings')} className="p-2" accessibilityLabel="Settings">
               <SettingsIcon size={19} color={iconColor} strokeWidth={2} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleLogout} className="px-2 py-1.5 ml-1">
-              <Text className="text-red-500 font-semibold text-sm">Sign Out</Text>
+            <TouchableOpacity onPress={handleLogout} className="p-2" accessibilityLabel="Sign out">
+              <LogOut size={19} color="#EF4444" strokeWidth={2} />
             </TouchableOpacity>
           </View>
         </View>

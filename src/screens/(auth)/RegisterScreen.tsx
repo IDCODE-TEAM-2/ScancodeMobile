@@ -91,7 +91,10 @@ export default function RegisterScreen({ navigation }: Props) {
                   activeOpacity={0.8}
                 >
                   <Icon size={16} color={isActive ? '#059669' : '#6B7280'} strokeWidth={2.2} />
-                  <Text className={cn('text-sm font-bold', isActive ? 'text-primary' : 'text-gray-500 dark:text-zinc-400')}>
+                  <Text
+                    className={cn('text-sm font-bold shrink', isActive ? 'text-primary' : 'text-gray-500 dark:text-zinc-400')}
+                    numberOfLines={1}
+                  >
                     Register as {option.label}
                   </Text>
                 </TouchableOpacity>

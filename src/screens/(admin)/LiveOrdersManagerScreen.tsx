@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, ShoppingBag, Bell, Zap, Volume2, VolumeX, Music2, Check } from 'lucide-react-native';
 import * as Haptics from '../../utils/haptics';
@@ -367,7 +367,12 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
         </View>
       </View>
 
-      <View className={cn('flex-row px-4 py-2 gap-2 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className={cn('flex-row px-4 py-2 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}
+        contentContainerClassName="gap-2"
+      >
         {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED'] as const).map((tab) => {
           const active = activeTab === tab;
           const count =
@@ -385,7 +390,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
       {error ? <ErrorBanner message={error} onDismiss={() => setError(null)} /> : null}
 

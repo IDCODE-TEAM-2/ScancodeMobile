@@ -88,7 +88,7 @@ export default function LoginScreen({ navigation }: Props) {
               activeOpacity={0.8}
             >
               <QrCode size={18} color="#059669" strokeWidth={2.2} />
-              <Text className="text-emerald-700 dark:text-emerald-300 text-sm font-bold">Scan Table QR</Text>
+              <Text className="text-emerald-700 dark:text-emerald-300 text-sm font-bold shrink" numberOfLines={1}>Scan Table QR</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -98,7 +98,7 @@ export default function LoginScreen({ navigation }: Props) {
               activeOpacity={0.8}
             >
               <Compass size={18} color="#059669" strokeWidth={2.2} />
-              <Text className="text-gray-800 dark:text-zinc-200 text-sm font-bold">Browse as Guest</Text>
+              <Text className="text-gray-800 dark:text-zinc-200 text-sm font-bold shrink" numberOfLines={1}>Browse as Guest</Text>
             </TouchableOpacity>
           </View>
 
