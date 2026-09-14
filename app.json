@@ -81,6 +81,9 @@
     "owner": "digitalreciept",
     "updates": {
       "url": "https://u.expo.dev/33348cf0-bd6e-4297-8faa-5b4e6938b0f0"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }

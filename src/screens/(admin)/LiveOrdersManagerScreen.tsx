@@ -1,16 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { MapPin, ShoppingBag, Bell, Zap, Volume2, VolumeX, Music2, Check } from 'lucide-react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from '../../utils/haptics';
 import type { NavigationProp, RouteProps } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import ErrorBanner from '../../components/ErrorBanner';
 import { playOrderAlarmSound, playStatusChangeSound, getCustomAlarmUri, setCustomAlarmUri, initAudioAlert } from '../../utils/audioAlert';
-import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import { getOrders, updateOrderStatus, type OrderResponse } from '../../api';
 import { useAppContext } from '../../context/AppContext';
 import { cn } from '../../utils/cn';
+
+// Matches the web admin dashboard's own poll cadence (app/admin/dashboard/page.tsx) so a
+// status change made on one side shows up on the other within the same ~15s window, instead
+// of mobile only refreshing when the screen regains focus.
+const POLL_INTERVAL_MS = 15000;
 
 export interface OrderItem {
   id: number;
@@ -89,18 +95,6 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
 
   async function handlePickCustomTone() {
     try {
-      // Attempt to use expo-document-picker if available
-      let DocumentPicker: any = null;
-      try {
-        DocumentPicker = require('expo-document-picker');
-      } catch {
-        Alert.alert(
-          'Not Available',
-          'expo-document-picker is required to pick a custom tone. Run: expo install expo-document-picker',
-        );
-        return;
-      }
-
       const result = await DocumentPicker.getDocumentAsync({
         type: 'audio/*',
         copyToCacheDirectory: true,
@@ -135,26 +129,16 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
     }
   }
 
+  // Sound/haptic check only -- this used to also inject a fake local-only order (a
+  // Date.now()-based id that was never saved via createOrder()). Rejecting/cancelling that
+  // fake order sent a real PATCH for an order id the server had never heard of, which
+  // correctly 404'd and triggered the revert-on-failure below -- looking exactly like
+  // "the status reverts a second after being set." Real orders don't hit this.
   function handleTriggerTestOrder() {
     Haptics.tapLight();
     if (soundEnabled) {
       playOrderAlarmSound();
     }
-    const newId = Date.now();
-    const newOrder: LiveOrder = {
-      id: newId,
-      orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-      tableNumber: `Table ${Math.floor(1 + Math.random() * 15)}`,
-      customerName: 'Incoming Guest',
-      totalAmount: 12500,
-      status: 'PENDING',
-      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      items: [
-        { id: newId + 1, name: 'Chef BBQ Ribs', quantity: 1, price: 9500 },
-        { id: newId + 2, name: 'Fresh Iced Tea', quantity: 2, price: 1500 },
-      ],
-    };
-    setOrders((prev) => [newOrder, ...prev]);
   }
 
   const fetchOrders = useCallback(async (isRefresh = false) => {
@@ -375,8 +359,8 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
         // this, not just switching to a pill shape, is the real fix for the tabs rendering
         // as tall vertical blocks.
         contentContainerStyle={{ flexDirection: 'row', alignItems: 'center' }}
-        className={cn('px-4 py-2.5 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}
-        contentContainerClassName="gap-2 pr-6"
+        className={cn('flex-grow-0 px-4 py-2 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}
+        contentContainerClassName="gap-2 items-center"
       >
         {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED'] as const).map((tab) => {
           const active = activeTab === tab;
@@ -389,7 +373,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
             <TouchableOpacity
               key={tab}
               className={cn(
-                'self-start px-2.5 py-1 rounded-full',
+                'px-2.5 py-1 rounded-full',
                 active ? 'bg-primary' : oledDark ? 'bg-zinc-900' : 'bg-gray-100'
               )}
               onPress={() => { Haptics.tapLight(); setActiveTab(tab); }}
