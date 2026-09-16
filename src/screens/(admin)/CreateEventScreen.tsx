@@ -11,14 +11,14 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { Calendar, MapPin, Sparkles, ImagePlus, Plus, X, ArrowLeft, Ticket, Check } from 'lucide-react-native';
+import { Calendar, MapPin, ImagePlus, Plus, X, ArrowLeft, Ticket, Check } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   createStorefront,
   saveEventDetails,
   saveRegistrationForm,
-  createAccessPage,
   API_BASE,
   getToken,
   type EventType,
@@ -31,21 +31,52 @@ interface Props {
   navigation: NavigationProp<'CreateEvent'>;
 }
 
+// Two picker options intentionally excluded even though the server accepts them: SPORTS
+// (a duplicate of SPORT already offered below) and PARTY (a duplicate of BIRTHDAY/Party
+// covers the common case) -- keeps the picker from offering confusing near-identical twins.
+// Both stay valid in the EventType union for compatibility with any existing data.
 const EVENT_TYPES: { type: EventType; label: string }[] = [
   { type: 'WEDDING', label: 'Wedding' },
   { type: 'CONCERT', label: 'Concert / Show' },
   { type: 'CONFERENCE', label: 'Conference / Summit' },
   { type: 'BIRTHDAY', label: 'Birthday / Party' },
-  { type: 'CORPORATE', label: 'Corporate Event' },
+  { type: 'WORKSHOP', label: 'Workshop' },
+  { type: 'FUNDRAISER', label: 'Fundraiser' },
+  { type: 'NETWORKING', label: 'Networking' },
+  { type: 'WEBINAR', label: 'Webinar' },
   { type: 'SPORT', label: 'Sports Event' },
+  { type: 'RELIGIOUS', label: 'Religious Event' },
+  { type: 'TRADE_SHOW', label: 'Trade Show' },
+  { type: 'CORPORATE', label: 'Corporate Event' },
   { type: 'OTHER', label: 'Custom Event' },
 ];
+
+// LocalDateTime has no timezone component, so this is a plain local wall-clock string
+// (e.g. "2026-10-24T18:00:00"), not a UTC-normalized ISO string.
+function toIsoLocal(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+}
+
+function formatDisplayDate(date: Date): string {
+  const datePart = date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  const timePart = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return `${datePart} · ${timePart}`;
+}
 
 export default function CreateEventScreen({ navigation }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventType, setEventType] = useState<EventType>('CONFERENCE');
+  // eventDate is what actually gets sent to the server (ISO local format, matching the
+  // backend's LocalDateTime deserialization) -- eventDateValue is the picker's own working
+  // Date, kept separate so the display label can be formatted independently of the wire
+  // format. Free-typed text here previously risked sending a string the server's
+  // LocalDateTime parser would reject outright.
+  const [eventDateValue, setEventDateValue] = useState<Date | null>(null);
   const [eventDate, setEventDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [venue, setVenue] = useState('');
   const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
@@ -180,31 +211,14 @@ export default function CreateEventScreen({ navigation }: Props) {
         { key: 'phone', label: 'Phone Number', type: 'PHONE', required: true, placeholder: '08012345678' },
       ];
 
-      try {
-        await saveRegistrationForm(eventStorefront.id, {
-          eventTypeOverride: eventType,
-          title: `${title.trim()} Registration`,
-          description: `RSVP and access pass for ${title.trim()}`,
-          fields: defaultFields,
-          ticketTiers,
-          isOpen: true,
-        });
-      } catch {
-        // Fallback to legacy access page creation if demo or offline
-        try {
-          await createAccessPage(eventStorefront.id, {
-            type: eventType === 'WEDDING' ? 'WEDDING' : eventType === 'CONCERT' ? 'CONCERT' : eventType === 'CONFERENCE' ? 'CONFERENCE' : 'CUSTOM',
-            title: `${title.trim()} Access Pass`,
-            description: `Event at ${venue.trim()}`,
-            fields: [
-              { id: 'f-1', label: 'Full Name', type: 'text', required: true },
-              { id: 'f-2', label: 'Phone Number', type: 'text', required: true },
-            ],
-          });
-        } catch {
-          // ignore fallback error
-        }
-      }
+      await saveRegistrationForm(eventStorefront.id, {
+        eventTypeOverride: eventType,
+        title: `${title.trim()} Registration`,
+        description: `RSVP and access pass for ${title.trim()}`,
+        fields: defaultFields,
+        ticketTiers,
+        isOpen: true,
+      });
 
       Alert.alert('Event Created! 🎉', `"${title.trim()}" is ready. You can now manage registrations, invite guests, and scan tickets at the door.`, [
         {
@@ -331,16 +345,56 @@ export default function CreateEventScreen({ navigation }: Props) {
           <Text className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
             Date &amp; Time *
           </Text>
-          <View className="flex-row items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3.5">
-            <Calendar size={18} color="#9CA3AF" className="mr-3" />
-            <TextInput
-              className="flex-1 text-base text-gray-900 dark:text-white font-medium ml-2"
-              placeholder="e.g. October 24, 2026 @ 6:00 PM"
-              placeholderTextColor="#9CA3AF"
-              value={eventDate}
-              onChangeText={setEventDate}
+          <TouchableOpacity
+            className="flex-row items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3.5"
+            onPress={() => setShowDatePicker(true)}
+            activeOpacity={0.7}
+          >
+            <Calendar size={18} color="#9CA3AF" />
+            <Text className={cn(
+              'flex-1 text-base font-medium ml-3',
+              eventDateValue ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'
+            )}>
+              {eventDateValue ? formatDisplayDate(eventDateValue) : 'Select date & time'}
+            </Text>
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={eventDateValue ?? new Date()}
+              mode="date"
+              minimumDate={new Date()}
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              onChange={(_event, selectedDate) => {
+                setShowDatePicker(false);
+                if (!selectedDate) return;
+                // Preserve whatever time was already picked, if any, instead of resetting it.
+                const combined = new Date(selectedDate);
+                if (eventDateValue) {
+                  combined.setHours(eventDateValue.getHours(), eventDateValue.getMinutes());
+                }
+                setEventDateValue(combined);
+                setEventDate(toIsoLocal(combined));
+                setShowTimePicker(true);
+              }}
             />
-          </View>
+          )}
+
+          {showTimePicker && (
+            <DateTimePicker
+              value={eventDateValue ?? new Date()}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(_event, selectedTime) => {
+                setShowTimePicker(false);
+                if (!selectedTime || !eventDateValue) return;
+                const combined = new Date(eventDateValue);
+                combined.setHours(selectedTime.getHours(), selectedTime.getMinutes());
+                setEventDateValue(combined);
+                setEventDate(toIsoLocal(combined));
+              }}
+            />
+          )}
         </View>
 
         {/* Venue / Location */}
@@ -435,10 +489,7 @@ export default function CreateEventScreen({ navigation }: Props) {
           {loading ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <>
-              <Sparkles size={18} color="#FFFFFF" />
-              <Text className="text-white text-base font-extrabold">Create Event &amp; Access Page</Text>
-            </>
+            <Text className="text-white text-base font-extrabold">Create Event &amp; Access Page</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

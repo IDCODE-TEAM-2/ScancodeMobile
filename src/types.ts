@@ -193,7 +193,7 @@ export type RootStackParamList = {
   CreateEvent: undefined;
   StorefrontDirectory: undefined;
   AccessPageManager: { storefrontId: number; slug?: string; name?: string };
-  AccessPageGuest: { accessPageSlug: string };
+  AccessPageGuest: { storefrontId: number; name?: string; accessPageSlug?: string };
   EventDetails: { slug: string; name?: string; storefrontId?: number };
   TermsOfService: undefined;
   PrivacyPolicy: undefined;

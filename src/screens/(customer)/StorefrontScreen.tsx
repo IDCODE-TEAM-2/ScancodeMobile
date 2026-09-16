@@ -318,19 +318,6 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                 scrollEventThrottle={16}
                 ListHeaderComponent={
                     <View>
-                        {/* Top Bar with Back to Discover Navigation */}
-                        <View className="flex-row items-center justify-between px-4 pt-3 pb-1">
-                            <TouchableOpacity
-                                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-sm"
-                                activeOpacity={0.75}
-                                onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('StorefrontDirectory')}
-                                accessibilityLabel="Back to Discover"
-                            >
-                                <ArrowLeft size={15} color={iconColor} strokeWidth={2.2} />
-                                <Text className="text-xs font-bold text-gray-700 dark:text-zinc-200">Discover</Text>
-                            </TouchableOpacity>
-                        </View>
-
                         <View className="items-center pt-2 pb-3 bg-white dark:bg-[#09090B]">
                             <View className="w-[60px] h-[60px] rounded-full bg-gray-900 dark:bg-zinc-800 justify-center items-center overflow-hidden mb-2 shadow-sm">
                                 <AppImage

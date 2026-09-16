@@ -155,8 +155,11 @@ export interface MeResponse {
   email: string;
   roles: string[];
   isPaid: boolean;
-  planType: string | null;
-  paidExpiresAt: string | null;
+  // Field names must match AuthApiController.userPayload() exactly -- this previously said
+  // planType/paidExpiresAt, which the server never sends (real fields are planSelected/
+  // planExpiresAt), so both silently came through as undefined.
+  planSelected: string | null;
+  planExpiresAt: string | null;
 }
 
 export interface RegisterResponse {
@@ -374,11 +377,23 @@ export interface FeedbackRecord {
 
 // ─── Event Details & Registration Form ───────────────────────────────────────
 
+// Matches the server's real EventType enum exactly (event/Entities/EventType.java, verified
+// fresh — it now has 15 values, including both SPORT and SPORTS as separate legacy-duplicate
+// entries). The previous 7-value client union was missing 8 of these, which would have made
+// saveEventDetails() 400 (silently swallowed by its caller's try/catch) for any of them.
 export type EventType =
-  | 'CONCERT'
-  | 'CONFERENCE'
   | 'WEDDING'
+  | 'CONFERENCE'
+  | 'CONCERT'
+  | 'PARTY'
+  | 'WORKSHOP'
   | 'BIRTHDAY'
+  | 'FUNDRAISER'
+  | 'NETWORKING'
+  | 'WEBINAR'
+  | 'SPORTS'
+  | 'RELIGIOUS'
+  | 'TRADE_SHOW'
   | 'CORPORATE'
   | 'SPORT'
   | 'OTHER';
@@ -656,10 +671,7 @@ export function getMe() {
   return request<MeResponse>('GET', '/api/auth/me');
 }
 
-// Note: DELETE /api/auth/me is NOT present in the Swagger spec. The demo stub is
-// retained for UI flow continuity; confirm the real endpoint before shipping.
 export function deleteAccount(): Promise<void> {
-  // TODO: Confirm the correct endpoint with the backend team before shipping.
   return request<void>('DELETE', '/api/auth/me');
 }
 
@@ -893,9 +905,10 @@ export function saveEventDetails(storefrontId: number, body: EventDetailsRequest
 
 // ─── Registration Form ────────────────────────────────────────────────────────
 
-/** Gets the guest registration/RSVP form for an event storefront. */
+/** Gets the guest registration/RSVP form for an event storefront. Public -- an anonymous
+ * guest reading the form before RSVPing has no token yet. */
 export function getRegistrationForm(storefrontId: number): Promise<RegistrationFormResponse> {
-  return request<RegistrationFormResponse>('GET', `/api/storefronts/${storefrontId}/registration-form`);
+  return request<RegistrationFormResponse>('GET', `/api/storefronts/${storefrontId}/registration-form`, undefined, false);
 }
 
 /** Saves / overwrites the guest registration form for an event storefront. */
@@ -1065,44 +1078,6 @@ export function createAccessContent(storefrontId: number, body: AccessContentReq
   return request<AccessContentResponse>('POST', `/api/storefronts/${storefrontId}/access-content`, body);
 }
 
-// ─── Access Pages (UI Compatibility Bridge) ──────────────────────────────────
-
-export interface CreateAccessPageBody {
-  type: AccessPageType;
-  title: string;
-  description?: string;
-  fields: AccessPageField[];
-  exclusiveContent?: string;
-}
-
-export function getAccessPages(storefrontId: number): Promise<AccessPage[]> {
-  return request<AccessPage[]>('GET', `/api/storefronts/${storefrontId}/access-pages`);
-}
-
-export function createAccessPage(storefrontId: number, body: CreateAccessPageBody): Promise<AccessPage> {
-  return request<AccessPage>('POST', `/api/storefronts/${storefrontId}/access-pages`, body);
-}
-
-export function updateAccessPage(accessPageId: number, body: Partial<CreateAccessPageBody> & { isActive?: boolean }): Promise<AccessPage> {
-  return request<AccessPage>('PUT', `/api/access-pages/${accessPageId}`, body);
-}
-
-export function deleteAccessPage(accessPageId: number): Promise<void> {
-  return request<void>('DELETE', `/api/access-pages/${accessPageId}`);
-}
-
-export function getAccessPageBySlug(slug: string): Promise<AccessPage> {
-  return request<AccessPage>('GET', `/api/access-pages/slug/${encodeURIComponent(slug)}`, undefined, false);
-}
-
-export function submitAccessPageGuestEntry(accessPageId: number, responses: Record<string, string>): Promise<AccessPageGuestEntry> {
-  return request<AccessPageGuestEntry>('POST', `/api/access-pages/${accessPageId}/guests`, { responses }, false);
-}
-
-export function getAccessPageGuests(accessPageId: number): Promise<AccessPageGuestEntry[]> {
-  return request<AccessPageGuestEntry[]>('GET', `/api/access-pages/${accessPageId}/guests`);
-}
-
 // ─── Payments ─────────────────────────────────────────────────────────────────
 
 export function initializePayment(
@@ -1127,6 +1102,14 @@ export function initializePayment(
 
 export function verifyPayment(reference: string, requireAuth = false) {
   return request<PaymentVerifyResponse>('POST', '/api/payments/verify', { reference }, requireAuth);
+}
+
+// TEMPORARY — TestFlight/beta testing only. The server refuses this (403) unless its own
+// app.dev-skip-payment-enabled flag is explicitly turned on, which must never happen on the
+// production backend once real users are on it. Remove this call site (and the "Dev Skip"
+// button that uses it) before the build submitted for public App Store review.
+export function devSkipPayment(): Promise<void> {
+  return request<void>('POST', '/api/payments/dev-skip', undefined, true);
 }
 
 // ─── Event Type Catalog ────────────────────────────────────────────────────────
