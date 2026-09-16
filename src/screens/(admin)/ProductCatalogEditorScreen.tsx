@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,26 +7,25 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
-  Switch,
 } from 'react-native';
 import { Plus, Trash2, Pencil, X, Camera, EyeOff, Eye } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import {
   getProducts,
   createProduct,
   updateProduct,
   deleteProduct,
-  API_BASE,
-  getToken,
+  getMyStorefronts,
   type ProductResponse,
 } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import { isImageTooLarge } from '../../utils/validateImageSize';
+import { parseStorefrontData } from '../../utils/parseStorefrontData';
+import { uploadImageToBackend } from '../../utils/imageUpload';
+import AppImage from '../../components/AppImage';
 import { cn } from '../../utils/cn';
 
 interface Props {
@@ -58,6 +57,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
   const { storefrontId } = route.params;
 
   const [products, setProducts] = useState<ProductResponse[]>([]);
+  const [storefrontCategories, setStorefrontCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -69,8 +69,18 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getProducts(storefrontId);
+      const [data, mine] = await Promise.all([
+        getProducts(storefrontId),
+        getMyStorefronts().catch(() => []),
+      ]);
       setProducts(data);
+      const currentStore = mine.find((s) => s.id === storefrontId);
+      if (currentStore) {
+        const parsed = parseStorefrontData(currentStore.data);
+        if (parsed.categories) {
+          setStorefrontCategories(parsed.categories.map((c) => c.name).filter(Boolean));
+        }
+      }
     } catch {
       // Keep whatever's already in state if the load fails.
     } finally {
@@ -79,6 +89,17 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
   }, [storefrontId]);
 
   useFocusRefresh(load);
+
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    storefrontCategories.forEach((c) => {
+      if (c && c.trim()) set.add(c.trim());
+    });
+    products.forEach((p) => {
+      if (p.category && p.category.trim()) set.add(p.category.trim());
+    });
+    return Array.from(set);
+  }, [storefrontCategories, products]);
 
   const openCreateForm = () => {
     setEditingId(null);
@@ -123,19 +144,8 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
 
     setUploadingImage(true);
     try {
-      const token = await getToken();
-      const response = await FileSystem.uploadAsync(`${API_BASE}/api/media/upload`, result.assets[0].uri, {
-        fieldName: 'file',
-        httpMethod: 'POST',
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        parameters: { public: 'true' },
-      });
-      if (response.status !== 200 && response.status !== 201) {
-        throw new Error('Upload failed. Please try again.');
-      }
-      const json = JSON.parse(response.body);
-      setForm((prev) => ({ ...prev, imageUri: json.url as string }));
+      const url = await uploadImageToBackend(result.assets[0].uri);
+      setForm((prev) => ({ ...prev, imageUri: url }));
     } catch (e: unknown) {
       Alert.alert('Upload Failed', e instanceof Error ? e.message : 'Please try again.');
     } finally {
@@ -236,7 +246,11 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
             {uploadingImage ? (
               <ActivityIndicator color="#059669" />
             ) : form.imageUri ? (
-              <Image source={{ uri: form.imageUri }} className="w-24 h-24" />
+              <AppImage
+                uri={form.imageUri}
+                className="w-24 h-24"
+                fallbackIcon={<Camera size={24} color="#9CA3AF" strokeWidth={1.8} />}
+              />
             ) : (
               <Camera size={24} color="#9CA3AF" strokeWidth={1.8} />
             )}
@@ -288,22 +302,40 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
           </View>
 
           <Text className="text-sm font-semibold text-gray-700 mb-1.5">Category</Text>
+          {availableCategories.length > 0 && (
+            <View className="mb-2.5">
+              <Text className="text-xs text-gray-500 mb-1.5 font-medium">Select existing category:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-1.5 pb-1">
+                {availableCategories.map((cat) => {
+                  const isSelected = form.category.trim().toLowerCase() === cat.trim().toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      onPress={() => setForm((p) => ({ ...p, category: cat }))}
+                      className={cn(
+                        'px-3 py-1.5 rounded-full border',
+                        isSelected
+                          ? 'bg-primary border-primary'
+                          : 'bg-white border-gray-300'
+                      )}
+                      activeOpacity={0.7}
+                    >
+                      <Text className={cn('text-xs font-semibold', isSelected ? 'text-white' : 'text-gray-700')}>
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
           <TextInput
-            className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-4"
+            className="border-[1.5px] border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mb-6"
             value={form.category}
             onChangeText={(v) => setForm((p) => ({ ...p, category: v }))}
-            placeholder="e.g. Main Course"
+            placeholder="Or type a custom category…"
             placeholderTextColor="#9CA3AF"
           />
-
-          <View className="flex-row justify-between items-center bg-white border-[1.5px] border-gray-200 rounded-xl px-3.5 py-3 mb-6">
-            <Text className="text-sm font-semibold text-gray-700">Mark as Popular</Text>
-            <Switch
-              value={form.isPopular}
-              onValueChange={(v) => setForm((p) => ({ ...p, isPopular: v }))}
-              trackColor={{ false: '#D1D5DB', true: '#059669' }}
-            />
-          </View>
 
           <TouchableOpacity
             className={cn('rounded-2xl py-4 items-center', saving ? 'bg-primary/55' : 'bg-primary')}
@@ -329,11 +361,11 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
           products.map((p) => (
             <View key={p.id} className="flex-row bg-white rounded-2xl p-3.5 mb-3 border border-gray-200">
               <View className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden items-center justify-center mr-3">
-                {p.mediaUrls[0] ? (
-                  <Image source={{ uri: p.mediaUrls[0] }} className="w-16 h-16" />
-                ) : (
-                  <Camera size={18} color="#D1D5DB" strokeWidth={1.8} />
-                )}
+                <AppImage
+                  uri={p.mediaUrls[0]}
+                  className="w-16 h-16 rounded-xl"
+                  fallbackIcon={<Camera size={18} color="#D1D5DB" strokeWidth={1.8} />}
+                />
               </View>
               <View className="flex-1">
                 <View className="flex-row items-center gap-1.5">

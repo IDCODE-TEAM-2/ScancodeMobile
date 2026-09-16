@@ -19,8 +19,8 @@ export default function HeaderBackButton({ canGoBack = true, dark }: HeaderBackB
   return (
     <TouchableOpacity
       onPress={() => navigation.goBack()}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      className="pr-3 py-1"
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      className="w-10 h-10 rounded-full items-center justify-center -ml-1.5"
       accessibilityLabel="Go back"
     >
       <ArrowLeft size={22} color={shouldBeDark ? '#F9FAFB' : '#111827'} strokeWidth={2.2} />

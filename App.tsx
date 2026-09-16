@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { View, Text, ActivityIndicator } from 'react-native';
+import Toast from 'react-native-toast-message';
 import type { RootStackParamList } from './src/types';
 import { getToken, deleteToken, onUnauthorized } from './src/api';
 import { resolveAppState } from './src/utils/resolveAppState';
@@ -51,6 +52,7 @@ import ManageTablesScreen from './src/screens/(admin)/ManageTablesScreen';
 import AccessPageManagerScreen from './src/screens/(admin)/AccessPageManagerScreen';
 import StorefrontDirectoryScreen from './src/screens/(customer)/StorefrontDirectoryScreen';
 import AccessPageGuestScreen from './src/screens/(customer)/AccessPageGuestScreen';
+import EventDetailsScreen from './src/screens/(customer)/EventDetailsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
 // ==========================================
@@ -101,6 +103,7 @@ function AuthNavigator({ screenOptions }: { screenOptions: NativeStackNavigation
       <AuthStack.Screen name="Checkout" component={CheckoutScreen} options={checkoutOptions} />
       <AuthStack.Screen name="OrderReceiptTracker" component={OrderReceiptTrackerScreen} options={orderTrackerOptions} />
       <AuthStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
+      <AuthStack.Screen name="EventDetails" component={EventDetailsScreen} options={hiddenHeader} />
     </AuthStack.Navigator>
   );
 }
@@ -212,6 +215,7 @@ function AdminNavigator({ screenOptions }: { screenOptions: NativeStackNavigatio
         })}
       />
       <AdminStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
+      <AdminStack.Screen name="EventDetails" component={EventDetailsScreen} options={hiddenHeader} />
       <AdminStack.Screen name="Settings" component={SettingsScreen} options={settingsOptions} />
       <AdminStack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ title: 'Terms of Service', headerBackTitle: 'Back' }} />
       <AdminStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy', headerBackTitle: 'Back' }} />
@@ -259,6 +263,7 @@ function CustomerNavigator({ screenOptions }: { screenOptions: NativeStackNaviga
       <CustomerStack.Screen name="Checkout" component={CheckoutScreen} options={checkoutOptions} />
       <CustomerStack.Screen name="OrderReceiptTracker" component={OrderReceiptTrackerScreen} options={orderTrackerOptions} />
       <CustomerStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
+      <CustomerStack.Screen name="EventDetails" component={EventDetailsScreen} options={hiddenHeader} />
       <CustomerStack.Screen name="Settings" component={SettingsScreen} options={settingsOptions} />
       <CustomerStack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ title: 'Terms of Service', headerBackTitle: 'Back' }} />
       <CustomerStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy', headerBackTitle: 'Back' }} />
@@ -385,6 +390,8 @@ function App() {
           </CartProvider>
         </AppContextProvider>
       </BottomSheetModalProvider>
+      {/* Toast must render outside NavigationContainer so it overlays all screens */}
+      <Toast />
     </GestureHandlerRootView>
   );
 }

@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import {
   createStoreFeedback,
   createStoreRequest,
@@ -37,6 +38,8 @@ interface PendingPayment {
   amount: number;
 }
 
+import type { BankAccount } from '../types';
+
 interface StorefrontToolbarProps {
   storefrontId?: number | null;
   tableCode?: string | null;
@@ -44,6 +47,7 @@ interface StorefrontToolbarProps {
     name?: string;
     bankName?: string;
     accountNumber?: string;
+    bankAccounts?: BankAccount[];
   } | null;
   weeklyEvents?: WeeklyEvents;
 }
@@ -166,7 +170,8 @@ export default function StorefrontToolbar({
   const closePopup = () => setActivePopup(null);
 
   const showSuccess = (message: string) => {
-    Alert.alert('Request Sent', message, [{ text: 'OK', onPress: closePopup }]);
+    Toast.show({ type: 'success', text1: 'Sent!', text2: message });
+    closePopup();
   };
 
   const requireStorefront = () => {
@@ -720,24 +725,89 @@ function PaymentAccountBlock({
   copied,
   onCopy,
 }: {
-  vendor?: { name?: string; bankName?: string; accountNumber?: string } | null;
+  vendor?: {
+    name?: string;
+    bankName?: string;
+    accountNumber?: string;
+    bankAccounts?: BankAccount[];
+  } | null;
   copied: boolean;
   onCopy: () => void;
 }) {
-  if (!vendor?.bankName || !vendor?.accountNumber) return null;
+  const accounts = React.useMemo(() => {
+    if (vendor?.bankAccounts && vendor.bankAccounts.length > 0) {
+      return vendor.bankAccounts;
+    }
+    if (vendor?.bankName && vendor?.accountNumber) {
+      return [{
+        bankName: vendor.bankName,
+        accountNumber: vendor.accountNumber,
+        accountName: vendor.name,
+        isPrimary: true,
+      }];
+    }
+    return [];
+  }, [vendor]);
+
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [copiedLocal, setCopiedLocal] = useState(false);
+
+  if (accounts.length === 0) return null;
+
+  const current = accounts[selectedIdx] || accounts[0];
+
+  const handleCopyAccount = async () => {
+    await Clipboard.setStringAsync(current.accountNumber);
+    setCopiedLocal(true);
+    setTimeout(() => setCopiedLocal(false), 2000);
+    onCopy();
+  };
 
   return (
-    <View className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-3 mt-3.5 gap-0.5">
-      <Text className="text-emerald-800 dark:text-emerald-300 text-[11px] font-extrabold uppercase">Payment account</Text>
-      <Text className="text-gray-700 dark:text-zinc-200 text-[13px] font-semibold">{vendor.bankName}</Text>
-      <Text className="text-gray-700 dark:text-zinc-200 text-[13px] font-semibold">{vendor.name}</Text>
+    <View className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-3 mt-3.5 gap-1">
+      <View className="flex-row justify-between items-center">
+        <Text className="text-emerald-800 dark:text-emerald-300 text-[11px] font-extrabold uppercase">Payment account</Text>
+        {accounts.length > 1 && (
+          <Text className="text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">{accounts.length} accounts</Text>
+        )}
+      </View>
+
+      {accounts.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-1.5 py-1">
+          {accounts.map((acc, idx) => {
+            const isSel = idx === selectedIdx;
+            return (
+              <TouchableOpacity
+                key={idx}
+                onPress={() => {
+                  setSelectedIdx(idx);
+                  setCopiedLocal(false);
+                }}
+                className={cn(
+                  'px-2.5 py-1 rounded-lg border',
+                  isSel
+                    ? 'bg-emerald-700 border-emerald-700'
+                    : 'bg-white dark:bg-zinc-800 border-emerald-200 dark:border-emerald-800'
+                )}
+              >
+                <Text className={cn('text-xs font-bold', isSel ? 'text-white' : 'text-emerald-800 dark:text-emerald-300')}>
+                  {acc.bankName}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      <Text className="text-gray-700 dark:text-zinc-200 text-[13px] font-semibold">{current.bankName}</Text>
+      <Text className="text-gray-700 dark:text-zinc-200 text-[13px] font-semibold">{current.accountName || vendor?.name}</Text>
       <TouchableOpacity
-        onPress={onCopy}
+        onPress={handleCopyAccount}
         activeOpacity={0.65}
         className="flex-row items-center justify-between mt-0.5"
       >
-        <Text className="text-emerald-800 dark:text-emerald-300 text-base font-black">{vendor.accountNumber}</Text>
-        {copied ? (
+        <Text className="text-emerald-800 dark:text-emerald-300 text-base font-black">{current.accountNumber}</Text>
+        {copied || copiedLocal ? (
           <View className="flex-row items-center gap-1">
             <Check size={14} color="#059669" strokeWidth={2.5} />
             <Text className="text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">Copied!</Text>

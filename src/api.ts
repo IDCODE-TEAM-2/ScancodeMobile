@@ -8,14 +8,17 @@ import type {
   AccessPageType,
   AccessPageField,
   AccessPageGuestEntry,
+  BankAccount,
 } from './types';
+
+export type { BankAccount };
 
 export function resolveApiBase(): string {
   let base = process.env.EXPO_PUBLIC_API_BASE ?? 'http://localhost:8082';
   if (Platform.OS === 'android') {
     base = base.replace('://localhost', '://10.0.2.2').replace('://127.0.0.1', '://10.0.2.2');
   }
-  return base;
+  return base.trim().replace(/\/+$/, '');
 }
 
 export const API_BASE = resolveApiBase();
@@ -577,6 +580,7 @@ export interface BusinessProfileData {
   bankName?: string;
   accountName?: string;
   accountNumber?: string;
+  bankAccounts?: BankAccount[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

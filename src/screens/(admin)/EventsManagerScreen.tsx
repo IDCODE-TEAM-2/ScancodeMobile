@@ -74,10 +74,26 @@ export default function EventsManagerScreen({ route }: Props) {
   };
 
   const handleRemoveEvent = (day: DayOfWeek, eventId: string) => {
-    setEvents((prev) => ({
-      ...prev,
-      [day]: (prev[day] ?? []).filter((e) => e.id !== eventId),
-    }));
+    Alert.alert('Delete Event', 'Are you sure you want to remove this event?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const updated = {
+            ...events,
+            [day]: (events[day] ?? []).filter((e) => e.id !== eventId),
+          };
+          setEvents(updated);
+          try {
+            await updateStorefrontEvents(storefrontId, updated);
+            setFeedbackMsg({ type: 'success', text: 'Event removed from schedule.' });
+          } catch {
+            // Keep local state updated even if auto-sync fails
+          }
+        },
+      },
+    ]);
   };
 
   const handleSave = async () => {

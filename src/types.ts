@@ -5,6 +5,13 @@ import type { RouteProp } from '@react-navigation/native';
 // Lives here (rather than in a screen file) so both screens and CartContext
 // can import it without risking a circular dependency.
 
+export interface BankAccount {
+  bankName: string;
+  accountNumber: string;
+  accountName?: string;
+  isPrimary?: boolean;
+}
+
 export interface Vendor {
   name: string;
   description: string;
@@ -12,6 +19,7 @@ export interface Vendor {
   email: string;
   bankName: string;
   accountNumber: string;
+  bankAccounts?: BankAccount[];
   images: string[];
   logoUrl?: string;
   bannerUrl?: string;
@@ -186,6 +194,7 @@ export type RootStackParamList = {
   StorefrontDirectory: undefined;
   AccessPageManager: { storefrontId: number; slug?: string; name?: string };
   AccessPageGuest: { accessPageSlug: string };
+  EventDetails: { slug: string; name?: string; storefrontId?: number };
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
   Settings: undefined;

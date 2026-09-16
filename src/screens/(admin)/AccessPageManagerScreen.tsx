@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Plus, Trash2, X, Users, Link2, ChevronDown, ChevronUp } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
+import Toast from 'react-native-toast-message';
 import {
   getAccessPages,
   createAccessPage,
@@ -192,8 +193,21 @@ export default function AccessPageManagerScreen({ route }: Props) {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await deleteAccessPage(p.id);
-          await load();
+          try {
+            await deleteAccessPage(p.id);
+            Toast.show({
+              type: 'success',
+              text1: 'Access Page Deleted',
+              text2: `"${p.title}" was removed successfully.`,
+            });
+            await load();
+          } catch (err: unknown) {
+            Toast.show({
+              type: 'error',
+              text1: 'Delete Failed',
+              text2: err instanceof Error ? err.message : 'Failed to delete access page.',
+            });
+          }
         },
       },
     ]);

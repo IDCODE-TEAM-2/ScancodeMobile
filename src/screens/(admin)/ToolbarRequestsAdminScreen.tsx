@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Bell, Music2, Banknote, Megaphone, Mic2, MapPin, Check } from 'lucide-react-native';
 import type { NavigationProp, RouteProps } from '../../types';
 import ErrorBanner from '../../components/ErrorBanner';
@@ -121,76 +122,43 @@ export default function ToolbarRequestsAdminScreen({ route }: Props) {
 
   // ─── Acknowledge Handlers ───────────────────────────────────────────────────
 
-  const handleAckCall = (item: WaiterCallRecord) => {
+  const handleAckCall = async (item: WaiterCallRecord) => {
     if (item.status === 'ACKNOWLEDGED') return;
-    Alert.alert(
-      'Acknowledge Call',
-      `Mark the call from ${item.tableNumber} as acknowledged?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Acknowledge',
-          onPress: async () => {
-            try {
-              await acknowledgeWaiterCall(storefrontId, item.id);
-              setWaiterCalls((prev) =>
-                prev.map((c) => c.id === item.id ? { ...c, status: 'ACKNOWLEDGED' } : c)
-              );
-            } catch {
-              Alert.alert('Error', 'Failed to acknowledge. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await acknowledgeWaiterCall(storefrontId, item.id);
+      setWaiterCalls((prev) =>
+        prev.map((c) => c.id === item.id ? { ...c, status: 'ACKNOWLEDGED' } : c)
+      );
+      Toast.show({ type: 'success', text1: 'Call Acknowledged', text2: `Table ${item.tableNumber} call has been marked as acknowledged.` });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to acknowledge. Please try again.' });
+    }
   };
 
-  const handleAckRequest = (item: StoreRequestRecord) => {
+  const handleAckRequest = async (item: StoreRequestRecord) => {
     if (item.status === 'ACKNOWLEDGED') return;
-    Alert.alert(
-      'Acknowledge Request',
-      `Mark this ${item.requestType.toLowerCase()} request as acknowledged?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Acknowledge',
-          onPress: async () => {
-            try {
-              await acknowledgeStoreRequest(storefrontId, item.id);
-              setRequests((prev) =>
-                prev.map((r) => r.id === item.id ? { ...r, status: 'ACKNOWLEDGED' } : r)
-              );
-            } catch {
-              Alert.alert('Error', 'Failed to acknowledge. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await acknowledgeStoreRequest(storefrontId, item.id);
+      setRequests((prev) =>
+        prev.map((r) => r.id === item.id ? { ...r, status: 'ACKNOWLEDGED' } : r)
+      );
+      Toast.show({ type: 'success', text1: 'Request Acknowledged', text2: `${item.requestType.toLowerCase()} request has been acknowledged.` });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to acknowledge. Please try again.' });
+    }
   };
 
-  const handleAckTip = (item: TipRecord) => {
+  const handleAckTip = async (item: TipRecord) => {
     if (item.status === 'ACKNOWLEDGED') return;
-    Alert.alert(
-      'Acknowledge Tip',
-      `Confirm receipt of ${formatMoney(item.amount)} tip for ${recipientLabel(item)}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm Receipt',
-          onPress: async () => {
-            try {
-              await acknowledgeTip(storefrontId, item.id);
-              setTips((prev) =>
-                prev.map((t) => t.id === item.id ? { ...t, status: 'ACKNOWLEDGED' } : t)
-              );
-            } catch {
-              Alert.alert('Error', 'Failed to acknowledge. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await acknowledgeTip(storefrontId, item.id);
+      setTips((prev) =>
+        prev.map((t) => t.id === item.id ? { ...t, status: 'ACKNOWLEDGED' } : t)
+      );
+      Toast.show({ type: 'success', text1: 'Tip Confirmed', text2: `${formatMoney(item.amount)} tip for ${recipientLabel(item)} marked as received.` });
+    } catch {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to acknowledge. Please try again.' });
+    }
   };
 
   // ─── Badge Counts ───────────────────────────────────────────────────────────

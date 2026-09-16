@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, ShoppingBag, Bell, Zap, Volume2, VolumeX, Music2, Check } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
+import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from '../../utils/haptics';
 import type { NavigationProp, RouteProps } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import ErrorBanner from '../../components/ErrorBanner';
-import { playOrderAlarmSound, playStatusChangeSound, getCustomAlarmUri, setCustomAlarmUri, initAudioAlert } from '../../utils/audioAlert';
+import { playOrderAlarmSound, playStatusChangeSound, getCustomAlarmUri, setCustomAlarmUri, initAudioAlert, startLoopingAlarm, stopLoopingAlarm } from '../../utils/audioAlert';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import { getOrders, updateOrderStatus, type OrderResponse } from '../../api';
 import { useAppContext } from '../../context/AppContext';
@@ -78,6 +80,9 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [customToneUri, setCustomToneUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [testAlarmActive, setTestAlarmActive] = useState(false);
+  // IDs of orders currently being updated — prevents double-taps
+  const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
   const oledDark = theme === 'dark';
 
   // Load persisted custom alarm tone on mount
@@ -89,18 +94,6 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
 
   async function handlePickCustomTone() {
     try {
-      // Attempt to use expo-document-picker if available
-      let DocumentPicker: any = null;
-      try {
-        DocumentPicker = require('expo-document-picker');
-      } catch {
-        Alert.alert(
-          'Not Available',
-          'expo-document-picker is required to pick a custom tone. Run: expo install expo-document-picker',
-        );
-        return;
-      }
-
       const result = await DocumentPicker.getDocumentAsync({
         type: 'audio/*',
         copyToCacheDirectory: true,
@@ -114,16 +107,16 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
       setCustomToneUri(uri);
 
       const fileName = asset.name || uri.split('/').pop() || 'custom tone';
-      Alert.alert('Custom Tone Set', `"${fileName}" will be used for new order alarms.`);
+      Toast.show({ type: 'success', text1: 'Custom Tone Set', text2: `"${fileName}" will be used for new order alarms.` });
     } catch (err) {
-      Alert.alert('Error', 'Failed to pick audio file. Please try again.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to pick audio file. Please try again.' });
     }
   }
 
   async function handleClearCustomTone() {
     await setCustomAlarmUri(null);
     setCustomToneUri(null);
-    Alert.alert('Tone Cleared', 'Order alarms will now use the default synthesized tone.');
+    Toast.show({ type: 'info', text1: 'Tone Cleared', text2: 'Order alarms will now use the default synthesized tone.' });
   }
 
   function handleSoundToggle() {
@@ -135,26 +128,15 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
     }
   }
 
-  function handleTriggerTestOrder() {
+  async function handleTriggerTestOrder() {
     Haptics.tapLight();
-    if (soundEnabled) {
-      playOrderAlarmSound();
+    if (!testAlarmActive) {
+      setTestAlarmActive(true);
+      await startLoopingAlarm();
+    } else {
+      setTestAlarmActive(false);
+      await stopLoopingAlarm();
     }
-    const newId = Date.now();
-    const newOrder: LiveOrder = {
-      id: newId,
-      orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-      tableNumber: `Table ${Math.floor(1 + Math.random() * 15)}`,
-      customerName: 'Incoming Guest',
-      totalAmount: 12500,
-      status: 'PENDING',
-      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      items: [
-        { id: newId + 1, name: 'Chef BBQ Ribs', quantity: 1, price: 9500 },
-        { id: newId + 2, name: 'Fresh Iced Tea', quantity: 2, price: 1500 },
-      ],
-    };
-    setOrders((prev) => [newOrder, ...prev]);
   }
 
   const fetchOrders = useCallback(async (isRefresh = false) => {
@@ -178,13 +160,28 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
 
   useFocusRefresh(fetchOrders);
 
-  async function handleUpdateStatus(orderId: number, newStatus: 'CONFIRMED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED') {
-    const previousStatus = orders.find((o) => o.id === orderId)?.status;
+  // 15-second polling interval for real-time order sync
+  useEffect(() => {
+    if (!storefrontId) return;
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [storefrontId, fetchOrders]);
 
-    // Instant optimistic update so buttons respond immediately on touch
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-    );
+  // Stop looping alarm when screen unmounts
+  useEffect(() => {
+    return () => {
+      stopLoopingAlarm();
+    };
+  }, []);
+
+  async function handleUpdateStatus(orderId: number, newStatus: 'CONFIRMED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED') {
+    if (!storefrontId) return;
+    // Prevent double-tap
+    if (processingIds.has(orderId)) return;
+    setProcessingIds((prev) => new Set(prev).add(orderId));
+
     if (soundEnabled) {
       playStatusChangeSound();
     }
@@ -194,18 +191,23 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
       Haptics.notifyWarning();
     }
 
-    if (!storefrontId) return;
-
     try {
+      // Await server confirmation first, then update local state
       await updateOrderStatus(storefrontId, orderId, newStatus);
-    } catch (err: unknown) {
-      // The server rejected the update — revert the optimistic change instead of
-      // leaving the UI showing a status that was never actually saved.
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: previousStatus ?? o.status } : o))
+        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
       );
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not update this order.';
-      Alert.alert("Couldn't Update Order", msg);
+      Toast.show({ type: 'error', text1: "Couldn't Update Order", text2: msg });
+      // Re-fetch to get the true server state
+      fetchOrders();
+    } finally {
+      setProcessingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
     }
   }
 
@@ -272,16 +274,20 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
           {isPending ? (
             <View className="flex-row gap-2.5">
               <TouchableOpacity
-                className={cn('flex-1 rounded-lg py-2.5 items-center', oledDark ? 'bg-red-950' : 'bg-red-100')}
+                className={cn('flex-1 rounded-lg py-2.5 items-center', oledDark ? 'bg-red-950' : 'bg-red-100', processingIds.has(item.id) && 'opacity-50')}
                 onPress={() => handleUpdateStatus(item.id, 'REJECTED')}
+                disabled={processingIds.has(item.id)}
               >
                 <Text className={cn('font-bold text-sm', oledDark ? 'text-red-400' : 'text-red-600')}>Reject</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="flex-1 rounded-lg py-2.5 items-center bg-emerald-600"
+                className={cn('flex-1 rounded-lg py-2.5 items-center bg-emerald-600', processingIds.has(item.id) && 'opacity-50')}
                 onPress={() => handleUpdateStatus(item.id, 'CONFIRMED')}
+                disabled={processingIds.has(item.id)}
               >
-                <Text className="text-white font-bold text-sm">Confirm Order</Text>
+                {processingIds.has(item.id)
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : <Text className="text-white font-bold text-sm">Confirm Order</Text>}
               </TouchableOpacity>
             </View>
           ) : item.status === 'CONFIRMED' ? (
@@ -289,14 +295,18 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
               <TouchableOpacity
                 className="self-end"
                 onPress={() => handleUpdateStatus(item.id, 'CANCELLED')}
+                disabled={processingIds.has(item.id)}
               >
                 <Text className={cn('text-xs font-semibold', oledDark ? 'text-red-400' : 'text-red-500')}>Cancel Order</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="flex-1 rounded-lg py-2.5 items-center bg-emerald-600"
+                className={cn('flex-1 rounded-lg py-2.5 items-center bg-emerald-600', processingIds.has(item.id) && 'opacity-50')}
                 onPress={() => handleUpdateStatus(item.id, 'COMPLETED')}
+                disabled={processingIds.has(item.id)}
               >
-                <Text className="text-white font-bold text-sm">Mark Completed</Text>
+                {processingIds.has(item.id)
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : <Text className="text-white font-bold text-sm">Mark Completed</Text>}
               </TouchableOpacity>
             </View>
           ) : null}
@@ -322,12 +332,17 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
         {/* Sound testing and alarm controls centered beneath business name */}
         <View className="flex-row items-center justify-center gap-2 mt-3.5 flex-wrap">
           <TouchableOpacity
-            className={cn('rounded-full px-3 py-1.5 border flex-row items-center gap-1.5 shadow-sm', oledDark ? 'bg-emerald-950/60 border-emerald-800' : 'bg-emerald-50 border-emerald-200')}
+            className={cn('rounded-full px-3 py-1.5 border flex-row items-center gap-1.5 shadow-sm',
+              testAlarmActive
+                ? (oledDark ? 'bg-red-950/60 border-red-800' : 'bg-red-50 border-red-200')
+                : (oledDark ? 'bg-emerald-950/60 border-emerald-800' : 'bg-emerald-50 border-emerald-200'))}
             onPress={handleTriggerTestOrder}
             activeOpacity={0.8}
           >
-            <Zap size={13} color={oledDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
-            <Text className={cn('text-xs font-bold', oledDark ? 'text-emerald-300' : 'text-emerald-700')}>Test Alarm</Text>
+            <Zap size={13} color={testAlarmActive ? (oledDark ? '#F87171' : '#DC2626') : (oledDark ? '#34D399' : '#059669')} strokeWidth={2.2} />
+            <Text className={cn('text-xs font-bold', testAlarmActive ? (oledDark ? 'text-red-300' : 'text-red-700') : (oledDark ? 'text-emerald-300' : 'text-emerald-700'))}>
+              {testAlarmActive ? 'Stop Alarm' : 'Test Alarm'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -370,8 +385,8 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        className={cn('flex-row px-4 py-2 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}
-        contentContainerClassName="gap-2"
+        className={cn('flex-grow-0 px-4 py-1.5 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}
+        contentContainerClassName="gap-1.5 items-center"
       >
         {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED'] as const).map((tab) => {
           const active = activeTab === tab;
@@ -381,7 +396,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
           return (
             <TouchableOpacity
               key={tab}
-              className={cn('px-3 py-1.5 rounded-lg', active ? 'bg-primary' : oledDark ? 'bg-zinc-900' : 'bg-gray-100')}
+              className={cn('px-2.5 py-1 rounded-md', active ? 'bg-primary' : oledDark ? 'bg-zinc-900' : 'bg-gray-100')}
               onPress={() => { Haptics.tapLight(); setActiveTab(tab); }}
             >
               <Text className={cn('text-xs font-semibold', active ? 'text-white' : oledDark ? 'text-zinc-400' : 'text-gray-600')}>

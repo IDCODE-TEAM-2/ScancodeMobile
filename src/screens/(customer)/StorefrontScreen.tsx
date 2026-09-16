@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
     Text,
     View,
-    Image,
     ScrollView,
     FlatList,
     TouchableOpacity,
@@ -18,6 +17,7 @@ import {
     getProducts,
     getStoreConfig,
     getStorefrontBySlug,
+    getStorefrontEvents,
     type ProductResponse,
     type StorefrontResponse,
 } from '../../api';
@@ -29,6 +29,7 @@ import { cn } from '../../utils/cn';
 import Skeleton from '../../components/Skeleton';
 import BounceBadge from '../../components/BounceBadge';
 import * as Haptics from '../../utils/haptics';
+import AppImage from '../../components/AppImage';
 import ItemDetailsModalScreen, { type ItemDetailsModalHandle } from './ItemDetailsModalScreen';
 
 export type { Vendor, Product } from '../../types';
@@ -99,6 +100,14 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                 setError(null);
 
                 const storefrontData = await getStorefrontBySlug(slug);
+                if (storefrontData.businessType === 'EVENT') {
+                    navigation.replace('EventDetails', {
+                        slug: storefrontData.slug,
+                        name: storefrontData.name,
+                        storefrontId: storefrontData.id,
+                    });
+                    return;
+                }
                 const customData = parseStorefrontData(storefrontData.data);
 
                 setStorefront(storefrontData);
@@ -109,6 +118,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                     email: customData.email ?? '',
                     bankName: customData.bankName ?? '',
                     accountNumber: customData.accountNumber ?? '',
+                    bankAccounts: customData.bankAccounts,
                     images: customData.images ?? [],
                     logoUrl: storefrontData.logoUrl ?? undefined,
                     bannerUrl: storefrontData.bannerUrl ?? undefined,
@@ -116,13 +126,19 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                 });
                 setWeeklyEvents(customData.weeklyEvents ?? {});
 
-                const [productData, configData] = await Promise.all([
+                const [productData, configData, eventsData] = await Promise.all([
                     getProducts(storefrontData.id).catch(() => []),
                     getStoreConfig(storefrontData.id).catch(() => null),
+                    getStorefrontEvents(storefrontData.id).catch(() => null),
                 ]);
 
                 const mapped = productData.filter((product) => !product.isDelisted).map(mapProduct);
                 setProducts(mapped);
+
+                // Live events API takes precedence over stale blob data
+                if (eventsData) {
+                    setWeeklyEvents(eventsData);
+                }
 
                 if (configData) {
                     const rawVat = configData.vatRate ?? 7.5;
@@ -177,13 +193,25 @@ export default function StorefrontScreen({ navigation, route }: Props) {
     }, [products, activeCategory, searchQuery]);
 
     const categories = useMemo<Category[]>(() => {
-        const categoryNames = Array.from(new Set(products.map((product) => product.category).filter(Boolean)));
-        return categoryNames.map((category) => ({
-            id: category.toLowerCase().replace(/\s+/g, '-'),
-            name: category,
-            icon: getCategoryIcon(category),
-        }));
-    }, [products]);
+        const customData = parseStorefrontData(storefront?.data);
+        const configured = customData.categories || [];
+        const configuredMap = new Map(configured.map((c) => [c.name.toLowerCase(), c]));
+
+        const categoryNames = Array.from(new Set([
+            ...configured.map((c) => c.name),
+            ...products.map((product) => product.category)
+        ].filter(Boolean)));
+
+        return categoryNames.map((name) => {
+            const conf = configuredMap.get(name.toLowerCase());
+            return {
+                id: conf?.id || name.toLowerCase().replace(/\s+/g, '-'),
+                name,
+                icon: conf?.icon || getCategoryIcon(name),
+                imageUrl: conf?.imageUrl,
+            };
+        });
+    }, [products, storefront]);
 
     const handleCategoryPress = (category: string) => {
         Haptics.tapLight();
@@ -262,11 +290,11 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                         <ArrowLeft size={16} color={iconColor} strokeWidth={2.2} />
                     </TouchableOpacity>
                     <View className="w-9 h-9 rounded-full bg-gray-900 dark:bg-zinc-800 justify-center items-center overflow-hidden mr-2.5">
-                        {vendor?.logoUrl ? (
-                            <Image source={{ uri: vendor.logoUrl }} className="w-full h-full" resizeMode="cover" />
-                        ) : (
-                            <Store size={16} color="#FFFFFF" strokeWidth={1.8} />
-                        )}
+                        <AppImage
+                            uri={vendor?.logoUrl}
+                            className="w-full h-full"
+                            fallbackIcon={<Store size={16} color="#FFFFFF" strokeWidth={1.8} />}
+                        />
                     </View>
                     <Text className="text-base font-bold text-gray-900 dark:text-white flex-1" numberOfLines={1}>{vendor?.name || "The Test"}</Text>
                     <TouchableOpacity
@@ -305,13 +333,11 @@ export default function StorefrontScreen({ navigation, route }: Props) {
 
                         <View className="items-center pt-2 pb-3 bg-white dark:bg-[#09090B]">
                             <View className="w-[60px] h-[60px] rounded-full bg-gray-900 dark:bg-zinc-800 justify-center items-center overflow-hidden mb-2 shadow-sm">
-                                {vendor?.logoUrl ? (
-                                    <Image source={{ uri: vendor.logoUrl }} className="w-full h-full" resizeMode="cover" />
-                                ) : (
-                                    <View className="justify-center items-center">
-                                        <Store size={26} color="#FFFFFF" strokeWidth={1.8} />
-                                    </View>
-                                )}
+                                <AppImage
+                                    uri={vendor?.logoUrl}
+                                    className="w-full h-full"
+                                    fallbackIcon={<Store size={26} color="#FFFFFF" strokeWidth={1.8} />}
+                                />
                             </View>
                             <Text className="text-xl font-bold text-gray-900 dark:text-white">{vendor?.name || "The Test"}</Text>
                             <Text className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">...by ScanCode.ng</Text>
@@ -379,8 +405,16 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                                             activeOpacity={0.8}
                                             onPress={() => handleCategoryPress(cat.name)}
                                         >
-                                            <View className="w-11 h-11 rounded-lg bg-gray-100 dark:bg-zinc-800 justify-center items-center mb-1.5">
-                                                <Text className="text-[22px]">{cat.icon}</Text>
+                                            <View className="w-11 h-11 rounded-lg bg-gray-100 dark:bg-zinc-800 justify-center items-center mb-1.5 overflow-hidden">
+                                                {cat.imageUrl ? (
+                                                    <AppImage
+                                                        uri={cat.imageUrl}
+                                                        className="w-11 h-11 rounded-lg"
+                                                        fallbackIcon={<Text className="text-[22px]">{cat.icon}</Text>}
+                                                    />
+                                                ) : (
+                                                    <Text className="text-[22px]">{cat.icon}</Text>
+                                                )}
                                             </View>
                                             <Text className={cn('text-[11px] text-center', isSelected ? 'text-primary font-semibold' : 'text-gray-600 dark:text-zinc-400 font-medium')}>
                                                 {cat.name}
@@ -413,11 +447,11 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                         onPress={() => itemDetailsRef.current?.present(item)}
                     >
                         <View className="w-20 h-20 rounded-xl bg-gray-100 dark:bg-zinc-800 justify-center items-center overflow-hidden">
-                            {item.media[0] ? (
-                                <Image source={{ uri: item.media[0] }} className="w-full h-full rounded-xl" resizeMode="cover" />
-                            ) : (
-                                <Package size={26} color={isDark ? '#6B7280' : '#9CA3AF'} strokeWidth={1.6} />
-                            )}
+                            <AppImage
+                                uri={item.media[0]}
+                                className="w-full h-full rounded-xl"
+                                fallbackIcon={<Package size={26} color={isDark ? '#6B7280' : '#9CA3AF'} strokeWidth={1.6} />}
+                            />
                         </View>
                         <View className="flex-1 ml-4 justify-between">
                             <View className="flex-row justify-between items-center">

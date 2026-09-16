@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { ArrowLeft, Flashlight, FlashlightOff, Zap } from 'lucide-react-native';
 import type { NavigationProp, RouteProps } from '../../types';
 import ErrorBanner from '../../components/ErrorBanner';
@@ -153,7 +153,10 @@ export default function CameraQRScannerScreen({ navigation }: Props) {
   };
 
   return (
-    <View className="flex-1 bg-black">
+    <KeyboardAvoidingView
+      className="flex-1 bg-black"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <View className="flex-[2] relative">
         {renderCameraViewfinder()}
       </View>
@@ -206,6 +209,6 @@ export default function CameraQRScannerScreen({ navigation }: Props) {
           </View>
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

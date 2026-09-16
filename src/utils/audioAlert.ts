@@ -24,6 +24,10 @@ let _customChimeUri: string | null = null;
 let _audioInitialized = false;
 let audioConfigured = false;
 
+// Module-level looping alarm state
+let _loopingAlarmPlayer: AudioPlayer | null = null;
+let _loopingAlarmInterval: ReturnType<typeof setInterval> | null = null;
+
 // ─── Initialisation ──────────────────────────────────────────────────────────
 
 /**
@@ -191,3 +195,54 @@ export async function playStatusChangeSound(): Promise<void> {
 
 // Exported alias for compatibility
 export const playOrderChime = playOrderAlarmSound;
+
+// ─── Looping Alarm (Test Alarm Toggle) ───────────────────────────────────────
+
+/**
+ * Start looping the order alarm sound until `stopLoopingAlarm()` is called.
+ * On native: loops an AudioPlayer. On web: repeats the synthesizer on a 1.5 s interval.
+ */
+export async function startLoopingAlarm(): Promise<void> {
+  await initAudioAlert();
+  // Stop any existing loop first
+  await stopLoopingAlarm();
+
+  if (_customAlarmUri) {
+    try {
+      await configureAudioSession();
+      _loopingAlarmPlayer = createAudioPlayer(_customAlarmUri);
+      (_loopingAlarmPlayer as any).loop = true;
+      _loopingAlarmPlayer.play();
+      return;
+    } catch (err) {
+      console.warn('[audioAlert] Failed to start looping alarm, falling back to synth:', err);
+      _loopingAlarmPlayer?.remove();
+      _loopingAlarmPlayer = null;
+    }
+  }
+
+  // Web Audio / synthesizer fallback — fire immediately then repeat
+  synthFallbackBeep(ALARM_FREQ, 0.6);
+  _loopingAlarmInterval = setInterval(() => {
+    synthFallbackBeep(ALARM_FREQ, 0.6);
+  }, 1500);
+}
+
+/**
+ * Stop the looping alarm started by `startLoopingAlarm()`.
+ */
+export async function stopLoopingAlarm(): Promise<void> {
+  if (_loopingAlarmPlayer) {
+    try {
+      _loopingAlarmPlayer.pause();
+      _loopingAlarmPlayer.remove();
+    } catch {
+      // Ignore cleanup errors
+    }
+    _loopingAlarmPlayer = null;
+  }
+  if (_loopingAlarmInterval !== null) {
+    clearInterval(_loopingAlarmInterval);
+    _loopingAlarmInterval = null;
+  }
+}
