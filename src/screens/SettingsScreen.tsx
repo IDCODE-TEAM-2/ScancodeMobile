@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function SettingsScreen({ navigation }: Props) {
-  const { setAppState, theme, setTheme, isDark } = useAppContext();
+  const { setAppState, clearSession, theme, setTheme, isDark } = useAppContext();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,8 +47,7 @@ export default function SettingsScreen({ navigation }: Props) {
       'Sign Out',
       'Are you sure you want to sign out?',
       async () => {
-        await deleteToken();
-        setAppState('logged_out');
+        await clearSession('logged_out');
       },
       { confirmText: 'Sign Out', destructive: true }
     );
@@ -66,7 +65,7 @@ export default function SettingsScreen({ navigation }: Props) {
             setDeleting(true);
             try {
               await deleteAccount();
-              setAppState('logged_out');
+              await clearSession('logged_out');
             } catch (err: unknown) {
               setDeleting(false);
               Alert.alert(

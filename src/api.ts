@@ -4,10 +4,6 @@ import { Platform } from 'react-native';
 import type {
   WeeklyEvents,
   ProductInput,
-  AccessPage,
-  AccessPageType,
-  AccessPageField,
-  AccessPageGuestEntry,
   BankAccount,
 } from './types';
 
@@ -708,17 +704,70 @@ export function updateStorefrontLogo(storefrontId: number, logoUrl: string) {
 }
 
 /**
- * Unified storefront update for screen backwards compatibility.
- * Automatically triggers /logo and /data patch endpoints if needed on backend.
+ * Attempts to update the top-level name/description fields on a storefront via
+ * PATCH /api/business/storefronts/{id}/meta (if the backend supports it).
+ * Falls back silently if the endpoint doesn't exist — the data blob already
+ * carries name/description as a backup so the merchant can still see the change.
+ */
+async function updateStorefrontMeta(
+  storefrontId: number,
+  meta: { name?: string; description?: string },
+): Promise<StorefrontResponse | undefined> {
+  try {
+    return await request<StorefrontResponse>(
+      'PATCH',
+      `/api/business/storefronts/${storefrontId}/meta`,
+      meta,
+    );
+  } catch {
+    // Endpoint may not exist on this backend version — data blob update is the fallback.
+    return undefined;
+  }
+}
+
+/**
+ * Unified storefront update. Swagger only exposes PATCH /logo and PATCH /data —
+ * never look up by treating a numeric id as a slug.
  */
 export async function updateStorefront(storefrontId: number, body: Partial<CreateStorefrontBody>): Promise<StorefrontResponse> {
+  let latest: StorefrontResponse | undefined;
+
   if (body.logoUrl) {
-    await updateStorefrontLogo(storefrontId, body.logoUrl);
+    latest = await updateStorefrontLogo(storefrontId, body.logoUrl);
   }
-  if (body.data) {
-    return updateStorefrontData(storefrontId, body.data);
+
+  // Attempt to patch root-level name/description fields directly.
+  if (body.name !== undefined || body.description !== undefined) {
+    const metaResult = await updateStorefrontMeta(storefrontId, {
+      name: body.name,
+      description: body.description,
+    });
+    if (metaResult) latest = metaResult;
   }
-  return getStorefrontBySlug(String(storefrontId));
+
+  const data: Record<string, unknown> =
+    body.data && typeof body.data === 'object' && !Array.isArray(body.data)
+      ? { ...(body.data as Record<string, unknown>) }
+      : {};
+  // Always keep name/description in the data blob as a source-of-truth fallback
+  // for screens that read from parseStorefrontData().
+  if (body.name !== undefined) data.name = body.name;
+  if (body.description !== undefined) data.description = body.description;
+  if (body.bannerUrl !== undefined) data.bannerUrl = body.bannerUrl;
+  if (body.businessType !== undefined) data.businessType = body.businessType;
+
+  if (Object.keys(data).length > 0) {
+    latest = await updateStorefrontData(storefrontId, data);
+  }
+
+  if (latest) return latest;
+
+  const mine = await getMyStorefronts();
+  const found = mine.find((s) => s.id === storefrontId);
+  if (!found) {
+    throw new Error('Could not load the updated storefront.');
+  }
+  return found;
 }
 
 export function getMyStorefronts() {
@@ -1131,6 +1180,34 @@ export async function saveBusinessProfileData(data: BusinessProfileData): Promis
   const parsed = existing ? JSON.parse(existing) : {};
   const updated = { ...parsed, ...data };
   await AsyncStorage.setItem('global_business_profile', JSON.stringify(updated));
+
+  // Checkout reads bank details from each storefront's `data` blob, not this local profile.
+  const mine = await getMyStorefronts();
+  const syncErrors: string[] = [];
+  await Promise.all(
+    mine.map(async (sf) => {
+      try {
+        const current =
+          sf.data && typeof sf.data === 'object' && !Array.isArray(sf.data)
+            ? { ...(sf.data as Record<string, unknown>) }
+            : {};
+        await updateStorefrontData(sf.id, {
+          ...current,
+          bankName: data.bankName ?? current.bankName,
+          accountNumber: data.accountNumber ?? current.accountNumber,
+          accountName: data.accountName ?? current.accountName,
+          bankAccounts: data.bankAccounts ?? current.bankAccounts,
+        });
+      } catch {
+        syncErrors.push(sf.name || String(sf.id));
+      }
+    }),
+  );
+  if (syncErrors.length > 0) {
+    throw new Error(
+      `Saved on this device, but could not update checkout details for: ${syncErrors.join(', ')}.`,
+    );
+  }
 }
 
 export async function getBusinessProfileData(): Promise<BusinessProfileData> {

@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShoppingBag, Bell, Settings2, Settings as SettingsIcon, Calendar, Plus, LayoutGrid, Landmark, Compass, Package, Pencil, QrCode, LogOut } from 'lucide-react-native';
 import {
   getMyStorefronts,
-  deleteToken,
   getOrders,
   getStorefrontWaiterCalls,
   getStorefrontRequests,
@@ -16,6 +15,7 @@ import { useAppContext } from '../../context/AppContext';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import Skeleton from '../../components/Skeleton';
 import GradientButton from '../../components/GradientButton';
+import EventCard from '../../components/EventCard';
 import { confirmAction } from '../../utils/alerts';
 import { cn } from '../../utils/cn';
 
@@ -32,7 +32,7 @@ const EMPTY_NOTIF_COUNTS: NotifCounts = { orders: 0, activity: 0 };
 
 export default function DashboardScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { setAppState, isDark } = useAppContext();
+  const { setAppState, isDark, clearSession } = useAppContext();
   const [storefronts, setStorefronts] = useState<StorefrontResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,8 +90,7 @@ export default function DashboardScreen({ navigation }: Props) {
       'Sign Out',
       'Are you sure you want to sign out?',
       async () => {
-        await deleteToken();
-        setAppState('logged_out');
+        await clearSession('logged_out');
       },
       { confirmText: 'Sign Out', destructive: true }
     );
@@ -103,6 +102,61 @@ export default function DashboardScreen({ navigation }: Props) {
     const published = item.isPublished;
     const counts = notifCounts[item.id] ?? EMPTY_NOTIF_COUNTS;
     const hasNotifications = counts.orders + counts.activity > 0;
+
+    if (item.businessType === 'EVENT') {
+      return (
+        <View>
+          <EventCard
+            item={item}
+            isDark={isDark}
+            ctaLabel="Manage Event"
+            onPress={() =>
+              navigation.navigate('AccessPageManager', {
+                storefrontId: item.id,
+                slug: item.slug,
+                name: item.name,
+              })
+            }
+          />
+          <View className="flex-row gap-2 -mt-2 mb-1">
+            {published ? (
+              <>
+                <TouchableOpacity
+                  className="flex-1 border-[1.5px] border-primary rounded-lg py-2 items-center"
+                  onPress={() => navigation.navigate('EventDetails', { slug: item.slug, name: item.name, storefrontId: item.id })}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-primary font-semibold text-sm">Guest View</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 border-[1.5px] border-primary rounded-lg py-2 items-center"
+                  onPress={() => navigation.navigate('QR', { slug: item.slug, name: item.name })}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-primary font-semibold text-sm">View QR</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <GradientButton
+                className="flex-1 rounded-lg"
+                contentClassName="py-2"
+                onPress={() =>
+                  navigation.navigate('ActivateQR', {
+                    storefrontId: item.id,
+                    slug: item.slug,
+                    name: item.name,
+                  })
+                }
+                activeOpacity={0.7}
+              >
+                <Text className="text-white font-semibold text-sm">Activate QR</Text>
+              </GradientButton>
+            )}
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View className="bg-white dark:bg-[#18181B] rounded-xl p-4 shadow-sm border border-gray-200 dark:border-zinc-800">
         <View className="flex-row justify-between items-start mb-1.5">

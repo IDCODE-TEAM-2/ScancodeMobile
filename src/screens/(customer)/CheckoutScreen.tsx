@@ -43,8 +43,10 @@ export default function CheckoutScreen({ navigation, route }: Props) {
     name: string;
     bankName?: string;
     accountNumber?: string;
+    accountName?: string;
     phone?: string;
     businessType?: string;
+    bankAccounts?: { bankName: string; accountNumber: string; accountName?: string; isPrimary?: boolean }[];
   } | null>(null);
 
   const [manualTableCode, setManualTableCode] = useState('');
@@ -85,6 +87,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
       title: 'Order Payment',
       onSuccess: () => {
         setIsPayingWithPaystack(false);
+        if (storefrontId) clearCart(storefrontId);
         Alert.alert('Payment Successful!', 'Your payment has been received and verified.', [
           {
             text: 'Track Order',
@@ -124,8 +127,11 @@ export default function CheckoutScreen({ navigation, route }: Props) {
           name: sf.name,
           bankName: customData.bankName,
           accountNumber: customData.accountNumber,
+          accountName: customData.bankAccounts?.find((a) => a.isPrimary)?.accountName
+            ?? customData.bankAccounts?.[0]?.accountName,
           phone: customData.phone,
           businessType: sf.businessType,
+          bankAccounts: customData.bankAccounts,
         });
 
         const config = await getStoreConfig(activeStoreId).catch(() => null);
@@ -203,7 +209,6 @@ export default function CheckoutScreen({ navigation, route }: Props) {
 
     try {
       const order = await createOrder(storefrontId, body);
-      clearCart(storefrontId);
       Haptics.notifySuccess();
       setPlacedOrder(order);
     } catch (err: unknown) {
@@ -214,9 +219,17 @@ export default function CheckoutScreen({ navigation, route }: Props) {
     }
   };
 
-  const bankName = vendor?.bankName || 'GTBank PLC';
-  const accountNumber = vendor?.accountNumber || '0123456789';
-  const accountName = vendor?.name || 'Store Management';
+  const primaryAccount =
+    vendor?.bankAccounts?.find((a) => a.isPrimary) ?? vendor?.bankAccounts?.[0];
+  const bankName = primaryAccount?.bankName || vendor?.bankName;
+  const accountNumber = primaryAccount?.accountNumber || vendor?.accountNumber;
+  const accountName = primaryAccount?.accountName || vendor?.accountName || vendor?.name;
+  const hasBankDetails = Boolean(bankName && accountNumber);
+
+  function leaveAfterPlacedOrder(next: () => void) {
+    if (storefrontId) clearCart(storefrontId);
+    next();
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50 dark:bg-[#09090B]">
@@ -312,6 +325,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                   <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
                 </View>
 
+                {hasBankDetails ? (
                 <View className="bg-gray-100 dark:bg-zinc-800 rounded-xl p-3 gap-2">
                   <View className="flex-row justify-between">
                     <Text className="text-[13px] text-gray-500 dark:text-zinc-400">Bank Name:</Text>
@@ -340,16 +354,23 @@ export default function CheckoutScreen({ navigation, route }: Props) {
                     <Text className="text-[13px] font-semibold text-gray-800 dark:text-zinc-200">{accountName}</Text>
                   </View>
                 </View>
+                ) : (
+                  <Text className="text-xs text-gray-500 dark:text-zinc-400 text-center">
+                    This store has not published bank transfer details. Pay online with Paystack.
+                  </Text>
+                )}
               </View>
 
               <TouchableOpacity
                 className="bg-primary rounded-xl py-3 items-center mt-2 self-stretch"
                 onPress={() =>
-                  navigation.navigate('OrderReceiptTracker', {
-                    orderId: placedOrder.id,
-                    slug,
-                    storefrontId: storefrontId ?? placedOrder.storefrontId,
-                  })
+                  leaveAfterPlacedOrder(() =>
+                    navigation.navigate('OrderReceiptTracker', {
+                      orderId: placedOrder.id,
+                      slug,
+                      storefrontId: storefrontId ?? placedOrder.storefrontId,
+                    }),
+                  )
                 }
               >
                 <Text className="text-white text-base font-bold">Track Order Status</Text>
@@ -357,7 +378,7 @@ export default function CheckoutScreen({ navigation, route }: Props) {
 
               <TouchableOpacity
                 className="rounded-xl py-3.5 items-center mt-2.5 self-stretch border-[1.5px] border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800"
-                onPress={() => navigation.navigate('Storefront', { slug })}
+                onPress={() => leaveAfterPlacedOrder(() => navigation.navigate('Storefront', { slug }))}
               >
                 <Text className="text-gray-600 dark:text-zinc-200 text-[15px] font-semibold">Return to Storefront</Text>
               </TouchableOpacity>

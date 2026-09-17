@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
-import { Store, PlusCircle, Ticket, ChevronRight, Calendar, CalendarPlus } from 'lucide-react-native';
+import { Store, PlusCircle, ChevronRight, Calendar, CalendarPlus, Ticket } from 'lucide-react-native';
+import EventCard from '../../components/EventCard';
 import { getMyStorefronts, type StorefrontResponse } from '../../api';
 import type { NavigationProp } from '../../types';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
@@ -91,11 +92,13 @@ export default function ServicesScreen({ navigation }: Props) {
 
         {/* Existing Events List */}
         {events.length > 0 ? (
-          <View className="bg-white dark:bg-[#18181B] rounded-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden divide-y divide-gray-100 dark:divide-zinc-800">
+          <View>
             {events.map((e) => (
-              <TouchableOpacity
+              <EventCard
                 key={e.id}
-                className="p-4 flex-row items-center justify-between"
+                item={e}
+                isDark={isDark}
+                ctaLabel="Manage Event"
                 onPress={() =>
                   navigation.navigate('AccessPageManager', {
                     storefrontId: e.id,
@@ -103,28 +106,7 @@ export default function ServicesScreen({ navigation }: Props) {
                     name: e.name,
                   })
                 }
-                activeOpacity={0.7}
-              >
-                <View className="flex-1 mr-3">
-                  <View className="flex-row items-center gap-2">
-                    <Text className="text-base font-bold text-gray-900 dark:text-white" numberOfLines={1}>
-                      {e.name}
-                    </Text>
-                    <View className="bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800/40">
-                      <Text className="text-[10px] font-extrabold text-amber-700 dark:text-amber-300">
-                        EVENT
-                      </Text>
-                    </View>
-                  </View>
-                  <Text className="text-xs text-gray-500 dark:text-gray-400 mt-1" numberOfLines={1}>
-                    {e.description || `scancode.ng/${e.slug}`}
-                  </Text>
-                </View>
-                <View className="flex-row items-center gap-1.5">
-                  <Text className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Manage</Text>
-                  <ChevronRight size={16} color="#059669" />
-                </View>
-              </TouchableOpacity>
+              />
             ))}
           </View>
         ) : (

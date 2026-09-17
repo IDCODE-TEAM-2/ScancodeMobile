@@ -211,14 +211,19 @@ export default function CreateEventScreen({ navigation }: Props) {
         { key: 'phone', label: 'Phone Number', type: 'PHONE', required: true, placeholder: '08012345678' },
       ];
 
-      await saveRegistrationForm(eventStorefront.id, {
-        eventTypeOverride: eventType,
-        title: `${title.trim()} Registration`,
-        description: `RSVP and access pass for ${title.trim()}`,
-        fields: defaultFields,
-        ticketTiers,
-        isOpen: true,
-      });
+      try {
+        await saveRegistrationForm(eventStorefront.id, {
+          eventTypeOverride: eventType,
+          title: `${title.trim()} Registration`,
+          description: `RSVP and access pass for ${title.trim()}`,
+          fields: defaultFields,
+          ticketTiers,
+          isOpen: true,
+        });
+      } catch {
+        // Registration form save is best-effort; the event storefront already exists.
+        // The merchant can configure the form manually from the AccessPageManager.
+      }
 
       Alert.alert('Event Created! 🎉', `"${title.trim()}" is ready. You can now manage registrations, invite guests, and scan tickets at the door.`, [
         {
