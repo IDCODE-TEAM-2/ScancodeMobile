@@ -36,7 +36,7 @@ export default function QRScreen({ route }: Props) {
           </View>
 
           <Text className="text-[13px] text-gray-500 dark:text-zinc-400 text-center leading-[18px] mb-6">
-            Customers can scan this code with their smartphone camera to view your digital menu and place orders.
+            Customers can scan this code to view your digital menu and place orders.
           </Text>
 
           <TouchableOpacity
