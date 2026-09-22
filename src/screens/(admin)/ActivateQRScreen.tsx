@@ -4,6 +4,8 @@ import { CheckCircle2, PartyPopper } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { initializePayment, verifyPayment, devSkipPayment } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
+import { useAppContext } from '../../context/AppContext';
+import { formatMoney } from '../../utils/currency';
 import { cn } from '../../utils/cn';
 
 interface Props {
@@ -21,6 +23,7 @@ const FEATURES = [
 
 export default function ActivateQRScreen({ navigation, route }: Props) {
   const { slug, name } = route.params;
+  const { isDark } = useAppContext();
   const [step, setStep] = useState<Step>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -84,7 +87,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
     setStep('verifying');
     setErrorMsg(null);
     try {
-      const res = await verifyPayment(reference);
+      const res = await verifyPayment(reference, true);
       if (res.verified) {
         setStep('success');
       } else {
@@ -99,39 +102,39 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
   }
 
   return (
-    <ScrollView contentContainerClassName="flex-grow">
-      <View className="flex-1 bg-gray-100 p-5 justify-center">
-        <View className="bg-white rounded-2xl p-6 shadow-sm">
+    <ScrollView className="flex-1 bg-gray-100 dark:bg-[#09090B]" contentContainerClassName="flex-grow">
+      <View className="flex-1 p-5 justify-center">
+        <View className="bg-white dark:bg-[#18181B] rounded-2xl p-6 shadow-sm border border-transparent dark:border-zinc-800">
           <Text className="text-[11px] font-extrabold text-primary tracking-wide mb-1">QR ACTIVATION</Text>
-          <Text className="text-[22px] font-extrabold text-gray-900 mb-4">{name}</Text>
+          <Text className="text-[22px] font-extrabold text-gray-900 dark:text-white mb-4">{name}</Text>
 
-          <View className="bg-emerald-50 rounded-xl p-4 items-center mb-4">
-            <Text className="text-[13px] text-gray-500 mb-0.5">One-time Activation Fee</Text>
-            <Text className="text-[28px] font-extrabold text-primary">₦5,000</Text>
+          <View className="bg-emerald-50 dark:bg-emerald-950/40 rounded-xl p-4 items-center mb-4">
+            <Text className="text-[13px] text-gray-500 dark:text-zinc-400 mb-0.5">One-time Activation Fee</Text>
+            <Text className="text-[28px] font-extrabold text-primary">{formatMoney(5000)}</Text>
           </View>
 
           <View className="gap-2 mb-5">
             {FEATURES.map((feature) => (
               <View key={feature} className="flex-row items-center gap-2">
-                <CheckCircle2 size={16} color="#374151" strokeWidth={2.2} />
-                <Text className="text-sm text-gray-700 font-medium">{feature}</Text>
+                <CheckCircle2 size={16} color={isDark ? '#34D399' : '#374151'} strokeWidth={2.2} />
+                <Text className="text-sm text-gray-700 dark:text-zinc-300 font-medium">{feature}</Text>
               </View>
             ))}
           </View>
 
           {errorMsg ? (
-            <View className="bg-red-100 rounded-lg p-3 mb-4">
-              <Text className="text-red-600 text-[13px]">{errorMsg}</Text>
+            <View className="bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+              <Text className="text-red-600 dark:text-red-400 text-[13px]">{errorMsg}</Text>
             </View>
           ) : null}
 
           {step === 'success' ? (
-            <View className="bg-emerald-100 rounded-xl p-4 items-center">
+            <View className="bg-emerald-100 dark:bg-emerald-950/40 rounded-xl p-4 items-center border border-emerald-200 dark:border-emerald-800">
               <View className="flex-row items-center gap-2 mb-1">
-                <PartyPopper size={18} color="#374151" strokeWidth={2.2} />
-                <Text className="text-lg font-extrabold text-emerald-800">QR Code Activated!</Text>
+                <PartyPopper size={18} color={isDark ? '#34D399' : '#374151'} strokeWidth={2.2} />
+                <Text className="text-lg font-extrabold text-emerald-800 dark:text-emerald-400">QR Code Activated!</Text>
               </View>
-              <Text className="text-[13px] text-emerald-700 mb-3">Your storefront is now live and published.</Text>
+              <Text className="text-[13px] text-emerald-700 dark:text-emerald-500 mb-3">Your storefront is now live and published.</Text>
               <TouchableOpacity
                 className="bg-primary rounded-xl py-3.5 items-center w-full"
                 onPress={() => navigation.navigate('QR', { slug, name })}
@@ -152,7 +155,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text className="text-white text-base font-bold">
-                  {step === 'waiting' ? 'Verify Payment' : 'Pay ₦5,000 with Paystack'}
+                  {step === 'waiting' ? 'Verify Payment' : `Pay ${formatMoney(5000)} with Paystack`}
                 </Text>
               )}
             </TouchableOpacity>
@@ -164,13 +167,13 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
           {step !== 'success' && (
             <TouchableOpacity
               className={cn(
-                'border border-dashed border-gray-300 rounded-xl py-2.5 items-center mt-2.5',
+                'border border-dashed border-gray-300 dark:border-zinc-700 rounded-xl py-2.5 items-center mt-2.5',
                 (step === 'initializing' || step === 'verifying') && 'opacity-60'
               )}
               onPress={handleDevSkip}
               disabled={step === 'initializing' || step === 'verifying'}
             >
-              <Text className="text-gray-500 text-xs font-semibold">Dev Skip (Test Only)</Text>
+              <Text className="text-gray-500 dark:text-zinc-500 text-xs font-semibold">Dev Skip (Test Only)</Text>
             </TouchableOpacity>
           )}
         </View>

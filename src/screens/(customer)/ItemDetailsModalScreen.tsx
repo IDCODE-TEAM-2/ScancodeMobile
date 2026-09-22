@@ -5,6 +5,7 @@ import { Minus, Plus, Package } from 'lucide-react-native';
 import type { Product } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { cn } from '../../utils/cn';
+import { formatMoney } from '../../utils/currency';
 import * as Haptics from '../../utils/haptics';
 
 export interface ItemDetailsModalHandle {
@@ -74,7 +75,7 @@ const ItemDetailsModalScreen = forwardRef<ItemDetailsModalHandle, ItemDetailsMod
             <Text className="text-sm text-gray-500 dark:text-zinc-400 leading-5 mb-4">{product.description}</Text>
 
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-2xl font-extrabold text-primary">₦{product.price.toLocaleString()}</Text>
+              <Text className="text-2xl font-extrabold text-primary">{formatMoney(product.price)}</Text>
 
               <View className="flex-row items-center gap-4 bg-gray-100 dark:bg-zinc-800 rounded-full px-2 py-1.5">
                 <TouchableOpacity
@@ -106,7 +107,7 @@ const ItemDetailsModalScreen = forwardRef<ItemDetailsModalHandle, ItemDetailsMod
             </View>
 
             <TouchableOpacity className="bg-primary rounded-2xl py-4 items-center flex-row justify-center" onPress={handleAdd} activeOpacity={0.85}>
-              <Text className="text-white text-base font-bold">Add {qty} to Cart — ₦{(product.price * qty).toLocaleString()}</Text>
+              <Text className="text-white text-base font-bold">Add {qty} to Cart — {formatMoney(product.price * qty)}</Text>
             </TouchableOpacity>
           </View>
         )}

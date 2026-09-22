@@ -24,6 +24,7 @@ import {
 import { useCart, EMPTY_CART, EMPTY_FAVORITES } from '../../context/CartContext';
 import { useAppContext } from '../../context/AppContext';
 import { parseStorefrontData } from '../../utils/parseStorefrontData';
+import { formatMoney } from '../../utils/currency';
 import type { NavigationProp, RouteProps, Vendor, Product } from '../../types';
 import { cn } from '../../utils/cn';
 import Skeleton from '../../components/Skeleton';
@@ -446,7 +447,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                             </View>
                             <Text className="text-xs text-gray-400 dark:text-zinc-400 my-1" numberOfLines={2}>{item.description}</Text>
                             <View className="flex-row justify-between items-center">
-                                <Text className="text-[15px] font-bold text-primary">₦{item.price.toLocaleString()}</Text>
+                                <Text className="text-[15px] font-bold text-primary">{formatMoney(item.price)}</Text>
                                 <View className="flex-row items-center gap-2 ml-3">
                                     <TouchableOpacity className="bg-primary py-1.5 px-3.5 rounded-full" onPress={() => addToCart(item)}>
                                         <Text className="text-white text-[13px] font-semibold"> + </Text>
@@ -489,7 +490,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                         </View>
                         <Text className="text-white font-bold text-[15px]">Cart</Text>
                     </View>
-                    <Text className="text-white font-bold text-[15px]">Proceed • ₦{financialSummary.grandTotal.toLocaleString()}</Text>
+                    <Text className="text-white font-bold text-[15px]">Proceed • {formatMoney(financialSummary.grandTotal)}</Text>
                 </TouchableOpacity>
             )}
 

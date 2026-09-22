@@ -10,7 +10,10 @@ import type {
 export type { BankAccount };
 
 export function resolveApiBase(): string {
-  let base = process.env.EXPO_PUBLIC_API_BASE ?? 'http://localhost:8082';
+  // EXPO_PUBLIC_API_BASE must be set in your .env / EAS secret for each environment.
+  // Fallback is the production API so a misconfigured build still hits a real server
+  // instead of localhost (which is only useful with a local dev backend).
+  let base = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.scancode.ng';
   if (Platform.OS === 'android') {
     base = base.replace('://localhost', '://10.0.2.2').replace('://127.0.0.1', '://10.0.2.2');
   }
@@ -79,6 +82,31 @@ async function parseJsonBody<T>(res: Response): Promise<T> {
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+// Default request timeout — prevents a slow/hung server from freezing the UI indefinitely.
+const REQUEST_TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 2;
+const INITIAL_RETRY_DELAY_MS = 500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(status: number): boolean {
+  // 502 Bad Gateway, 503 Service Unavailable, 504 Gateway Timeout
+  return status === 502 || status === 503 || status === 504;
+}
+
+function isTransientNetworkError(err: unknown): boolean {
+  if (err instanceof Error) {
+    if (err.name === 'AbortError') return true;
+    const msg = err.message.toLowerCase();
+    if (msg.includes('network request failed') || msg.includes('connection refused') || msg.includes('timed out')) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -98,27 +126,75 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const isIdempotent = method === 'GET' || method === 'HEAD';
+  let lastError: Error | null = null;
 
-  if (!res.ok) {
-    if (res.status === 401 && requireAuth && token) {
-      unauthorizedListeners.forEach((listener) => listener());
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+      await sleep(delay);
     }
-    let message = `HTTP ${res.status}`;
+
+    // Abort the fetch after REQUEST_TIMEOUT_MS to avoid indefinite hangs.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    let res: Response;
     try {
-      const err = await parseJsonBody<{ message?: string; error?: string }>(res);
-      message = err?.message ?? err?.error ?? message;
-    } catch {
-      // ignore parse errors
+      res = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timeoutId);
+      const isTimeout = err instanceof Error && err.name === 'AbortError';
+      const friendlyErr = isTimeout
+        ? new Error('Request timed out. Please check your connection and try again.')
+        : err instanceof Error ? err : new Error(String(err));
+
+      lastError = friendlyErr;
+
+      // Only retry idempotent requests or pure connection dropouts
+      const canRetry = attempt < MAX_RETRIES && (isIdempotent || isTransientNetworkError(err));
+      if (canRetry) {
+        continue;
+      }
+      throw friendlyErr;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    throw new Error(message);
+
+    if (!res.ok) {
+      if (res.status === 401 && requireAuth && token) {
+        unauthorizedListeners.forEach((listener) => listener());
+      }
+
+      // Retry transient 502/503/504 errors on idempotent GET requests
+      if (isIdempotent && isRetryableStatus(res.status) && attempt < MAX_RETRIES) {
+        continue;
+      }
+
+      let message = `HTTP ${res.status}`;
+      try {
+        const err = await parseJsonBody<{ message?: string; error?: string }>(res);
+        message = err?.message ?? err?.error ?? message;
+      } catch {
+        // Server returned non-JSON body (e.g. HTML gateway error page) — use the status code.
+      }
+      throw new Error(message);
+    }
+
+    // Success-path parse
+    try {
+      return await parseJsonBody<T>(res);
+    } catch {
+      throw new Error('Invalid response received from server. Please try again.');
+    }
   }
 
-  return parseJsonBody<T>(res);
+  throw lastError ?? new Error('Request failed after retries.');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -285,6 +361,7 @@ export interface CreateOrderBody {
   delivery: number;
   total: number;
   tableCode?: string;
+  notes?: string;
 }
 
 // ─── Payments ─────────────────────────────────────────────────────────────────
@@ -642,25 +719,37 @@ export async function loginWithApple(identityToken: string): Promise<AuthRespons
   };
 }
 
+async function authPost<T>(endpoint: string, body: unknown): Promise<T> {
+  try {
+    return await request<T>('POST', `/api/auth/${endpoint}`, body, false);
+  } catch (err: unknown) {
+    // Fall back to /auth/* on 404 for backwards compatibility with legacy/mock backends
+    if (err instanceof Error && err.message.includes('404')) {
+      return await request<T>('POST', `/auth/${endpoint}`, body, false);
+    }
+    throw err;
+  }
+}
+
 export function register(username: string, email: string, password: string, role?: AccountRole) {
-  return request<RegisterResponse>('POST', '/auth/register', { username, email, password }, false);
+  return authPost<RegisterResponse>('register', { username, email, password, role });
 }
 
 export function verifyOtp(email: string, otp: string) {
-  return request<{ message: string }>('POST', '/auth/verify-otp', { email, otp }, false);
+  return authPost<{ message: string }>('verify-otp', { email, otp });
 }
 
 export function resendOtp(email: string) {
-  return request<{ message: string }>('POST', '/auth/resend-otp', { email }, false);
+  return authPost<{ message: string }>('resend-otp', { email });
 }
 
 export function forgotPassword(email: string) {
-  return request<{ message: string }>('POST', '/auth/forgot-password', { email }, false);
+  return authPost<{ message: string }>('forgot-password', { email });
 }
 
 /** Completes a password reset using the token emailed to the user. */
 export function resetPassword(token: string, newPassword: string, confirmPassword: string) {
-  return request<{ message: string }>('POST', '/auth/reset-password', { token, newPassword, confirmPassword }, false);
+  return authPost<{ message: string }>('reset-password', { token, newPassword, confirmPassword });
 }
 
 export function getMe() {
@@ -909,16 +998,29 @@ export function getOrders(storefrontId?: number) {
   return request<OrderResponse[]>('GET', storefrontId ? `/api/storefronts/${storefrontId}/orders` : '/api/orders');
 }
 
-/** Vendor-authenticated order status update. */
+/**
+ * Vendor-authenticated order status update.
+ * Updates an order's status as a merchant (e.g. CONFIRMED, COMPLETED, REJECTED, CANCELLED).
+ * Calls the merchant endpoint PATCH /api/storefronts/{storefrontId}/orders/{orderId}/status.
+ */
 export function updateOrderStatus(storefrontId: number, orderId: number, status: string) {
-  return request<OrderResponse>('PATCH', `/api/storefronts/${storefrontId}/orders/${orderId}/status`, { status });
+  if (!storefrontId) {
+    throw new Error('Storefront ID is required to update order status as a merchant.');
+  }
+  return request<OrderResponse>(
+    'PATCH',
+    `/api/storefronts/${storefrontId}/orders/${orderId}/status`,
+    { status, newStatus: status },
+    true,
+  );
 }
 
 /**
- * Public order status update — no auth required.
- * Matches PATCH /api/orders/{orderId}/status.
+ * Customer order status update.
+ * On this public route, customers can notify the store (CUSTOMER_NOTIFIED).
+ * Calls PATCH /api/orders/{orderId}/status.
  */
-export function updateOrderStatusPublic(orderId: number, status: string) {
+export function updateOrderStatusPublic(orderId: number, status = 'CUSTOMER_NOTIFIED') {
   return request<OrderResponse>('PATCH', `/api/orders/${orderId}/status`, { status }, false);
 }
 
@@ -977,9 +1079,9 @@ export function rsvpGuest(storefrontId: number, body: GuestRsvpRequest): Promise
   return request<GuestRsvpResponse>('POST', `/api/storefronts/${storefrontId}/guests`, body, false);
 }
 
-/** Checks in a guest by their guest code at an event. */
+/** Checks in a guest by their guest code at an event (requires vendor/organizer auth - P10). */
 export function checkInGuest(storefrontId: number, guestCode: string): Promise<CheckInResponse> {
-  return request<CheckInResponse>('POST', `/api/storefronts/${storefrontId}/checkin`, { guestCode }, false);
+  return request<CheckInResponse>('POST', `/api/storefronts/${storefrontId}/checkin`, { guestCode }, true);
 }
 
 // ─── Waiter Calls ─────────────────────────────────────────────────────────────
@@ -1132,7 +1234,7 @@ export function createAccessContent(storefrontId: number, body: AccessContentReq
 export function initializePayment(
   purpose: PaymentPurpose,
   payload: string | Record<string, unknown>,
-  requireAuth = false,
+  requireAuth = purpose === 'STOREFRONT_CREATION',
 ) {
   const payloadStr = typeof payload === 'string' ? JSON.stringify({ slug: payload }) : JSON.stringify(payload);
   return request<PaymentInitResponse>(

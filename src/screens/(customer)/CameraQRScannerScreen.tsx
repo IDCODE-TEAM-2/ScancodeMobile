@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { ArrowLeft, Flashlight, FlashlightOff, Zap } from 'lucide-react-native';
+import { ArrowLeft, Flashlight, FlashlightOff, Zap, CameraOff } from 'lucide-react-native';
 import type { NavigationProp, RouteProps } from '../../types';
 import ErrorBanner from '../../components/ErrorBanner';
 import { cn } from '../../utils/cn';
@@ -113,41 +113,71 @@ export default function CameraQRScannerScreen({ navigation }: Props) {
             onBarcodeScanned={scanned ? undefined : ({ data }: { data: string }) => processQrData(data)}
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
           />
-          <View pointerEvents="box-none" className="flex-1 bg-black/45 items-center justify-center">
-            <View className="w-60 h-60 relative justify-between">
-              <View className="absolute w-8 h-8 border-primary top-0 left-0 border-t-4 border-l-4" />
-              <View className="absolute w-8 h-8 border-primary top-0 right-0 border-t-4 border-r-4" />
-              <View className="absolute w-8 h-8 border-primary bottom-0 left-0 border-b-4 border-l-4" />
-              <View className="absolute w-8 h-8 border-primary bottom-0 right-0 border-b-4 border-r-4" />
+          {/* Transparent cutout mask: top, bottom, and side bars with clear center */}
+          <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+            <View className="flex-1 bg-black/55 w-full" />
+            <View className="flex-row h-64 items-center justify-center">
+              <View className="flex-1 bg-black/55 h-full" />
+              <View className="w-64 h-64 relative justify-between">
+                <View className="absolute w-8 h-8 border-primary top-0 left-0 border-t-4 border-l-4 rounded-tl-lg" />
+                <View className="absolute w-8 h-8 border-primary top-0 right-0 border-t-4 border-r-4 rounded-tr-lg" />
+                <View className="absolute w-8 h-8 border-primary bottom-0 left-0 border-b-4 border-l-4 rounded-bl-lg" />
+                <View className="absolute w-8 h-8 border-primary bottom-0 right-0 border-b-4 border-r-4 rounded-br-lg" />
+              </View>
+              <View className="flex-1 bg-black/55 h-full" />
             </View>
-            <Text className="text-white text-sm font-semibold mt-5 bg-black/60 px-4 py-2 rounded-full overflow-hidden">
-              Align physical table QR code inside the frame
-            </Text>
+            <View className="flex-1 bg-black/55 w-full items-center pt-5">
+              <Text className="text-white text-sm font-semibold bg-black/70 px-4 py-2 rounded-full overflow-hidden">
+                Align physical table QR code inside the frame
+              </Text>
+            </View>
           </View>
         </View>
       );
     }
 
-    return (
-      <View className="absolute inset-0 bg-emerald-950 items-center justify-center">
-        <View className="w-60 h-60 relative justify-between">
-          <View className="absolute w-8 h-8 border-primary top-0 left-0 border-t-4 border-l-4" />
-          <View className="absolute w-8 h-8 border-primary top-0 right-0 border-t-4 border-r-4" />
-          <View className="absolute w-8 h-8 border-primary bottom-0 left-0 border-b-4 border-l-4" />
-          <View className="absolute w-8 h-8 border-primary bottom-0 right-0 border-b-4 border-r-4" />
+    if (permission && !permission.granted) {
+      return (
+        <View className="absolute inset-0 bg-gray-950 items-center justify-center p-6">
+          <View className="w-16 h-16 rounded-full bg-red-500/20 items-center justify-center mb-4 border border-red-500/30">
+            <CameraOff size={30} color="#EF4444" strokeWidth={2} />
+          </View>
+          <Text className="text-white text-lg font-bold text-center mb-2">Camera Access Denied</Text>
+          <Text className="text-gray-400 text-sm text-center mb-6 leading-5 px-4">
+            Camera permission is required to scan table QR codes. Please grant camera access or type the storefront code below.
+          </Text>
+          <TouchableOpacity
+            className="bg-primary px-6 py-3.5 rounded-xl items-center"
+            onPress={requestPermission}
+            activeOpacity={0.8}
+          >
+            <Text className="text-white font-bold text-sm">Grant Camera Permission</Text>
+          </TouchableOpacity>
         </View>
-        <Text className="text-white text-sm font-semibold mt-5 bg-black/60 px-4 py-2 rounded-full overflow-hidden">
-          {permission && !permission.granted
-            ? 'Camera permission denied'
-            : 'Camera Viewfinder Active (Simulator Mode)'}
+      );
+    }
+
+    return (
+      <View className="absolute inset-0 bg-emerald-950 items-center justify-center p-6">
+        <View className="w-60 h-60 relative justify-between mb-4">
+          <View className="absolute w-8 h-8 border-primary top-0 left-0 border-t-4 border-l-4 rounded-tl-lg" />
+          <View className="absolute w-8 h-8 border-primary top-0 right-0 border-t-4 border-r-4 rounded-tr-lg" />
+          <View className="absolute w-8 h-8 border-primary bottom-0 left-0 border-b-4 border-l-4 rounded-bl-lg" />
+          <View className="absolute w-8 h-8 border-primary bottom-0 right-0 border-b-4 border-r-4 rounded-br-lg" />
+        </View>
+        <Text className="text-white text-sm font-semibold bg-black/60 px-4 py-2 rounded-full overflow-hidden mb-3">
+          Camera Unavailable (Simulator Mode)
         </Text>
-        <TouchableOpacity
-          className="mt-[18px] bg-primary px-4.5 py-2.5 rounded-full flex-row items-center gap-1.5"
-          onPress={handleTestMockScan}
-        >
-          <Zap size={14} color="#FFFFFF" strokeWidth={2.2} />
-          <Text className="text-white font-bold text-[13px]">Simulate QR Scan (Sample Bistro)</Text>
-        </TouchableOpacity>
+        {__DEV__ && (
+          <TouchableOpacity
+            className="mt-2 bg-primary px-4.5 py-2.5 rounded-full flex-row items-center gap-1.5"
+            onPress={handleTestMockScan}
+            activeOpacity={0.8}
+          >
+            <Zap size={14} color="#FFFFFF" strokeWidth={2.2} />
+            <Text className="text-white font-bold text-[13px]">Simulate QR Scan (Sample Bistro)</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };

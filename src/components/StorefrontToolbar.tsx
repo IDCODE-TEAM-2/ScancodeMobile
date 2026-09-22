@@ -26,6 +26,7 @@ import {
 import { DAYS_OF_WEEK, type WeeklyEvents } from '../types';
 import { useAppContext } from '../context/AppContext';
 import { payWithPaystack } from '../utils/paystack';
+import { formatMoney } from '../utils/currency';
 import { cn } from '../utils/cn';
 
 export type { DayEvent, WeeklyEvents } from '../types';
@@ -69,7 +70,7 @@ function getPresetMessages(entity: string): string[] {
 }
 
 function money(value: number) {
-  return `₦${value.toLocaleString()}`;
+  return formatMoney(value);
 }
 
 export default function StorefrontToolbar({
@@ -297,7 +298,7 @@ export default function StorefrontToolbar({
         id: res.id ?? Date.now(),
         type: 'TIP',
         title: `Tip to ${submittedRecipient}`,
-        details: `Tip amount: ₦${submittedAmount.toLocaleString()}`,
+        details: `Tip amount: ${formatMoney(submittedAmount)}`,
         amount: submittedAmount,
       });
     } catch {
@@ -670,7 +671,7 @@ export default function StorefrontToolbar({
                 <View className="flex-row justify-between items-center pt-2 border-t border-gray-200/60 dark:border-zinc-700/60">
                   <Text className="text-xs text-gray-500 dark:text-zinc-400 font-medium">Amount Due:</Text>
                   <Text className="text-lg font-extrabold text-primary">
-                    ₦{pendingPayment.amount.toLocaleString()}
+                    {formatMoney(pendingPayment.amount)}
                   </Text>
                 </View>
               </View>
@@ -691,7 +692,7 @@ export default function StorefrontToolbar({
                   <>
                     <CreditCard size={18} color="#FFFFFF" strokeWidth={2.5} />
                     <Text className="text-white font-bold text-[15px]">
-                      Pay ₦{pendingPayment.amount.toLocaleString()} with Paystack
+                      Pay {formatMoney(pendingPayment.amount)} with Paystack
                     </Text>
                   </>
                 )}

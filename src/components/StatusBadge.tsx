@@ -20,7 +20,7 @@ export interface StatusBadgeProps {
 }
 
 const SUCCESS = ['PUBLISHED', 'CONFIRMED', 'COMPLETED', 'DELIVERED'];
-const WARNING = ['LOCKED', 'PENDING', 'PENDING_ACK'];
+const WARNING = ['LOCKED', 'PENDING', 'PENDING_ACK', 'CUSTOMER_NOTIFIED'];
 const DANGER = ['REJECTED', 'CANCELLED'];
 
 export default function StatusBadge({ status, label }: StatusBadgeProps) {

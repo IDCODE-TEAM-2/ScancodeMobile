@@ -29,6 +29,10 @@ async function writeQueue(queue: QueuedOrder[]): Promise<void> {
 
 export async function isOffline(): Promise<boolean> {
   const state = await NetInfo.fetch();
+  // Intentional: `=== false` (not `!`) because `isInternetReachable` can be `null`
+  // when the reachability check hasn't completed yet (common on Android). Treating
+  // `null` as "online" is the safer assumption — better to attempt the request and
+  // get a server error than to silently queue an order the user expects to be placed.
   return state.isConnected === false || state.isInternetReachable === false;
 }
 

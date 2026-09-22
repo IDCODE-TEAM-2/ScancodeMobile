@@ -14,6 +14,7 @@ import { setIntendedMerchant } from '../../utils/resolveAppState';
 import type { NavigationProp } from '../../types';
 import CustomInput from '../../components/CustomInput';
 import CustomButton from '../../components/CustomButton';
+import { useAppContext } from '../../context/AppContext';
 import { cn } from '../../utils/cn';
 
 interface Props {
@@ -25,8 +26,23 @@ const ROLE_OPTIONS: { role: AccountRole; label: string; icon: typeof Briefcase }
   { role: 'customer', label: 'Customer', icon: ShoppingCart },
 ];
 
+function getPasswordStrength(pwd: string): { score: number; label: string; color: string } {
+  if (!pwd) return { score: 0, label: '', color: '' };
+  let score = 0;
+  if (pwd.length >= 8) score += 1;
+  if (/[A-Z]/.test(pwd)) score += 1;
+  if (/[0-9]/.test(pwd)) score += 1;
+  if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+
+  if (score <= 1) return { score: 1, label: 'Weak', color: '#EF4444' };
+  if (score === 2) return { score: 2, label: 'Fair', color: '#F59E0B' };
+  if (score === 3) return { score: 3, label: 'Good', color: '#3B82F6' };
+  return { score: 4, label: 'Strong', color: '#10B981' };
+}
+
 export default function RegisterScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { isDark } = useAppContext();
   const [role, setRole] = useState<AccountRole>('merchant');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -34,6 +50,8 @@ export default function RegisterScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
+
+  const passwordStrength = getPasswordStrength(password);
 
   async function handleRegister() {
     if (!username.trim() || !email.trim() || !password.trim()) {
@@ -48,13 +66,10 @@ export default function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await register(username.trim(), email.trim(), password, role);
-      // The server doesn't persist which role was chosen (see resolveAppState.ts), so a
-      // merchant who hasn't created their first storefront yet needs this local flag to
-      // land on the Dashboard after verifying — otherwise they'd have no storefronts to be
-      // detected by, and would be routed to the customer view instead.
+      // Remember what the user chose during signup so verify-OTP knows where to land
+      // even before they've created their first storefront.
       await setIntendedMerchant(role === 'merchant');
-      // Server sends an OTP to the email — navigate to the verify screen
-      navigation.navigate('VerifyOtp', { email: email.trim().toLowerCase() });
+      navigation.navigate('VerifyOtp', { email: email.trim() });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
     } finally {
@@ -138,6 +153,30 @@ export default function RegisterScreen({ navigation }: Props) {
               placeholder="••••••••"
               editable={!loading}
             />
+
+            {password.length > 0 && (
+              <View className="mt-1 mb-2 px-1">
+                <View className="flex-row gap-1.5 h-1.5 mb-1.5">
+                  {[1, 2, 3, 4].map((step) => (
+                    <View
+                      key={step}
+                      className="flex-1 rounded-full"
+                      style={{
+                        backgroundColor:
+                          step <= passwordStrength.score
+                            ? passwordStrength.color
+                            : isDark
+                            ? '#27272A'
+                            : '#E5E7EB',
+                      }}
+                    />
+                  ))}
+                </View>
+                <Text className="text-[11px] font-semibold" style={{ color: passwordStrength.color }}>
+                  Password strength: {passwordStrength.label}
+                </Text>
+              </View>
+            )}
 
             <TouchableOpacity
               className="flex-row items-start gap-2.5 mt-1 mb-1"

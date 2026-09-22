@@ -25,6 +25,7 @@ import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import { isImageTooLarge } from '../../utils/validateImageSize';
 import { parseStorefrontData } from '../../utils/parseStorefrontData';
 import { uploadImageToBackend } from '../../utils/imageUpload';
+import { formatMoney } from '../../utils/currency';
 import AppImage from '../../components/AppImage';
 import { cn } from '../../utils/cn';
 
@@ -376,7 +377,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
                     </View>
                   )}
                 </View>
-                <Text className="text-primary font-bold text-sm mt-0.5">₦{p.price.toLocaleString()}</Text>
+                <Text className="text-primary font-bold text-sm mt-0.5">{formatMoney(p.price)}</Text>
                 <Text className="text-xs text-gray-400 mt-0.5">Stock: {p.stock} · {p.category}</Text>
               </View>
               <View className="justify-between items-end ml-2">

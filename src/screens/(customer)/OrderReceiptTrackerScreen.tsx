@@ -7,6 +7,7 @@ import StatusBadge from '../../components/StatusBadge';
 import ErrorBanner from '../../components/ErrorBanner';
 import { getOrderById, type OrderResponse } from '../../api';
 import { playStatusChangeSound } from '../../utils/audioAlert';
+import { formatMoney } from '../../utils/currency';
 import { useAppContext } from '../../context/AppContext';
 import type { NavigationProp, RouteProps } from '../../types';
 
@@ -131,18 +132,26 @@ export default function OrderReceiptTrackerScreen({ navigation, route }: Props) 
             <View key={item.id} className="flex-row justify-between items-center py-2">
               <View className="flex-1">
                 <Text className="text-[15px] font-semibold text-gray-800 dark:text-zinc-100">{item.name}</Text>
-                <Text className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">₦{item.price.toLocaleString()} × {item.qty}</Text>
+                <Text className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">{formatMoney(item.price)} × {item.qty}</Text>
               </View>
-              <Text className="text-sm font-bold text-gray-800 dark:text-zinc-200">₦{(item.price * item.qty).toLocaleString()}</Text>
+              <Text className="text-sm font-bold text-gray-800 dark:text-zinc-200">{formatMoney(item.price * item.qty)}</Text>
             </View>
           ))}
           <View className="h-px bg-gray-100 dark:bg-zinc-700 my-2.5" />
           <View className="flex-row justify-between">
             <Text className="text-base font-bold text-gray-900 dark:text-white">Total</Text>
-            <Text className="text-lg font-extrabold text-primary">₦{order.total.toLocaleString()}</Text>
+            <Text className="text-lg font-extrabold text-primary">{formatMoney(order.total)}</Text>
           </View>
+          {order.customerName ? (
+            <View className="flex-row items-center justify-between mt-2.5 pt-2 border-t border-gray-100 dark:border-zinc-800">
+              <Text className="text-xs text-gray-500 dark:text-zinc-400">Recipient</Text>
+              <Text className="text-xs font-semibold text-gray-800 dark:text-zinc-200">
+                {order.customerName} {order.customerPhone ? `(${order.customerPhone})` : ''}
+              </Text>
+            </View>
+          ) : null}
           {order.tableLabel ? (
-            <View className="flex-row items-center gap-1 mt-2.5">
+            <View className="flex-row items-center gap-1 mt-2">
               <MapPin size={12} color="#6B7280" strokeWidth={2.2} />
               <Text className="text-[13px] text-gray-500 dark:text-zinc-400">{order.tableLabel}</Text>
             </View>

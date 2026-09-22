@@ -5,6 +5,7 @@ import { ShoppingCart, Minus, Plus, X } from 'lucide-react-native';
 import { useCart, EMPTY_CART } from '../../context/CartContext';
 import { useAppContext } from '../../context/AppContext';
 import { getStoreConfig } from '../../api';
+import { formatMoney } from '../../utils/currency';
 import type { NavigationProp, RouteProps } from '../../types';
 import { cn } from '../../utils/cn';
 
@@ -75,7 +76,7 @@ export default function CartDrawerScreen({ navigation, route }: Props) {
               <View key={item.id} className="flex-row justify-between items-center py-3 border-b border-gray-100 dark:border-zinc-800">
                 <View className="flex-1 mr-3">
                   <Text className="text-[15px] font-semibold text-gray-800 dark:text-zinc-100">{item.name}</Text>
-                  <Text className="text-[13px] text-primary font-bold mt-0.5">₦{(item.price * item.qty).toLocaleString()}</Text>
+                  <Text className="text-[13px] text-primary font-bold mt-0.5">{formatMoney(item.price * item.qty)}</Text>
                 </View>
 
                 <View className="flex-row items-center">
@@ -100,22 +101,22 @@ export default function CartDrawerScreen({ navigation, route }: Props) {
                 <>
                   <View className="flex-row justify-between py-1.5">
                     <Text className="text-sm text-gray-600 dark:text-zinc-400">Subtotal</Text>
-                    <Text className="text-sm font-medium text-gray-800 dark:text-zinc-200">₦{summary.subtotal.toLocaleString()}</Text>
+                    <Text className="text-sm font-medium text-gray-800 dark:text-zinc-200">{formatMoney(summary.subtotal)}</Text>
                   </View>
                   <View className="flex-row justify-between py-1.5">
                     <Text className="text-sm text-gray-600 dark:text-zinc-400">VAT ({(vatRate * 100).toFixed(1)}%)</Text>
-                    <Text className="text-sm font-medium text-gray-800 dark:text-zinc-200">₦{summary.appliedVat.toLocaleString()}</Text>
+                    <Text className="text-sm font-medium text-gray-800 dark:text-zinc-200">{formatMoney(summary.appliedVat)}</Text>
                   </View>
                   {summary.appliedDelivery > 0 && (
                     <View className="flex-row justify-between py-1.5">
                       <Text className="text-sm text-gray-600 dark:text-zinc-400">Logistics / Delivery Fee</Text>
-                      <Text className="text-sm font-medium text-gray-800 dark:text-zinc-200">₦{summary.appliedDelivery.toLocaleString()}</Text>
+                      <Text className="text-sm font-medium text-gray-800 dark:text-zinc-200">{formatMoney(summary.appliedDelivery)}</Text>
                     </View>
                   )}
                   <View className="h-px bg-gray-200 dark:bg-zinc-700 my-2.5" />
                   <View className="flex-row justify-between py-1.5">
                     <Text className="text-base font-bold text-gray-800 dark:text-white">Total Amount</Text>
-                    <Text className="text-lg font-extrabold text-primary">₦{summary.grandTotal.toLocaleString()}</Text>
+                    <Text className="text-lg font-extrabold text-primary">{formatMoney(summary.grandTotal)}</Text>
                   </View>
                 </>
               )}

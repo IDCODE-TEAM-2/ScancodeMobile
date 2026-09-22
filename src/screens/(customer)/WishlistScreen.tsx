@@ -4,6 +4,7 @@ import { Heart } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCart, EMPTY_FAVORITES } from '../../context/CartContext';
 import { useAppContext } from '../../context/AppContext';
+import { formatMoney } from '../../utils/currency';
 import type { NavigationProp, RouteProps } from '../../types';
 
 interface Props {
@@ -48,7 +49,7 @@ export default function WishlistScreen({ navigation, route }: Props) {
               <View className="flex-1 mr-3">
                 <Text className="text-[15px] font-semibold text-gray-800 dark:text-zinc-100">{item.name}</Text>
                 <Text className="text-xs text-gray-400 dark:text-zinc-400 mt-0.5" numberOfLines={2}>{item.description}</Text>
-                <Text className="text-[13px] font-bold text-primary mt-1">₦{item.price.toLocaleString()}</Text>
+                <Text className="text-[13px] font-bold text-primary mt-1">{formatMoney(item.price)}</Text>
               </View>
 
               <View className="flex-row items-center gap-2">

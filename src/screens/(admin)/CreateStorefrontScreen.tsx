@@ -28,7 +28,7 @@ interface Props {
 }
 
 const MAX_IMAGES = 5;
-const BUSINESS_TYPES = ['PRODUCT', 'HOTEL'] as const;
+const BUSINESS_TYPES = ['RESTAURANT', 'PRODUCT', 'HOTEL'] as const;
 type BusinessType = (typeof BUSINESS_TYPES)[number];
 
 interface BankAccountItem extends BankAccount {
@@ -115,8 +115,8 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
         }
 
         setLocation(parsed.location ?? '');
-        if (existing.businessType === 'PRODUCT' || existing.businessType === 'HOTEL') {
-          setBusinessType(existing.businessType);
+        if (existing.businessType && (BUSINESS_TYPES as readonly string[]).includes(existing.businessType)) {
+          setBusinessType(existing.businessType as BusinessType);
         }
 
         if (parsed.categories && parsed.categories.length > 0) {
@@ -515,14 +515,14 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
               activeOpacity={0.7}
             >
               <Text className={cn('font-semibold text-sm', businessType === t ? 'text-primary' : 'text-gray-500')}>
-                {t === 'PRODUCT' ? 'Product' : 'Hotel'}
+                {t === 'RESTAURANT' ? 'Restaurant' : t === 'PRODUCT' ? 'Product' : 'Hotel'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <Text className="text-sm font-semibold text-gray-700 mb-1.5">
-          {businessType === 'PRODUCT' ? 'Categories & Menu Sections' : 'Room / Service Categories'}
+          {businessType === 'HOTEL' ? 'Room / Service Categories' : 'Categories & Menu Sections'}
         </Text>
         {categories.length > 0 && (
           <View className="flex-col gap-2 mb-3">

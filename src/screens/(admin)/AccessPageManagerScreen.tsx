@@ -165,11 +165,23 @@ export default function AccessPageManagerScreen({ route }: Props) {
   };
 
   const handleManualCheckIn = async () => {
-    if (!manualCode.trim()) return;
+    const trimmed = manualCode.trim().toUpperCase();
+    if (!trimmed) {
+      Alert.alert('Invalid Code', 'Please enter a guest code to check in.');
+      return;
+    }
+    if (checkingIn) return;
     setCheckingIn(true);
     try {
-      const res = await checkInGuest(storefrontId, manualCode.trim());
-      Alert.alert(res.alreadyCheckedIn ? 'Already Checked In' : 'Checked In', `${res.guestName} (${res.ticketTier})`);
+      const res = await checkInGuest(storefrontId, trimmed);
+      const title = res.alreadyCheckedIn ? 'Already Checked In' : 'Check-In Successful!';
+      const timeStr = res.checkedInAt
+        ? `\nChecked in at: ${new Date(res.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+        : '';
+      Alert.alert(
+        title,
+        `Guest: ${res.guestName}\nTier: ${res.ticketTier}${timeStr}`
+      );
       setManualCode('');
       await load();
     } catch (e: unknown) {
@@ -180,9 +192,15 @@ export default function AccessPageManagerScreen({ route }: Props) {
   };
 
   const handleQuickCheckIn = async (guest: GuestResponse) => {
+    if (checkingIn) return;
     setCheckingIn(true);
     try {
-      await checkInGuest(storefrontId, guest.guestCode);
+      const res = await checkInGuest(storefrontId, guest.guestCode);
+      const title = res.alreadyCheckedIn ? 'Already Checked In' : 'Check-In Successful!';
+      Alert.alert(
+        title,
+        `Guest: ${res.guestName || guest.name}\nTier: ${res.ticketTier || guest.ticketTier}`
+      );
       await load();
     } catch (e: unknown) {
       Alert.alert('Check-In Failed', e instanceof Error ? e.message : 'Could not check in this guest.');
@@ -377,14 +395,19 @@ export default function AccessPageManagerScreen({ route }: Props) {
               onChangeText={setManualCode}
               placeholder="Guest code"
               placeholderTextColor="#9CA3AF"
-              autoCapitalize="none"
+              autoCapitalize="characters"
+              autoCorrect={false}
             />
             <TouchableOpacity
               className={cn('bg-emerald-600 rounded-xl px-4 justify-center items-center', checkingIn && 'opacity-70')}
               onPress={handleManualCheckIn}
               disabled={checkingIn}
             >
-              <Text className="text-white text-sm font-bold">Check In</Text>
+              {checkingIn ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text className="text-white text-sm font-bold">Check In</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

@@ -25,17 +25,17 @@ export default function QRScreen({ route }: Props) {
   }
 
   return (
-    <ScrollView contentContainerClassName="flex-grow">
-      <View className="flex-1 bg-gray-100 p-5 justify-center">
-        <View className="bg-white rounded-2xl p-6 items-center shadow-sm">
-          <Text className="text-[22px] font-extrabold text-gray-900 text-center mb-1">{name}</Text>
+    <ScrollView className="flex-1 bg-gray-100 dark:bg-[#09090B]" contentContainerClassName="flex-grow">
+      <View className="flex-1 p-5 justify-center">
+        <View className="bg-white dark:bg-[#18181B] rounded-2xl p-6 items-center shadow-sm border border-transparent dark:border-zinc-800">
+          <Text className="text-[22px] font-extrabold text-gray-900 dark:text-white text-center mb-1">{name}</Text>
           <Text className="text-sm text-primary font-semibold mb-6">/store/{slug}</Text>
 
-          <View className="p-4 bg-white rounded-xl border border-gray-200 mb-5">
+          <View className="p-4 bg-white rounded-xl border border-gray-200 dark:border-zinc-700 mb-5">
             <QRCode value={storeUrl} size={200} backgroundColor="#ffffff" color="#111827" />
           </View>
 
-          <Text className="text-[13px] text-gray-500 text-center leading-[18px] mb-6">
+          <Text className="text-[13px] text-gray-500 dark:text-zinc-400 text-center leading-[18px] mb-6">
             Customers can scan this code with their smartphone camera to view your digital menu and place orders.
           </Text>
 

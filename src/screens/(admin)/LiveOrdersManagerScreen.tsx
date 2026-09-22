@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import * as DocumentPicker from 'expo-document-picker';
 import { MapPin, ShoppingBag, Bell, Zap, ZapOff, Volume2, VolumeX, Music2, Check } from 'lucide-react-native';
@@ -10,6 +11,7 @@ import ErrorBanner from '../../components/ErrorBanner';
 import { playOrderAlarmSound, playStatusChangeSound, getCustomAlarmUri, setCustomAlarmUri, initAudioAlert, startLoopingAlarm, stopLoopingAlarm } from '../../utils/audioAlert';
 import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import { getOrders, updateOrderStatus, type OrderResponse } from '../../api';
+import { formatMoney } from '../../utils/currency';
 import { useAppContext } from '../../context/AppContext';
 import { cn } from '../../utils/cn';
 
@@ -33,6 +35,7 @@ export interface LiveOrder {
   status: string;
   createdAt: string;
   items: OrderItem[];
+  storefrontId: number;
 }
 
 interface Props {
@@ -64,6 +67,7 @@ function mapOrder(order: OrderResponse): LiveOrder {
     status: order.status,
     createdAt: new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     items: parseOrderItems(order.orderItems),
+    storefrontId: order.storefrontId,
   };
 }
 
@@ -72,7 +76,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
   const storefrontName = route.params?.name || 'Storefront';
   const storefrontId = route.params?.storefrontId;
   const [orders, setOrders] = useState<LiveOrder[]>([]);
-  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'REJECTED'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED'>('ALL');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -83,6 +87,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oledDark = theme === 'dark';
+  const isFocused = useIsFocused();
 
   // Load persisted custom alarm tone on mount
   useEffect(() => {
@@ -162,16 +167,18 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
 
   useFocusRefresh(fetchOrders);
 
-  // 15-second background polling so all clients see order changes in near real-time
+  // 15-second background polling — only while the screen is in the foreground.
+  // When the user navigates away the screen stays mounted in the stack, so we gate
+  // the interval on `isFocused` to avoid unnecessary background network traffic.
   useEffect(() => {
-    if (!storefrontId) return;
+    if (!storefrontId || !isFocused) return;
     pollingRef.current = setInterval(() => {
       fetchOrders(false, true);
     }, 15000);
     return () => {
       if (pollingRef.current !== null) clearInterval(pollingRef.current);
     };
-  }, [storefrontId, fetchOrders]);
+  }, [storefrontId, fetchOrders, isFocused]);
 
   // Stop looping alarm when screen unmounts (e.g. user navigates away)
   useEffect(() => {
@@ -181,7 +188,12 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
   }, []);
 
   async function handleUpdateStatus(orderId: number, newStatus: 'CONFIRMED' | 'COMPLETED' | 'REJECTED' | 'CANCELLED') {
-    if (!storefrontId) return;
+    const targetOrder = orders.find((o) => o.id === orderId);
+    const activeStorefrontId = targetOrder?.storefrontId || storefrontId;
+    if (!activeStorefrontId) {
+      Toast.show({ type: 'error', text1: "Couldn't Update Order", text2: 'Storefront ID is missing.' });
+      return;
+    }
     // Prevent double-tap while request is in-flight
     if (processingIds.has(orderId)) return;
 
@@ -195,7 +207,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
 
     try {
       // API-first: confirm server accepted the change before updating local state
-      await updateOrderStatus(storefrontId, orderId, newStatus);
+      await updateOrderStatus(activeStorefrontId, orderId, newStatus);
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
       );
@@ -216,13 +228,22 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
 
   const filteredOrders = orders.filter((o) => {
     if (activeTab === 'ALL') return true;
+    if (activeTab === 'PENDING') return o.status === 'PENDING' || o.status === 'CUSTOMER_NOTIFIED';
     return o.status === activeTab;
   });
 
-  const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
+  const pendingCount = orders.filter((o) => o.status === 'PENDING' || o.status === 'CUSTOMER_NOTIFIED').length;
+
+  function isAwaitingMerchantAction(status: string) {
+    return status === 'PENDING' || status === 'CUSTOMER_NOTIFIED';
+  }
+
+  function getStatusLabel(status: string) {
+    return status === 'CUSTOMER_NOTIFIED' ? 'PENDING' : status;
+  }
 
   function renderOrderCard({ item }: { item: LiveOrder }) {
-    const isPending = item.status === 'PENDING';
+    const isPending = isAwaitingMerchantAction(item.status);
     const isProcessing = processingIds.has(item.id);
 
     return (
@@ -237,7 +258,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
           <View>
             <View className="flex-row items-center gap-2">
               <Text className={cn('text-base font-extrabold', oledDark ? 'text-white' : 'text-gray-900')}>{item.orderNumber}</Text>
-              <StatusBadge status={item.status} />
+              <StatusBadge status={item.status} label={getStatusLabel(item.status)} />
             </View>
             <View className="flex-row items-center gap-1 mt-0.5">
               {item.tableNumber ? (
@@ -265,14 +286,14 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
                 <Text className={cn('text-sm font-medium', oledDark ? 'text-zinc-100' : 'text-gray-900')}>{it.name}</Text>
                 {it.options ? <Text className={cn('text-xs', oledDark ? 'text-zinc-500' : 'text-gray-500')}>{it.options}</Text> : null}
               </View>
-              <Text className={cn('text-[13px] font-semibold', oledDark ? 'text-emerald-400' : 'text-emerald-800')}>₦{(it.price * it.quantity).toLocaleString()}</Text>
+              <Text className={cn('text-[13px] font-semibold', oledDark ? 'text-emerald-400' : 'text-emerald-800')}>{formatMoney(it.price * it.quantity)}</Text>
             </View>
           ))}
         </View>
 
         <View className="mt-1">
           <Text className={cn('text-sm mb-3', oledDark ? 'text-zinc-400' : 'text-gray-500')}>
-            Total: <Text className={cn('text-base font-extrabold', oledDark ? 'text-white' : 'text-gray-900')}>₦{item.totalAmount.toLocaleString()}</Text>
+            Total: <Text className={cn('text-base font-extrabold', oledDark ? 'text-white' : 'text-gray-900')}>{formatMoney(item.totalAmount)}</Text>
           </Text>
 
           {isPending ? (
@@ -403,10 +424,14 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
         className={cn('flex-grow-0 px-4 py-1.5 border-b', oledDark ? 'bg-[#09090B] border-[#1F1F23]' : 'bg-white border-gray-200')}
         contentContainerClassName="gap-1.5 items-center"
       >
-        {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED'] as const).map((tab) => {
+        {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED', 'CANCELLED'] as const).map((tab) => {
           const active = activeTab === tab;
           const count =
-            tab === 'ALL' ? orders.length : orders.filter((o) => o.status === tab).length;
+            tab === 'ALL'
+              ? orders.length
+              : tab === 'PENDING'
+                ? orders.filter((o) => o.status === 'PENDING' || o.status === 'CUSTOMER_NOTIFIED').length
+                : orders.filter((o) => o.status === tab).length;
 
           return (
             <TouchableOpacity
