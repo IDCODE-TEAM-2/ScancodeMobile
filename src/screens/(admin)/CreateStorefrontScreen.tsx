@@ -141,7 +141,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
     if (result.canceled || !result.assets?.length) return;
 
     if (isImageTooLarge(result.assets[0].fileSize)) {
-      setLogoError('This image is larger than 3 MB. Please choose a smaller file.');
+      setLogoError('This image is larger than 1 MB. Please choose a smaller file.');
       return;
     }
 
@@ -171,7 +171,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
     const picked = result.assets.slice(0, remaining);
 
     if (picked.some((a) => isImageTooLarge(a.fileSize))) {
-      setImageError('One or more images are larger than 3 MB. Please choose smaller files.');
+      setImageError('One or more images are larger than 1 MB. Please choose smaller files.');
       return;
     }
 
@@ -217,7 +217,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
     if (result.canceled || !result.assets?.length) return;
 
     if (isImageTooLarge(result.assets[0].fileSize)) {
-      Alert.alert('Image Too Large', 'This image is larger than 3 MB. Please choose a smaller file.');
+      Alert.alert('Image Too Large', 'This image is larger than 1 MB. Please choose a smaller file.');
       return;
     }
 
@@ -388,7 +388,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
                 {uploadingLogo ? 'Uploading…' : logoUri ? 'Change Logo' : 'Upload Logo'}
               </Text>
             </TouchableOpacity>
-            <Text className="text-xs text-gray-400 mb-4 mt-1">Max image size: 3 MB.</Text>
+            <Text className="text-xs text-gray-400 mb-4 mt-1">Max original image size: 1 MB. Compressed to 200 KB or less.</Text>
           </View>
         </View>
 

@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { API_BASE, getToken } from '../api';
+import { compressImageForUpload } from './compressImage';
 
 /**
  * Normalizes an image URL to ensure valid HTTPS protocol, correct domain prefixing,
@@ -46,6 +47,9 @@ export function normalizeImageUrl(rawUrl?: string | null): string | null {
  * Handles Native (FileSystem.uploadAsync) and Web (fetch with FormData + Blob).
  */
 export async function uploadImageToBackend(uri: string): Promise<string> {
+  const prepared = await compressImageForUpload(uri);
+  uri = prepared.uri;
+  try {
   const token = await getToken();
   const uploadUrl = `${API_BASE}/api/media/upload`;
 
@@ -110,4 +114,7 @@ export async function uploadImageToBackend(uri: string): Promise<string> {
   const json = JSON.parse(response.body);
   const url = json.url as string;
   return normalizeImageUrl(url) || url;
+  } finally {
+    await prepared.cleanup();
+  }
 }
