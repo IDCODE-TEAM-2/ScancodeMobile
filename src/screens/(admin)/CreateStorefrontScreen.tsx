@@ -9,9 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
+  FlatList,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { Camera, X, Plus, Info, MapPin, Check, Landmark, Trash2 } from 'lucide-react-native';
+import { Camera, X, Plus, Info, MapPin, Check, Landmark, Trash2, ChevronDown } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { createStorefront, updateStorefront, getMyStorefronts } from '../../api';
 import { NIGERIA_STATES, type NavigationProp, type RouteProps, type BankAccount } from '../../types';
@@ -58,6 +59,8 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
   ]);
 
   const [location, setLocation] = useState('');
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [locationSearch, setLocationSearch] = useState('');
   const [businessType, setBusinessType] = useState<BusinessType>('PRODUCT');
   const [categories, setCategories] = useState<StorefrontCategory[]>([]);
   const [categoryInput, setCategoryInput] = useState('');
@@ -485,20 +488,23 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
         <Text className="text-sm font-semibold text-gray-700 mb-1.5">
           Business Location <Text className="text-red-600">*</Text>
         </Text>
-        <View className="flex-row items-center border-[1.5px] border-gray-300 rounded-xl bg-white mb-1 px-2 h-12 overflow-hidden">
+        <TouchableOpacity
+          className="flex-row items-center border-[1.5px] border-gray-300 rounded-xl bg-white mb-1 px-3 h-12"
+          onPress={() => {
+            setLocationSearch('');
+            setIsLocationPickerOpen(true);
+          }}
+          disabled={loading}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Choose business location"
+        >
           <MapPin size={16} color="#9CA3AF" strokeWidth={2} />
-          <Picker
-            selectedValue={location}
-            onValueChange={(v) => setLocation(String(v))}
-            enabled={!loading}
-            style={{ flex: 1, height: 48, color: location ? '#111827' : '#9CA3AF' }}
-          >
-            <Picker.Item label="Select a state…" value="" color="#9CA3AF" />
-            {NIGERIA_STATES.map((state) => (
-              <Picker.Item key={state} label={state} value={state} />
-            ))}
-          </Picker>
-        </View>
+          <Text className={cn('flex-1 ml-2 text-sm', location ? 'text-gray-900' : 'text-gray-400')}>
+            {location || 'Select a state…'}
+          </Text>
+          <ChevronDown size={18} color="#9CA3AF" strokeWidth={2} />
+        </TouchableOpacity>
         <Text className="text-xs text-gray-400 mb-4 mt-1">Helps customers find your storefront by location.</Text>
 
         <Text className="text-sm font-semibold text-gray-700 mb-1.5">Business Type</Text>
@@ -671,6 +677,69 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
           )}
         </GradientButton>
       </ScrollView>
+      <Modal
+        visible={isLocationPickerOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsLocationPickerOpen(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <TouchableOpacity
+            className="absolute inset-0"
+            activeOpacity={1}
+            onPress={() => setIsLocationPickerOpen(false)}
+            accessibilityLabel="Close location picker"
+          />
+          <View className="max-h-[80%] rounded-t-3xl bg-white px-4 pt-5 pb-8">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-lg font-bold text-gray-900">Choose a state</Text>
+              <TouchableOpacity
+                onPress={() => setIsLocationPickerOpen(false)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Close location picker"
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              className="border border-gray-300 rounded-xl px-3.5 py-3 text-sm text-gray-900 bg-gray-50 mb-3"
+              value={locationSearch}
+              onChangeText={setLocationSearch}
+              placeholder="Search Nigerian states…"
+              placeholderTextColor="#9CA3AF"
+              autoCapitalize="words"
+              autoCorrect={false}
+              accessibilityLabel="Search states"
+            />
+            <FlatList
+              data={NIGERIA_STATES.filter((state) =>
+                state.toLowerCase().includes(locationSearch.trim().toLowerCase())
+              )}
+              keyExtractor={(state) => state}
+              keyboardShouldPersistTaps="handled"
+              style={{ maxHeight: 320 }}
+              ListEmptyComponent={
+                <Text className="text-sm text-gray-500 text-center py-6">No matching states.</Text>
+              }
+              renderItem={({ item: state }) => (
+                <TouchableOpacity
+                  className="flex-row items-center justify-between py-3.5 border-b border-gray-100"
+                  onPress={() => {
+                    setLocation(state);
+                    setIsLocationPickerOpen(false);
+                    setLocationSearch('');
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text className="text-sm text-gray-900">{state}</Text>
+                  {location === state && <Check size={18} color="#059669" strokeWidth={2.5} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
