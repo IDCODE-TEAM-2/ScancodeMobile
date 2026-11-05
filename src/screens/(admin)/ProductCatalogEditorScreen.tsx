@@ -139,7 +139,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
     if (result.canceled || !result.assets?.length) return;
 
     if (isImageTooLarge(result.assets[0].fileSize)) {
-      Alert.alert('Image Too Large', 'This image is larger than 3 MB. Please choose a smaller file.');
+      Alert.alert('Image Too Large', 'This image is larger than 1 MB. Please choose a smaller file.');
       return;
     }
 
