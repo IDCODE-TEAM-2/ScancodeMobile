@@ -128,6 +128,13 @@ export default function SettingsScreen({ navigation }: Props) {
           <>
             <Text className="text-base font-bold text-gray-900 dark:text-white">{me?.username ?? 'Account'}</Text>
             {!!me?.email && <Text className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">{me.email}</Text>}
+            {!!me?.planSelected && me.isPaid && (!me.planExpiresAt || Date.parse(me.planExpiresAt) > Date.now()) && (
+              <Text>
+                {me.planSelected.split('_')[0].toLowerCase() === 'business'
+                  ? 'enterprise'
+                  : me.planSelected.split('_')[0].toLowerCase()}
+              </Text>
+            )}
           </>
         )}
       </View>

@@ -888,6 +888,18 @@ export function getStorefrontBySlug(slug: string) {
   return request<StorefrontResponse>('GET', `/api/business/storefronts/${encodeURIComponent(slug)}`, undefined, false);
 }
 
+export function publishStorefront(storefrontId: number) {
+  return request<StorefrontResponse>('POST', `/api/business/storefronts/${storefrontId}/publish`);
+}
+
+export function verifyAppleSubscription(signedTransaction: string) {
+  return request<{ active: boolean; planSelected: string | null; planExpiresAt: string | null }>(
+    'POST',
+    '/api/subscriptions/apple/verify',
+    { signedTransaction },
+  );
+}
+
 // All published storefronts across every vendor — the customer/vendor discovery directory.
 // Distinct from getMyStorefronts(), which is scoped to the signed-in vendor's own stores.
 export function getAllStorefronts() {
