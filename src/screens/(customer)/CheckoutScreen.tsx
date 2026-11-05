@@ -33,7 +33,7 @@ import {
   getToken,
   type OrderResponse,
 } from '../../api';
-import { payWithPaystack } from '../../utils/paystack';
+import { payForOrderWithPaystack } from '../../utils/paystack';
 import * as Haptics from '../../utils/haptics';
 import { isOffline, queueOrder } from '../../utils/offlineQueue';
 import { formatMoney } from '../../utils/currency';
@@ -104,47 +104,41 @@ export default function CheckoutScreen({ navigation, route }: Props) {
   async function handlePayWithPaystack() {
     if (!placedOrder) return;
     setIsPayingWithPaystack(true);
-    const payerEmail = customerEmail.trim() || placedOrder.customerEmail || 'customer@scancode.ng';
+    const activeStorefrontId = storefrontId ?? placedOrder.storefrontId;
 
-    // try/finally guarantees the Pay button is always re-enabled even if payWithPaystack
+    // try/finally guarantees the Pay button is always re-enabled if payment setup throws
     // throws or the WebView dismiss event bypasses the onCancel callback (e.g. on Android
     // back-button press before the JS bridge fires).
     try {
-      await payWithPaystack({
-        purpose: 'ORDER',
-        payload: {
-          orderId: placedOrder.id,
-          amount: placedOrder.total,
-          slug,
-          storefrontId: storefrontId ?? placedOrder.storefrontId,
-          email: payerEmail,
-          customerName: customerName.trim() || placedOrder.customerName,
-          customerPhone: customerPhone.trim() || placedOrder.customerPhone,
+      await payForOrderWithPaystack(
+        activeStorefrontId,
+        placedOrder.id,
+        {
+          title: 'Order Payment',
+          onSuccess: () => {
+            setIsPayingWithPaystack(false);
+            clearCart(activeStorefrontId);
+            Alert.alert('Payment Successful!', 'Your payment has been received and verified.', [
+              {
+                text: 'Track Order',
+                onPress: () =>
+                  navigation.navigate('OrderReceiptTracker', {
+                    orderId: placedOrder.id,
+                    slug,
+                    storefrontId: activeStorefrontId,
+                  }),
+              },
+            ]);
+          },
+          onError: (msg) => {
+            setIsPayingWithPaystack(false);
+            Alert.alert('Payment Error', msg);
+          },
+          onCancel: () => {
+            setIsPayingWithPaystack(false);
+          },
         },
-        title: 'Order Payment',
-        onSuccess: () => {
-          setIsPayingWithPaystack(false);
-          if (storefrontId) clearCart(storefrontId);
-          Alert.alert('Payment Successful!', 'Your payment has been received and verified.', [
-            {
-              text: 'Track Order',
-              onPress: () =>
-                navigation.navigate('OrderReceiptTracker', {
-                  orderId: placedOrder.id,
-                  slug,
-                  storefrontId: storefrontId ?? placedOrder.storefrontId,
-                }),
-            },
-          ]);
-        },
-        onError: (msg) => {
-          setIsPayingWithPaystack(false);
-          Alert.alert('Payment Error', msg);
-        },
-        onCancel: () => {
-          setIsPayingWithPaystack(false);
-        },
-      });
+      );
     } finally {
       // Belt-and-suspenders: ensure the button is never permanently stuck.
       setIsPayingWithPaystack(false);

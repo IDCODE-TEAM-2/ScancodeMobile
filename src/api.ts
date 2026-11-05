@@ -378,6 +378,27 @@ export interface PaymentVerifyResponse {
   createdSlug: string | null;
 }
 
+export interface CommercePaymentResponse {
+  authorizationUrl: string;
+  reference: string;
+  kind: string;
+  orderId: number | null;
+  requestId: number | null;
+  tipId: number | null;
+  merchantAmountKobo: number;
+  paystackFeeKobo: number;
+  chargeAmountKobo: number;
+}
+
+export interface CommerceVerifyResponse {
+  verified: boolean;
+  status: string;
+  kind: string;
+  orderId: number | null;
+  requestId: number | null;
+  tipId: number | null;
+}
+
 export type PaymentPurpose =
   | 'STOREFRONT_CREATION'
   | 'EVENT_CREATION'
@@ -994,6 +1015,15 @@ export function createOrder(storefrontId: number, body: CreateOrderBody) {
   return request<OrderResponse>('POST', `/api/storefronts/${storefrontId}/orders`, body, false);
 }
 
+export function initializeOrderPayment(storefrontId: number, orderId: number) {
+  return request<CommercePaymentResponse>(
+    'POST',
+    `/api/storefronts/${storefrontId}/orders/${orderId}/payment`,
+    {},
+    false,
+  );
+}
+
 export function getOrders(storefrontId?: number) {
   return request<OrderResponse[]>('GET', storefrontId ? `/api/storefronts/${storefrontId}/orders` : '/api/orders');
 }
@@ -1255,6 +1285,10 @@ export function verifyPayment(reference: string, requireAuth = false) {
   return request<PaymentVerifyResponse>('POST', '/api/payments/verify', { reference }, requireAuth);
 }
 
+export function verifyCommercePayment(reference: string) {
+  return request<CommerceVerifyResponse>('POST', '/api/commerce/payments/verify', { reference }, false);
+}
+
 // TEMPORARY — TestFlight/beta testing only. The server refuses this (403) unless its own
 // app.dev-skip-payment-enabled flag is explicitly turned on, which must never happen on the
 // production backend once real users are on it. Remove this call site (and the "Dev Skip"
@@ -1326,4 +1360,3 @@ export async function getBusinessProfileData(): Promise<BusinessProfileData> {
 export function registerPushToken(token: string) {
   return request<void>('POST', '/api/notifications/register', { token });
 }
-
