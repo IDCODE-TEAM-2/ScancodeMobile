@@ -16,6 +16,7 @@ import { useFocusRefresh } from '../../hooks/useFocusRefresh';
 import Skeleton from '../../components/Skeleton';
 import GradientButton from '../../components/GradientButton';
 import EventCard from '../../components/EventCard';
+import AppImage from '../../components/AppImage';
 import { confirmAction } from '../../utils/alerts';
 import { cn } from '../../utils/cn';
 
@@ -160,7 +161,10 @@ export default function DashboardScreen({ navigation }: Props) {
     return (
       <View className="bg-white dark:bg-[#18181B] rounded-xl p-4 shadow-sm border border-gray-200 dark:border-zinc-800">
         <View className="flex-row justify-between items-start mb-1.5">
-          <View className="flex-row items-center flex-1 mr-2 gap-1.5 shrink">
+          <View className="flex-row items-center flex-1 mr-2 gap-2 shrink">
+            <View className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-zinc-800 overflow-hidden items-center justify-center shrink-0">
+              <AppImage uri={item.logoUrl} className="w-9 h-9 rounded-lg" />
+            </View>
             {hasNotifications && (
               <View className="w-2 h-2 rounded-full bg-red-500 shrink-0" accessibilityLabel="New notifications" />
             )}

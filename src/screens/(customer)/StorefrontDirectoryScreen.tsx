@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Star, MapPin, Store, QrCode, LogOut, ArrowDownAZ, ArrowLeft, LocateFixed, Settings as SettingsIcon, Ticket, Sparkles, ChevronRight } from 'lucide-react-native';
+import { Star, MapPin, Store, QrCode, LogOut, ArrowDownAZ, ArrowLeft, LocateFixed, Settings as SettingsIcon } from 'lucide-react-native';
 import Skeleton from '../../components/Skeleton';
-import EventCard from '../../components/EventCard';
 import AppImage from '../../components/AppImage';
 import {
   getAllStorefronts,
@@ -25,6 +24,7 @@ interface Props {
 }
 
 type SortMode = 'rating' | 'location' | 'alphabetical' | 'nearby';
+const STOREFRONT_TYPES = new Set(['PRODUCT', 'RESTAURANT', 'HOTEL']);
 
 const BASE_SORT_OPTIONS: { mode: SortMode; label: string }[] = [
   { mode: 'rating', label: 'Top Rated' },
@@ -61,9 +61,9 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
         getStorefrontRatings().catch(() => []),
         isVendor ? getMyStorefronts().catch(() => []) : Promise.resolve([]),
       ]);
-      setStorefronts(all);
+      setStorefronts(all.filter((item) => STOREFRONT_TYPES.has(item.businessType)));
       setRatings(ratingsData);
-      setMyStorefronts(mine);
+      setMyStorefronts(mine.filter((item) => STOREFRONT_TYPES.has(item.businessType)));
     } catch {
       // Keep whatever's already in state if the load fails.
     } finally {
@@ -115,22 +115,9 @@ export default function StorefrontDirectoryScreen({ navigation }: Props) {
   const iconColor = isDark ? '#D1D5DB' : '#4B5563';
 
   const renderCard = (item: StorefrontResponse) => {
-    const isEvent = item.businessType === 'EVENT';
     const rating = ratingFor(item.id);
     const parsedData = parseStorefrontData(item.data);
     const location = parsedData.location;
-
-    if (isEvent) {
-      return (
-        <EventCard
-          key={item.id}
-          item={item}
-          isDark={isDark}
-          ratingAverage={rating?.average}
-          onPress={() => navigation.navigate('EventDetails', { slug: item.slug, name: item.name, storefrontId: item.id })}
-        />
-      );
-    }
 
     return (
       <TouchableOpacity
