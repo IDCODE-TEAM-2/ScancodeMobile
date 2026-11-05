@@ -42,6 +42,19 @@ memory regression) — do not assume a training-data cutoff knows the right APIs
 
 Most recent first. Add an entry here for every fix so changes stay traceable across sessions.
 
+### 2026-11-05 — Storefront-only Discover and Cloudinary image uploads
+
+The customer Discover directory now allowlists PRODUCT, RESTAURANT, and HOTEL storefronts
+for both public listings and the vendor's pinned list, instead of rendering event cards.
+Storefront logos are visible on admin dashboard cards as well as the existing customer
+directory. Mobile uploads accept source images up to 1 MB and locally compress them to
+200 KB or less before upload; temporary compressed files are cleaned up.
+
+The backend now signs uploads to Cloudinary and returns optimized HTTPS delivery URLs.
+Configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET on the
+backend deployment. The web uploader applies the same 1 MB source cap and 200 KB output
+target. The adjacent web dashboard's gold plan/activation styling was changed to ash-gray.
+
 ### 2026-08-31 (session 11) — App Store readiness pivot: real backend wired, account deletion, app.json blockers, Dashboard card bug
 
 Mid-session the user revealed they're submitting to the App Store "today" and asked for

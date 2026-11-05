@@ -24,9 +24,13 @@ export async function compressImageForUpload(uri: string): Promise<PreparedImage
   }
 
   const dimensions = await getImageDimensions(uri);
+  if (dimensions.width <= 0 || dimensions.height <= 0) {
+    throw new Error('Could not read the selected image dimensions.');
+  }
   for (const maxWidth of MAX_WIDTHS) {
-    const width = Math.min(dimensions.width, maxWidth);
-    const height = Math.round(dimensions.height * (width / dimensions.width));
+    const scale = Math.min(1, maxWidth / Math.max(dimensions.width, dimensions.height));
+    const width = Math.round(dimensions.width * scale);
+    const height = Math.round(dimensions.height * scale);
     for (const compress of QUALITIES) {
       const result = await ImageManipulator.manipulateAsync(
         uri,
@@ -72,10 +76,14 @@ async function compressWebImage(uri: string): Promise<PreparedImage> {
       image.onload = () => resolve();
       image.onerror = () => reject(new Error('Could not read the selected image. Please choose another image.'));
     });
+    if (image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+      throw new Error('Could not read the selected image dimensions.');
+    }
 
     for (const maxWidth of MAX_WIDTHS) {
-      const width = Math.min(image.naturalWidth, maxWidth);
-      const height = Math.round(image.naturalHeight * (width / image.naturalWidth));
+      const scale = Math.min(1, maxWidth / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.round(image.naturalWidth * scale);
+      const height = Math.round(image.naturalHeight * scale);
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
