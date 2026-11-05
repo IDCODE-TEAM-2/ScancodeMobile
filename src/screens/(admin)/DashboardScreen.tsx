@@ -74,8 +74,9 @@ export default function DashboardScreen({ navigation }: Props) {
     setError(null);
     try {
       const data = await getMyStorefronts();
-      setStorefronts(data);
-      loadNotifCounts(data);
+      const merchantPages = data.filter((item) => item.businessType !== 'BUSINESSCARD');
+      setStorefronts(merchantPages);
+      loadNotifCounts(merchantPages);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load storefronts.');
     } finally {
