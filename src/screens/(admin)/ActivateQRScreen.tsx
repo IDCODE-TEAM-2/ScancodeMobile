@@ -392,6 +392,20 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
           </View>
         ) : (
           <View className="gap-4">
+            {storefrontId !== undefined && !isActiveSubscription && (
+              <View className="gap-2 rounded-xl border border-gray-200 p-4 dark:border-zinc-700">
+                <Text className="text-base font-bold text-gray-900 dark:text-white">ScanCode Basic</Text>
+                <Text className="text-sm text-gray-600 dark:text-zinc-300">
+                  Basic includes one published storefront, a QR code, and up to 8 products.
+                </Text>
+                <TouchableOpacity
+                  className="items-center rounded-xl bg-primary py-3.5"
+                  onPress={activateExistingSubscription}
+                >
+                  <Text className="text-base font-bold text-white">Activate Basic Storefront</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             {isActiveSubscription ? (
               <Text className="text-center text-sm text-gray-600 dark:text-zinc-300">
                 Current plan: {activeTier === 'BUSINESS' ? 'Enterprise' : activeTier}. Choose the next tier to upgrade.

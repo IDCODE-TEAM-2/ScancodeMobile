@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShoppingBag, Bell, Settings2, Settings as SettingsIcon, Calendar, Plus, LayoutGrid, Landmark, Compass, Package, Pencil, QrCode, LogOut } from 'lucide-react-native';
 import {
   getMyStorefronts,
+  getMe,
   getOrders,
   getStorefrontWaiterCalls,
   getStorefrontRequests,
@@ -39,6 +40,8 @@ export default function DashboardScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifCounts, setNotifCounts] = useState<Record<number, NotifCounts>>({});
+  const [hasAdvancedFeatures, setHasAdvancedFeatures] = useState(false);
+  const [maxStorefronts, setMaxStorefronts] = useState(1);
 
   const loadNotifCounts = useCallback(async (list: StorefrontResponse[]) => {
     const entries = await Promise.all(
@@ -73,10 +76,21 @@ export default function DashboardScreen({ navigation }: Props) {
     else setLoading(true);
     setError(null);
     try {
-      const data = await getMyStorefronts();
-      const merchantPages = data.filter((item) => item.businessType !== 'BUSINESSCARD');
+      const [data, user] = await Promise.all([getMyStorefronts(), getMe()]);
+      const planIsActive = user.isPaid
+        && (!user.planExpiresAt || Date.parse(user.planExpiresAt) > Date.now());
+      const tier = planIsActive ? user.planSelected?.split('_')[0] : undefined;
+      const advanced = tier === 'PRO' || tier === 'ENTERPRISE' || tier === 'BUSINESS';
+      const limit = tier === 'PRO' ? 5 : tier === 'ENTERPRISE' || tier === 'BUSINESS' ? 10 : 1;
+      setHasAdvancedFeatures(advanced);
+      setMaxStorefronts(limit);
+      const merchantPages = data.filter((item) =>
+        ['PRODUCT', 'RESTAURANT', 'HOTEL'].includes(item.businessType)
+          || (advanced && item.businessType === 'EVENT'),
+      );
       setStorefronts(merchantPages);
-      loadNotifCounts(merchantPages);
+      if (advanced) loadNotifCounts(merchantPages);
+      else setNotifCounts({});
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load storefronts.');
     } finally {
@@ -230,7 +244,7 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
 
         {/* Operations row */}
-        <View className="flex-row gap-2 mt-2">
+        {hasAdvancedFeatures && <View className="flex-row gap-2 mt-2">
           <TouchableOpacity
             className="flex-1 border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
             onPress={() =>
@@ -289,7 +303,7 @@ export default function DashboardScreen({ navigation }: Props) {
             <Calendar size={13} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.2} />
             <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">Events</Text>
           </TouchableOpacity>
-        </View>
+        </View>}
 
         <TouchableOpacity
           className="border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
@@ -306,7 +320,7 @@ export default function DashboardScreen({ navigation }: Props) {
           <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">Product Catalog</Text>
         </TouchableOpacity>
 
-        {(item.businessType === 'RESTAURANT' || item.businessType === 'HOTEL') && (
+        {hasAdvancedFeatures && (item.businessType === 'RESTAURANT' || item.businessType === 'HOTEL') && (
           <TouchableOpacity
             className="border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
             onPress={() =>
@@ -337,12 +351,16 @@ export default function DashboardScreen({ navigation }: Props) {
             <TouchableOpacity onPress={() => navigation.navigate('StorefrontDirectory')} className="p-2" accessibilityLabel="Discover storefronts">
               <Compass size={19} color={iconColor} strokeWidth={2} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Services')} className="p-2" accessibilityLabel="Services menu">
-              <LayoutGrid size={19} color={iconColor} strokeWidth={2} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('MerchantProfileBank', undefined)} className="p-2" accessibilityLabel="Bank profile">
-              <Landmark size={19} color={iconColor} strokeWidth={2} />
-            </TouchableOpacity>
+            {hasAdvancedFeatures && (
+              <>
+                <TouchableOpacity onPress={() => navigation.navigate('Services')} className="p-2" accessibilityLabel="Services menu">
+                  <LayoutGrid size={19} color={iconColor} strokeWidth={2} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('MerchantProfileBank', undefined)} className="p-2" accessibilityLabel="Bank profile">
+                  <Landmark size={19} color={iconColor} strokeWidth={2} />
+                </TouchableOpacity>
+              </>
+            )}
             <TouchableOpacity onPress={() => navigation.navigate('Settings')} className="p-2" accessibilityLabel="Settings">
               <SettingsIcon size={19} color={iconColor} strokeWidth={2} />
             </TouchableOpacity>
@@ -410,11 +428,14 @@ export default function DashboardScreen({ navigation }: Props) {
 
       <GradientButton
         className="absolute bottom-6 left-5 right-5 rounded-xl shadow-lg"
-        onPress={() => navigation.navigate('CreateStorefront')}
+        onPress={() => navigation.navigate(storefronts.length < maxStorefronts ? 'CreateStorefront' : 'Settings')}
         activeOpacity={0.85}
       >
-        <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
-        <Text className="text-white text-base font-bold">New Storefront</Text>
+        {storefronts.length < maxStorefronts
+          ? <><Plus size={18} color="#FFFFFF" strokeWidth={2.5} /><Text className="text-white text-base font-bold">New Storefront</Text></>
+          : <Text className="text-white text-base font-bold">
+              {maxStorefronts === 1 ? 'Upgrade to Pro for more storefronts' : maxStorefronts === 5 ? 'Upgrade to Enterprise for more' : 'Enterprise limit reached'}
+            </Text>}
       </GradientButton>
     </View>
   );

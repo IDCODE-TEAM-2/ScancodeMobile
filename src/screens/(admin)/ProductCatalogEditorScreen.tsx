@@ -18,6 +18,7 @@ import {
   updateProduct,
   deleteProduct,
   getMyStorefronts,
+  getMe,
   type ProductResponse,
 } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
@@ -54,7 +55,9 @@ const BLANK_FORM: ProductForm = {
   imageUri: null,
 };
 
-export default function ProductCatalogEditorScreen({ route }: Props) {
+const BASIC_PRODUCT_LIMIT = 8;
+
+export default function ProductCatalogEditorScreen({ navigation, route }: Props) {
   const { storefrontId } = route.params;
 
   const [products, setProducts] = useState<ProductResponse[]>([]);
@@ -66,6 +69,7 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [productLimit, setProductLimit] = useState(BASIC_PRODUCT_LIMIT);
 
   const load = useCallback(async () => {
     try {
@@ -75,6 +79,15 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
         getMyStorefronts().catch(() => []),
       ]);
       setProducts(data);
+      try {
+        const me = await getMe();
+        const planActive = me.isPaid
+          && (!me.planExpiresAt || Date.parse(me.planExpiresAt) > Date.now());
+        const tier = planActive ? me.planSelected?.split('_')[0] : undefined;
+        setProductLimit(tier === 'PRO' ? 150 : tier === 'BUSINESS' || tier === 'ENTERPRISE' ? Number.POSITIVE_INFINITY : BASIC_PRODUCT_LIMIT);
+      } catch {
+        setProductLimit(BASIC_PRODUCT_LIMIT);
+      }
       const currentStore = mine.find((s) => s.id === storefrontId);
       if (currentStore) {
         const parsed = parseStorefrontData(currentStore.data);
@@ -101,8 +114,22 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
     });
     return Array.from(set);
   }, [storefrontCategories, products]);
+  const productLimitMessage = productLimit === BASIC_PRODUCT_LIMIT
+    ? 'ScanCode Basic includes up to 8 products. Upgrade your plan to add more.'
+    : `Your plan includes up to ${productLimit} products. Upgrade to add more.`;
 
   const openCreateForm = () => {
+    if (products.length >= productLimit) {
+      Alert.alert(
+        'Product Limit Reached',
+        productLimitMessage,
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Upgrade', onPress: () => navigation.navigate('ActivateQR', undefined) },
+        ],
+      );
+      return;
+    }
     setEditingId(null);
     setForm(BLANK_FORM);
     setError(null);
@@ -155,6 +182,10 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
   };
 
   const handleSave = async () => {
+    if (!editingId && products.length >= productLimit) {
+      setError(productLimitMessage);
+      return;
+    }
     if (!form.name.trim()) {
       setError('Product name is required.');
       return;
@@ -413,12 +444,20 @@ export default function ProductCatalogEditorScreen({ route }: Props) {
       </ScrollView>
 
       <TouchableOpacity
-        className="absolute bottom-6 left-5 right-5 bg-primary rounded-xl py-4 items-center flex-row justify-center gap-2 shadow-lg"
+        className={`absolute bottom-6 left-5 right-5 rounded-xl py-4 items-center flex-row justify-center gap-2 shadow-lg ${products.length >= productLimit ? 'bg-gray-400' : 'bg-primary'}`}
         onPress={openCreateForm}
         activeOpacity={0.85}
       >
-        <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
-        <Text className="text-white text-base font-bold">Add Product</Text>
+        {products.length >= productLimit ? (
+          <Text className="text-white text-sm font-bold">
+            {productLimit === BASIC_PRODUCT_LIMIT ? '8-product Basic limit reached · Upgrade' : `${productLimit}-product limit reached · Upgrade`}
+          </Text>
+        ) : (
+          <>
+            <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+            <Text className="text-white text-base font-bold">Add Product</Text>
+          </>
+        )}
       </TouchableOpacity>
     </View>
   );

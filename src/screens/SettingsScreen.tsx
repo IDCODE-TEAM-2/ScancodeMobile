@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
-import { User, LogOut, Trash2, ShieldAlert, FileText, Lock, Sun, Moon, Smartphone, Check, LogIn, ArrowUpRight } from 'lucide-react-native';
+import { User, LogOut, Trash2, ShieldAlert, FileText, Lock, Sun, Moon, Smartphone, Check, LogIn, ArrowUpRight, BadgeCheck } from 'lucide-react-native';
 import { getMe, getToken, deleteToken, deleteAccount, type MeResponse } from '../api';
 import type { NavigationProp } from '../types';
 import { useAppContext, type ThemeMode } from '../context/AppContext';
@@ -97,6 +97,13 @@ export default function SettingsScreen({ navigation }: Props) {
   }
 
   const iconColor = isDark ? '#D1D5DB' : '#374151';
+  const activePlan = me?.isPaid
+    && (!me.planExpiresAt || Date.parse(me.planExpiresAt) > Date.now())
+    ? me.planSelected?.split('_')[0]
+    : undefined;
+  const planLabel = activePlan === 'BUSINESS' ? 'Enterprise' : activePlan === 'PRO' || activePlan === 'ENTERPRISE'
+    ? activePlan.charAt(0) + activePlan.slice(1).toLowerCase()
+    : undefined;
 
   return (
     <ScrollView className="flex-1 bg-gray-50 dark:bg-[#09090B]" contentContainerClassName="p-5 pb-12">
@@ -128,12 +135,11 @@ export default function SettingsScreen({ navigation }: Props) {
           <>
             <Text className="text-base font-bold text-gray-900 dark:text-white">{me?.username ?? 'Account'}</Text>
             {!!me?.email && <Text className="text-[13px] text-gray-500 dark:text-zinc-400 mt-0.5">{me.email}</Text>}
-            {!!me?.planSelected && me.isPaid && (!me.planExpiresAt || Date.parse(me.planExpiresAt) > Date.now()) && (
-              <Text>
-                {me.planSelected.split('_')[0].toLowerCase() === 'business'
-                  ? 'enterprise'
-                  : me.planSelected.split('_')[0].toLowerCase()}
-              </Text>
+            {planLabel && (
+              <View className="mt-2 flex-row items-center gap-1.5 rounded-full bg-black px-3 py-1 dark:bg-white">
+                <BadgeCheck size={15} color="#3B82F6" fill="#3B82F6" stroke="white" />
+                <Text className="text-xs font-bold text-white dark:text-black">{planLabel}</Text>
+              </View>
             )}
             <TouchableOpacity
               className="mt-3 flex-row items-center gap-2 rounded-xl bg-primary px-4 py-2.5"
