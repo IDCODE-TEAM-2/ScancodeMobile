@@ -224,7 +224,7 @@ export default function DashboardScreen({ navigation }: Props) {
               }
               activeOpacity={0.7}
             >
-              <Text className="text-white font-semibold text-sm">Activate QR</Text>
+              <Text className="text-white font-semibold text-sm">Activate Storefront</Text>
             </GradientButton>
           )}
         </View>

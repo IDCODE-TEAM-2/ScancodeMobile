@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
-import { User, LogOut, Trash2, ShieldAlert, FileText, Lock, Sun, Moon, Smartphone, Check, LogIn } from 'lucide-react-native';
+import { User, LogOut, Trash2, ShieldAlert, FileText, Lock, Sun, Moon, Smartphone, Check, LogIn, ArrowUpRight } from 'lucide-react-native';
 import { getMe, getToken, deleteToken, deleteAccount, type MeResponse } from '../api';
 import type { NavigationProp } from '../types';
 import { useAppContext, type ThemeMode } from '../context/AppContext';
@@ -135,6 +135,14 @@ export default function SettingsScreen({ navigation }: Props) {
                   : me.planSelected.split('_')[0].toLowerCase()}
               </Text>
             )}
+            <TouchableOpacity
+              className="mt-3 flex-row items-center gap-2 rounded-xl bg-primary px-4 py-2.5"
+              onPress={() => navigation.navigate('ActivateQR', undefined)}
+              activeOpacity={0.8}
+            >
+              <ArrowUpRight size={16} color="#FFFFFF" strokeWidth={2.2} />
+              <Text className="text-sm font-bold text-white">Upgrade plan</Text>
+            </TouchableOpacity>
           </>
         )}
       </View>

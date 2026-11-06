@@ -39,7 +39,10 @@ export function normalizeImageUrl(rawUrl?: string | null): string | null {
   // Remove duplicate slashes after protocol (e.g., https://api.scancode.ng//api -> https://api.scancode.ng/api)
   normalized = normalized.replace(/([^:])\/{2,}/g, '$1/');
 
-  return normalized;
+  // Cloudinary's f_auto may choose AVIF on native clients; use JPEG for reliable RN decoding.
+  return normalized.includes('res.cloudinary.com')
+    ? normalized.replace(/([,/])f_auto(?=[,/]|$)/g, '$1f_jpg')
+    : normalized;
 }
 
 /**
