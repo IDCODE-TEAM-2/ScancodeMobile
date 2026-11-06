@@ -328,7 +328,21 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
       }
       navigation.goBack();
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : `Failed to ${isEditMode ? 'save changes' : 'create storefront'}. Please try again.`);
+      if (!isEditMode && err instanceof Error && (
+        err.message.includes('Upgrade to') || err.message.includes('Contact us about ScanCode Ultimate')
+      )) {
+        setFormError(null);
+        Alert.alert(
+          'Storefront limit reached',
+          err.message,
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'View upgrades', onPress: () => navigation.navigate('ActivateQR', undefined) },
+          ],
+        );
+      } else {
+        setFormError(err instanceof Error ? err.message : `Failed to ${isEditMode ? 'save changes' : 'create storefront'}. Please try again.`);
+      }
     } finally {
       setLoading(false);
     }

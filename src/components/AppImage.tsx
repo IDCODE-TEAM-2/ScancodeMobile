@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   View,
@@ -32,6 +32,10 @@ export default function AppImage({
 }: AppImageProps) {
   const [hasError, setHasError] = useState(false);
   const normalized = normalizeImageUrl(uri);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [normalized]);
 
   if (!normalized || hasError) {
     return (

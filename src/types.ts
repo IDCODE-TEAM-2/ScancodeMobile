@@ -179,7 +179,7 @@ export type RootStackParamList = {
   CartDrawer: { slug: string; storefrontId: number; name?: string; table?: string };
   Checkout: { slug: string; storefrontId: number; cart: CartItem[]; table?: string };
   OrderReceiptTracker: { orderId: number; slug: string; storefrontId: number };
-  ActivateQR: { storefrontId: number; slug: string; name: string };
+  ActivateQR: { storefrontId?: number; slug?: string; name?: string } | undefined;
   QR: { slug: string; name: string };
   MerchantProfileBank: { storefrontId?: number; name?: string; slug?: string } | undefined;
   StoreChargesConfig: { storefrontId: number; name?: string; slug?: string };

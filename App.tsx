@@ -140,7 +140,7 @@ function AdminNavigator({ screenOptions }: { screenOptions: NativeStackNavigatio
         name="ActivateQR"
         component={ActivateQRScreen}
         options={({ route }) => ({
-          title: route.params?.name || 'Activate QR',
+          title: route.params?.storefrontId ? 'Activate Storefront' : 'Upgrade plan',
           headerBackTitle: 'Back',
         })}
       />
@@ -265,6 +265,11 @@ function CustomerNavigator({ screenOptions }: { screenOptions: NativeStackNaviga
       <CustomerStack.Screen name="AccessPageGuest" component={AccessPageGuestScreen} options={accessPageGuestOptions} />
       <CustomerStack.Screen name="EventDetails" component={EventDetailsScreen} options={hiddenHeader} />
       <CustomerStack.Screen name="Settings" component={SettingsScreen} options={settingsOptions} />
+      <CustomerStack.Screen
+        name="ActivateQR"
+        component={ActivateQRScreen}
+        options={{ title: 'Upgrade plan', headerBackTitle: 'Back' }}
+      />
       <CustomerStack.Screen name="TermsOfService" component={TermsOfServiceScreen} options={{ title: 'Terms of Service', headerBackTitle: 'Back' }} />
       <CustomerStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy', headerBackTitle: 'Back' }} />
     </CustomerStack.Navigator>

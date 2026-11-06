@@ -35,10 +35,10 @@ import { useAppContext } from '../../context/AppContext';
 import { cn } from '../../utils/cn';
 
 const PRODUCTS = [
-  { id: 'com.scancode.pro.monthly', plan: 'ScanCode Pro', period: 'Monthly' },
-  { id: 'com.scancode.pro.yearly', plan: 'ScanCode Pro', period: 'Yearly' },
-  { id: 'com.scancode.enterprise.monthly', plan: 'ScanCode Enterprise', period: 'Monthly' },
-  { id: 'com.scancode.enterprise.yearly', plan: 'ScanCode Enterprise', period: 'Yearly' },
+  { id: 'com.scancode.pro.monthly', plan: 'ScanCode Pro', period: 'Monthly', price: '₦7,999 / month' },
+  { id: 'com.scancode.pro.yearly', plan: 'ScanCode Pro', period: 'Yearly', price: '₦79,999 / year' },
+  { id: 'com.scancode.enterprise.monthly', plan: 'ScanCode Enterprise', period: 'Monthly', price: '₦15,999 / month' },
+  { id: 'com.scancode.enterprise.yearly', plan: 'ScanCode Enterprise', period: 'Yearly', price: '₦159,999 / year' },
 ] as const;
 
 interface Props {
@@ -49,7 +49,8 @@ interface Props {
 type Step = 'loading' | 'ready' | 'activating' | 'restoring' | 'success' | 'error';
 
 export default function ActivateQRScreen({ navigation, route }: Props) {
-  const { storefrontId, slug, name } = route.params;
+  const { storefrontId, slug, name } = route.params ?? {};
+  const isUpgradeFlow = storefrontId === undefined;
   const { isDark } = useAppContext();
   const [step, setStep] = useState<Step>('loading');
   const [products, setProducts] = useState<ProductSubscriptionIOS[]>([]);
@@ -77,11 +78,17 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
 
       await finishTransaction({ purchase, isConsumable: false });
       setPlanSelected(entitlement.planSelected);
-      const storefront = await publishStorefront(storefrontId);
-      setStorefrontPublished(storefront.isPublished);
-      setStep(storefront.isPublished ? 'success' : 'ready');
+      let isPublished = false;
+      if (storefrontId !== undefined) {
+        const storefront = await publishStorefront(storefrontId);
+        isPublished = storefront.isPublished;
+        setStorefrontPublished(isPublished);
+        setStep(isPublished ? 'success' : 'ready');
+      } else {
+        setStep('success');
+      }
       setErrorMessage(null);
-      return storefront.isPublished;
+      return storefrontId === undefined || isPublished;
     } catch (error: unknown) {
       setStep('error');
       setErrorMessage(error instanceof Error ? error.message : 'Could not verify the App Store subscription.');
@@ -128,15 +135,20 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
       }
 
       try {
-        const [user, storefronts] = await Promise.all([getMe(), getMyStorefronts()]);
+        const [user, storefronts] = await Promise.all([
+          getMe(),
+          storefrontId === undefined ? Promise.resolve([]) : getMyStorefronts(),
+        ]);
         if (!mounted.current) return;
         const storefront = storefronts.find((item) => item.id === storefrontId);
-        if (!storefront) throw new Error('This storefront could not be found in your account.');
+        if (storefrontId !== undefined && !storefront) {
+          throw new Error('This storefront could not be found in your account.');
+        }
         const planIsActive = user.isPaid
           && (!user.planExpiresAt || Date.parse(user.planExpiresAt) > Date.now());
         setPlanSelected(planIsActive ? user.planSelected : null);
-        setStorefrontPublished(storefront.isPublished);
-        setStep(storefront.isPublished ? 'success' : 'ready');
+        setStorefrontPublished(storefront?.isPublished ?? false);
+        setStep(storefront?.isPublished ? 'success' : 'ready');
         if (planIsActive) setErrorMessage(null);
       } catch (error: unknown) {
         if (!mounted.current) return;
@@ -158,9 +170,14 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
 
   const isActiveSubscription = !!planSelected
     && ['PRO', 'ENTERPRISE', 'BUSINESS'].includes(planSelected.split('_')[0]);
+  const activeTier = planSelected?.split('_')[0];
+  const availableTiers = activeTier === 'ENTERPRISE' || activeTier === 'BUSINESS'
+    ? []
+    : activeTier === 'PRO' ? ['ENTERPRISE'] as const : ['PRO', 'ENTERPRISE'] as const;
   const isBusy = step === 'loading' || step === 'activating' || step === 'restoring';
 
   async function activateExistingSubscription() {
+    if (storefrontId === undefined) return;
     setStep('activating');
     setErrorMessage(null);
     try {
@@ -219,6 +236,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
   }
 
   async function refreshPublishedState() {
+    if (storefrontId === undefined) return;
     try {
       const storefronts = await getMyStorefronts();
       const storefront = storefronts.find((item) => item.id === storefrontId);
@@ -232,7 +250,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && storefrontPublished) void refreshPublishedState();
+      if (state === 'active' && storefrontPublished && storefrontId !== undefined) void refreshPublishedState();
     });
     return () => subscription.remove();
   }, [storefrontPublished, storefrontId]);
@@ -246,13 +264,17 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
       contentContainerClassName="justify-center p-5"
     >
       <View className="rounded-2xl border border-transparent bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-[#18181B]">
-        <Text className="mb-1 text-[11px] font-extrabold tracking-wide text-primary">STOREFRONT ACTIVATION</Text>
-        <Text className="mb-4 text-[22px] font-extrabold text-gray-900 dark:text-white">{name}</Text>
+        <Text className="mb-1 text-[11px] font-extrabold tracking-wide text-primary">
+          {isUpgradeFlow ? 'SCAN CODE PLANS' : 'STOREFRONT ACTIVATION'}
+        </Text>
+        <Text className="mb-4 text-[22px] font-extrabold text-gray-900 dark:text-white">
+          {isUpgradeFlow ? 'Upgrade your plan' : name}
+        </Text>
 
         <View className="mb-5 flex-row items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-zinc-900">
           <CheckCircle2 size={20} color={isDark ? '#34D399' : '#374151'} strokeWidth={2.2} />
           <Text className="flex-1 text-[13px] text-gray-600 dark:text-zinc-300">
-            One active ScanCode Pro or Enterprise subscription activates your single storefront.
+            Pro supports up to 5 storefronts; Enterprise supports up to 10.
           </Text>
         </View>
 
@@ -273,9 +295,27 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
             </Text>
             <TouchableOpacity
               className="w-full items-center rounded-xl bg-primary py-3.5"
-              onPress={() => navigation.navigate('QR', { slug, name })}
+              onPress={() => {
+                if (slug && name) navigation.navigate('QR', { slug, name });
+              }}
             >
               <Text className="text-base font-bold text-white">View QR Code</Text>
+            </TouchableOpacity>
+          </View>
+        ) : step === 'success' && isUpgradeFlow ? (
+          <View className="items-center rounded-xl border border-emerald-200 bg-emerald-100 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
+            <View className="mb-1 flex-row items-center gap-2">
+              <PartyPopper size={18} color={isDark ? '#34D399' : '#374151'} strokeWidth={2.2} />
+              <Text className="text-lg font-extrabold text-emerald-800 dark:text-emerald-400">Plan upgraded</Text>
+            </View>
+            <Text className="mb-3 text-center text-[13px] text-emerald-700 dark:text-emerald-500">
+              Your {planSelected?.split('_')[0].toLowerCase()} subscription is active.
+            </Text>
+            <TouchableOpacity
+              className="w-full items-center rounded-xl bg-primary py-3.5"
+              onPress={() => navigation.goBack()}
+            >
+              <Text className="text-base font-bold text-white">Done</Text>
             </TouchableOpacity>
           </View>
         ) : Platform.OS !== 'ios' ? (
@@ -289,7 +329,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
               {step === 'restoring' ? 'Restoring subscription…' : 'Verifying subscription…'}
             </Text>
           </View>
-        ) : isActiveSubscription ? (
+        ) : isActiveSubscription && !isUpgradeFlow ? (
           <View className="gap-3">
             <Text className="text-center text-sm text-gray-600 dark:text-zinc-300">
               Your {planSelected?.split('_')[0].toLowerCase()} subscription is active.
@@ -303,7 +343,12 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
           </View>
         ) : (
           <View className="gap-4">
-            {(['PRO', 'ENTERPRISE'] as const).map((tier) => {
+            {isActiveSubscription ? (
+              <Text className="text-center text-sm text-gray-600 dark:text-zinc-300">
+                Current plan: {activeTier === 'BUSINESS' ? 'Enterprise' : activeTier}. Choose the next tier to upgrade.
+              </Text>
+            ) : null}
+            {availableTiers.map((tier) => {
               const label = tier === 'PRO' ? 'ScanCode Pro' : 'ScanCode Enterprise';
               const productsForTier = PRODUCTS.filter((product) =>
                 product.plan === label,
@@ -325,7 +370,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                           onPress={() => void beginPurchase(product.id)}
                         >
                           <Text className="text-sm font-bold text-white">{product.period}</Text>
-                          <Text className="mt-1 text-xs text-white">{price ?? 'Unavailable'}</Text>
+                          <Text className="mt-1 text-xs text-white">{product.price}</Text>
                           {pendingProduct === product.id ? <ActivityIndicator color="#FFFFFF" className="mt-2" /> : null}
                         </TouchableOpacity>
                       );
