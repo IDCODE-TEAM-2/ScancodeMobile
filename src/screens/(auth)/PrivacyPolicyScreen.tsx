@@ -13,25 +13,32 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function PrivacyPolicyScreen() {
   return (
     <ScrollView className="flex-1 bg-white" contentContainerClassName="p-5 pb-12">
-      <Text className="text-xs text-gray-400 mb-5">Last updated: 31 August 2026</Text>
+      <Text className="text-xs text-gray-400 mb-5">Last updated: 6 November 2026</Text>
 
       <Section title="1. Information We Collect">
         Account information (username, email, password, account role) provided at
         registration; storefront and product information vendors add; order details (items,
-        totals, table/order status); event Access Page guest check-in responses; and, if you
-        enable notifications, a device push token used to deliver order and event updates.
+        totals, table/order status); event Access Page guest check-in responses; App Store
+        subscription product, transaction, and expiry details needed to verify your plan;
+        and, if you enable notifications, a device push token used to deliver order and event
+        updates.
+        If you grant location permission, the mobile app also uses device location on the
+        device to estimate your nearest Nigerian state.
       </Section>
 
       <Section title="2. How We Use Information">
         To operate your account and storefronts, process and display orders, deliver push
         notifications you've opted into, aggregate storefront ratings shown in the Storefront
-        Directory, and maintain the security of the platform.
+        Directory, estimate your nearest state for nearby storefront ranking when you allow
+        location access, and maintain the security of the platform.
       </Section>
 
       <Section title="3. What We Don't Collect">
         We do not access your device's photo library or camera roll beyond the images you
-        explicitly choose to upload, and we do not collect precise device location — the
-        storefront "location" field is a state you select yourself, not GPS data.
+        explicitly choose to upload. If you grant location permission, your device location
+        is used on the device to estimate your nearest Nigerian state and rank nearby
+        storefronts; your precise coordinates are not sent to ScanCode servers. The
+        storefront "location" field is a state selected by the vendor.
       </Section>
 
       <Section title="4. Sharing With Third Parties">

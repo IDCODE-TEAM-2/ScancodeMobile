@@ -112,6 +112,7 @@ async function request<T>(
   path: string,
   body?: unknown,
   requireAuth = true,
+  notifyOnUnauthorized = true,
 ): Promise<T> {
   const token = await getToken();
   if (requireAuth && !token) {
@@ -167,7 +168,7 @@ async function request<T>(
     }
 
     if (!res.ok) {
-      if (res.status === 401 && requireAuth && token) {
+      if (res.status === 401 && requireAuth && notifyOnUnauthorized && token) {
         unauthorizedListeners.forEach((listener) => listener());
       }
 
@@ -893,10 +894,13 @@ export function publishStorefront(storefrontId: number) {
 }
 
 export function verifyAppleSubscription(signedTransaction: string) {
+  // Apple signature/environment failures also return 401; they do not mean the user's JWT expired.
   return request<{ active: boolean; planSelected: string | null; planExpiresAt: string | null }>(
     'POST',
     '/api/subscriptions/apple/verify',
     { signedTransaction },
+    true,
+    false,
   );
 }
 
