@@ -890,7 +890,15 @@ export function getStorefrontBySlug(slug: string) {
 }
 
 export function publishStorefront(storefrontId: number) {
-  return request<StorefrontResponse>('POST', `/api/business/storefronts/${storefrontId}/publish`);
+  // Publication can fail with an authorization response after IAP verification;
+  // surface that failure without discarding the user's existing app session.
+  return request<StorefrontResponse>(
+    'POST',
+    `/api/business/storefronts/${storefrontId}/publish`,
+    undefined,
+    true,
+    false,
+  );
 }
 
 export function verifyAppleSubscription(signedTransaction: string) {
