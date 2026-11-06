@@ -87,12 +87,12 @@ export default function VerifyOtpScreen({ navigation, route }: Props) {
             </View>
           )}
           {success && (
-            <View className="bg-emerald-100 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 mb-4">
+            <View className="bg-emerald-100 dark:bg-emerald-950/40 rounded-lg p-3 mb-4">
               <Text className="text-emerald-800 dark:text-emerald-300 text-sm text-center">{success}</Text>
             </View>
           )}
           <TextInput
-            className="border-2 border-primary rounded-2xl px-3.5 py-[18px] text-[28px] font-bold text-center text-gray-900 dark:text-white bg-gray-50 dark:bg-zinc-900 mb-5 tracking-[12px]"
+            className="border-2 border-gray-900 dark:border-white rounded-2xl px-3.5 py-[18px] text-[28px] font-bold text-center text-gray-900 dark:text-white bg-gray-50 dark:bg-zinc-900 mb-5 tracking-[12px]"
             value={otp}
             onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))}
             keyboardType="number-pad"

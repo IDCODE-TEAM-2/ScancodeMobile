@@ -157,10 +157,10 @@ export default function SettingsScreen({ navigation }: Props) {
             <TouchableOpacity
               key={opt.mode}
               className={cn(
-                'flex-row items-center justify-between p-3 rounded-xl border',
+                'flex-row items-center justify-between p-3 rounded-xl border border-transparent',
                 isSelected
-                  ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700'
-                  : 'bg-white dark:bg-[#18181B] border-transparent'
+                  ? 'bg-emerald-50/70 dark:bg-emerald-950/40'
+                  : 'bg-white dark:bg-[#18181B]'
               )}
               onPress={() => setTheme(opt.mode)}
               activeOpacity={0.7}

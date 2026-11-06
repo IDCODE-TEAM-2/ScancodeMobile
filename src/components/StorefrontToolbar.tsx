@@ -400,7 +400,7 @@ export default function StorefrontToolbar({
                         className={cn(
                           'rounded-xl border px-3 py-2.5',
                           callTarget === entity
-                            ? 'bg-emerald-800 dark:bg-emerald-700 border-emerald-800 dark:border-emerald-700'
+                            ? 'bg-emerald-800 dark:bg-emerald-700 border-transparent'
                             : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700'
                         )}
                         onPress={() => {
@@ -421,7 +421,7 @@ export default function StorefrontToolbar({
                         className={cn(
                           'rounded-xl border px-3 py-2.5',
                           selectedPreset === preset
-                            ? 'bg-emerald-800 dark:bg-emerald-700 border-emerald-800 dark:border-emerald-700'
+                            ? 'bg-emerald-800 dark:bg-emerald-700 border-transparent'
                             : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700'
                         )}
                         onPress={() => setSelectedPreset(preset)}
@@ -457,7 +457,7 @@ export default function StorefrontToolbar({
                         className={cn(
                           'rounded-xl border px-3 py-2.5',
                           requestType === type
-                            ? 'bg-emerald-800 dark:bg-emerald-700 border-emerald-800 dark:border-emerald-700'
+                            ? 'bg-emerald-800 dark:bg-emerald-700 border-transparent'
                             : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700'
                         )}
                         onPress={() => setRequestType(type)}
@@ -510,7 +510,7 @@ export default function StorefrontToolbar({
                         className={cn(
                           'rounded-xl border px-3 py-2.5',
                           tipRecipient === recipient
-                            ? 'bg-emerald-800 dark:bg-emerald-700 border-emerald-800 dark:border-emerald-700'
+                            ? 'bg-emerald-800 dark:bg-emerald-700 border-transparent'
                             : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700'
                         )}
                         onPress={() => setTipRecipient(recipient)}
@@ -772,7 +772,7 @@ function PaymentAccountBlock({
   };
 
   return (
-    <View className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-3 mt-3.5 gap-1">
+    <View className="bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl p-3 mt-3.5 gap-1">
       <View className="flex-row justify-between items-center">
         <Text className="text-emerald-800 dark:text-emerald-300 text-[11px] font-extrabold uppercase">Payment account</Text>
         {accounts.length > 1 && (
@@ -794,11 +794,11 @@ function PaymentAccountBlock({
                 className={cn(
                   'px-2.5 py-1 rounded-lg border',
                   isSel
-                    ? 'bg-emerald-700 border-emerald-700'
-                    : 'bg-white dark:bg-zinc-800 border-emerald-200 dark:border-emerald-800'
+                    ? 'bg-gray-900 dark:bg-white border-transparent'
+                    : 'bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700'
                 )}
               >
-                <Text className={cn('text-xs font-bold', isSel ? 'text-white' : 'text-emerald-800 dark:text-emerald-300')}>
+                <Text className={cn('text-xs font-bold', isSel ? 'text-white dark:text-gray-900' : 'text-emerald-800 dark:text-emerald-300')}>
                   {acc.bankName}
                 </Text>
               </TouchableOpacity>

@@ -31,8 +31,7 @@ export default function StatusBadge({ status, label }: StatusBadgeProps) {
   useEffect(() => {
     if (prevStatus.current !== status) {
       prevStatus.current = status;
-      // Small pop on every status transition (e.g. PENDING amber -> CONFIRMED green) so the
-      // change registers as an event, not just a re-render.
+      // Small pop on every status transition so the change registers as an event.
       scale.value = withSequence(withSpring(1.18, { damping: 8, stiffness: 300 }), withSpring(1, { damping: 10 }));
     }
   }, [status, scale]);
@@ -42,16 +41,29 @@ export default function StatusBadge({ status, label }: StatusBadgeProps) {
   // styling lives on the plain inner View below instead.
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const bgTextClasses = SUCCESS.includes(normalized)
-    ? 'bg-emerald-100 text-emerald-800'
-    : WARNING.includes(normalized)
-      ? 'bg-amber-100 text-amber-800'
-      : DANGER.includes(normalized)
-        ? 'bg-red-100 text-red-800'
-        // Neutral, not emerald — an unrecognized status shouldn't visually read as "success".
-        : 'bg-gray-100 text-gray-700';
+  const isPublished = normalized === 'PUBLISHED';
 
-  const [bgClass, textClass] = bgTextClasses.split(' ');
+  // For PUBLISHED: no background — just the text colour, no pill BG.
+  const bgClass = isPublished
+    ? ''
+    : WARNING.includes(normalized)
+      ? 'bg-amber-100'
+      : DANGER.includes(normalized)
+        ? 'bg-red-100'
+        : SUCCESS.includes(normalized)
+          ? 'bg-emerald-100'
+          : 'bg-gray-100';
+
+  const textClass = isPublished
+    ? 'text-emerald-700'
+    : WARNING.includes(normalized)
+      ? 'text-amber-800'
+      : DANGER.includes(normalized)
+        ? 'text-red-800'
+        : SUCCESS.includes(normalized)
+          ? 'text-emerald-800'
+          : 'text-gray-700';
+
   const displayLabel = label || status;
 
   return (

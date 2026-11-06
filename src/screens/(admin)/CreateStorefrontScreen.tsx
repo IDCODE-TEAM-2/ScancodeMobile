@@ -528,7 +528,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
               key={t}
               className={cn(
                 'flex-1 border-[1.5px] rounded-xl py-3 items-center bg-white',
-                businessType === t ? 'border-primary bg-emerald-50' : 'border-gray-300'
+                businessType === t ? 'border-gray-900 bg-gray-50' : 'border-gray-300'
               )}
               onPress={() => setBusinessType(t)}
               disabled={loading}
@@ -597,7 +597,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
             <Text className="text-base font-bold text-gray-900">Bank Account Details</Text>
             <TouchableOpacity
               onPress={handleAddBankAccount}
-              className="flex-row items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1"
+              className="flex-row items-center gap-1 bg-gray-100 border border-gray-300 rounded-full px-2.5 py-1"
               activeOpacity={0.7}
             >
               <Plus size={13} color="#059669" strokeWidth={2.5} />
@@ -615,8 +615,8 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
                   <Landmark size={15} color="#059669" strokeWidth={2.2} />
                   <Text className="text-xs font-bold text-gray-700">Account #{index + 1}</Text>
                   {acc.isPrimary && (
-                    <View className="bg-emerald-100 rounded-full px-2 py-0.5">
-                      <Text className="text-[10px] font-bold text-emerald-800">PRIMARY</Text>
+                    <View className="px-1.5 py-0.5">
+                      <Text className="text-[10px] font-bold text-emerald-700">PRIMARY</Text>
                     </View>
                   )}
                 </View>
@@ -668,7 +668,7 @@ export default function CreateStorefrontScreen({ navigation, route }: Props) {
         </View>
 
         {!isEditMode && (
-          <View className="bg-emerald-50 rounded-xl p-3.5 mb-6 border border-emerald-200 flex-row items-start gap-2">
+          <View className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 mb-6 flex-row items-start gap-2">
             <Info size={16} color="#374151" strokeWidth={2.2} />
             <Text className="text-emerald-800 text-[13px] leading-[19px] flex-1">
               After creating your storefront you'll need to activate your QR code.

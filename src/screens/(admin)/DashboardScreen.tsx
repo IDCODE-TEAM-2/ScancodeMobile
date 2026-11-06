@@ -124,14 +124,14 @@ export default function DashboardScreen({ navigation }: Props) {
             {published ? (
               <>
                 <TouchableOpacity
-                  className="flex-1 border-[1.5px] border-primary rounded-lg py-2 items-center"
+                  className="flex-1 border-[1.5px] border-gray-300 dark:border-zinc-700 rounded-lg py-2 items-center"
                   onPress={() => navigation.navigate('EventDetails', { slug: item.slug, name: item.name, storefrontId: item.id })}
                   activeOpacity={0.7}
                 >
                   <Text className="text-primary font-semibold text-sm">Guest View</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  className="flex-1 border-[1.5px] border-primary rounded-lg py-2 items-center"
+                  className="flex-1 border-[1.5px] border-gray-300 dark:border-zinc-700 rounded-lg py-2 items-center"
                   onPress={() => navigation.navigate('QR', { slug: item.slug, name: item.name })}
                   activeOpacity={0.7}
                 >
@@ -172,8 +172,8 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text className="text-base font-bold text-gray-900 dark:text-white shrink" numberOfLines={1}>{item.name}</Text>
           </View>
           <View className="flex-row items-center gap-2">
-            <View className={cn('rounded-full px-2.5 py-[3px]', published ? 'bg-emerald-100 dark:bg-emerald-950' : 'bg-gray-200 dark:bg-zinc-800')}>
-              <Text className={cn('text-xs font-semibold', published ? 'text-emerald-800 dark:text-emerald-300' : 'text-gray-600 dark:text-zinc-400')}>
+            <View className={cn('rounded-full px-2.5 py-[3px]', published ? '' : 'bg-gray-200 dark:bg-zinc-800')}>
+              <Text className={cn('text-xs font-semibold', published ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-600 dark:text-zinc-400')}>
                 {published ? 'Published' : 'QR Locked'}
               </Text>
             </View>
@@ -197,14 +197,14 @@ export default function DashboardScreen({ navigation }: Props) {
           {published ? (
             <>
               <TouchableOpacity
-                className="flex-1 border-[1.5px] border-primary rounded-lg py-2 items-center"
+                className="flex-1 border-[1.5px] border-gray-300 dark:border-zinc-700 rounded-lg py-2 items-center"
                 onPress={() => navigation.navigate('Storefront', { slug: item.slug, name: item.name })}
                 activeOpacity={0.7}
               >
                 <Text className="text-primary font-semibold text-sm">View Store</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="flex-1 border-[1.5px] border-primary rounded-lg py-2 items-center"
+                className="flex-1 border-[1.5px] border-gray-300 dark:border-zinc-700 rounded-lg py-2 items-center"
                 onPress={() => navigation.navigate('QR', { slug: item.slug, name: item.name })}
                 activeOpacity={0.7}
               >
@@ -232,7 +232,7 @@ export default function DashboardScreen({ navigation }: Props) {
         {/* Operations row */}
         <View className="flex-row gap-2 mt-2">
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
+            className="flex-1 border-[1.5px] border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
             onPress={() =>
               navigation.navigate('LiveOrdersManager', {
                 storefrontId: item.id,
@@ -247,7 +247,7 @@ export default function DashboardScreen({ navigation }: Props) {
             <NotifCountBadge count={counts.orders} />
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
+            className="flex-1 border-[1.5px] border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-lg py-2 items-center flex-row justify-center gap-1 relative"
             onPress={() =>
               navigation.navigate('ToolbarRequestsAdmin', {
                 storefrontId: item.id,
@@ -262,7 +262,7 @@ export default function DashboardScreen({ navigation }: Props) {
             <NotifCountBadge count={counts.activity} />
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('StoreChargesConfig', {
                 storefrontId: item.id,
@@ -276,7 +276,7 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text className="text-emerald-700 dark:text-emerald-300 font-semibold text-xs">Config</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1"
+            className="flex-1 border-[1.5px] border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-lg py-2 items-center flex-row justify-center gap-1"
             onPress={() =>
               navigation.navigate('EventsManager', {
                 storefrontId: item.id,
@@ -292,7 +292,7 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
 
         <TouchableOpacity
-          className="border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
+          className="border-[1.5px] border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
           onPress={() =>
             navigation.navigate('ProductCatalogEditor', {
               storefrontId: item.id,
@@ -308,7 +308,7 @@ export default function DashboardScreen({ navigation }: Props) {
 
         {(item.businessType === 'RESTAURANT' || item.businessType === 'HOTEL') && (
           <TouchableOpacity
-            className="border-[1.5px] border-primary/20 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
+            className="border-[1.5px] border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-lg py-2 items-center flex-row justify-center gap-1 mt-2"
             onPress={() =>
               navigation.navigate('ManageTables', {
                 storefrontId: item.id,

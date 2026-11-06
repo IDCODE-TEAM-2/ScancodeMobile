@@ -57,7 +57,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
           </Text>
 
           {isSubmitted ? (
-            <View className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-5 items-center mb-5">
+            <View className="bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl p-5 items-center mb-5">
               <View className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900 items-center justify-center mb-2.5">
                 <Mail size={26} color="#059669" strokeWidth={2} />
               </View>
