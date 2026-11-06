@@ -1,1 +1,0 @@
-regex:(?im)^Co-Authored-By: Claude Sonnet 5 <noreply@anthropic\.com>\r?\n==>
