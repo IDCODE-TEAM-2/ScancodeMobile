@@ -325,7 +325,7 @@ export default function CreateEventScreen({ navigation }: Props) {
                   className={cn(
                     'flex-row items-center px-3.5 py-2.5 rounded-xl border mr-2',
                     selected
-                      ? 'bg-emerald-600 border-emerald-600'
+                      ? 'bg-gray-900 dark:bg-white border-gray-900 dark:border-white'
                       : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800'
                   )}
                   onPress={() => setEventType(t.type)}
@@ -334,7 +334,7 @@ export default function CreateEventScreen({ navigation }: Props) {
                   <Text
                     className={cn(
                       'text-sm font-bold',
-                      selected ? 'text-white' : 'text-gray-700 dark:text-gray-300'
+                      selected ? 'text-white dark:text-gray-900' : 'text-gray-700 dark:text-gray-300'
                     )}
                   >
                     {t.label}
@@ -450,7 +450,7 @@ export default function CreateEventScreen({ navigation }: Props) {
             {ticketTiers.map((tier) => (
               <View
                 key={tier}
-                className="flex-row items-center bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-lg px-3 py-1.5 gap-2"
+                className="flex-row items-center bg-gray-100 dark:bg-zinc-800 rounded-lg px-3 py-1.5 gap-2"
               >
                 <Ticket size={13} color="#059669" />
                 <Text className="text-sm font-bold text-emerald-800 dark:text-emerald-300">{tier}</Text>

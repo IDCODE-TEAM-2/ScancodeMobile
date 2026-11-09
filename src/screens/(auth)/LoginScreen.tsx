@@ -109,7 +109,7 @@ export default function LoginScreen({ navigation }: Props) {
           {/* Guest Quick Actions */}
           <View className="flex-row gap-3 mb-6">
             <TouchableOpacity
-              className="flex-1 bg-white dark:bg-[#18181B] border-[1.5px] border-emerald-600/30 dark:border-emerald-700/50 rounded-2xl py-3.5 px-3 items-center flex-row justify-center gap-2 shadow-sm"
+              className="flex-1 bg-white dark:bg-[#18181B] border-[1.5px] border-gray-200 dark:border-zinc-800 rounded-2xl py-3.5 px-3 items-center flex-row justify-center gap-2 shadow-sm"
               onPress={() => navigation.navigate('CameraQRScanner')}
               disabled={loading}
               activeOpacity={0.8}

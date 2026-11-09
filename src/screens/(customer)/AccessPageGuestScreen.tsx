@@ -200,8 +200,8 @@ export default function AccessPageGuestScreen({ route }: Props) {
                   className={cn(
                     'border-[1.5px] rounded-xl px-3.5 py-2.5',
                     ticketTier === tier
-                      ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40'
-                      : 'bg-white dark:bg-[#18181B] border-gray-300 dark:border-zinc-800'
+                      ? 'border-transparent bg-emerald-50 dark:bg-emerald-950/40'
+                      : 'bg-white dark:bg-[#18181B] border-gray-900 dark:border-zinc-800'
                   )}
                   onPress={() => setTicketTier(tier)}
                 >
@@ -228,8 +228,8 @@ export default function AccessPageGuestScreen({ route }: Props) {
                     className={cn(
                       'flex-1 border-[1.5px] rounded-xl py-3 items-center',
                       responses[f.key] === opt
-                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40'
-                        : 'bg-white dark:bg-[#18181B] border-gray-300 dark:border-zinc-800'
+                        ? 'border-transparent bg-emerald-50 dark:bg-emerald-950/40'
+                        : 'bg-white dark:bg-[#18181B] border-gray-900 dark:border-zinc-800'
                     )}
                     onPress={() => setResponse(f.key, opt)}
                   >
@@ -247,8 +247,8 @@ export default function AccessPageGuestScreen({ route }: Props) {
                     className={cn(
                       'border-[1.5px] rounded-xl px-3.5 py-2.5',
                       responses[f.key] === opt
-                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40'
-                        : 'bg-white dark:bg-[#18181B] border-gray-300 dark:border-zinc-800'
+                        ? 'border-transparent bg-emerald-50 dark:bg-emerald-950/40'
+                        : 'bg-white dark:bg-[#18181B] border-gray-900 dark:border-zinc-800'
                     )}
                     onPress={() => setResponse(f.key, opt)}
                   >

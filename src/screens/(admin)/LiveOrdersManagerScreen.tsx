@@ -365,7 +365,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
               'rounded-full px-3 py-1.5 border flex-row items-center gap-1.5 shadow-sm',
               testAlarmActive
                 ? (oledDark ? 'bg-red-950/60 border-red-800' : 'bg-red-50 border-red-200')
-                : (oledDark ? 'bg-emerald-950/60 border-emerald-800' : 'bg-emerald-50 border-emerald-200')
+                : (oledDark ? 'bg-emerald-950/60 border-transparent' : 'bg-emerald-50 border-transparent')
             )}
             onPress={handleTriggerTestOrder}
             activeOpacity={0.8}
@@ -385,7 +385,7 @@ export default function LiveOrdersManagerScreen({ route }: Props) {
             className={cn(
               'rounded-full px-3 py-1.5 border flex-row items-center gap-1.5 shadow-sm',
               soundEnabled
-                ? (oledDark ? 'bg-emerald-950/60 border-emerald-800' : 'bg-emerald-100 border-emerald-300')
+                ? (oledDark ? 'bg-emerald-950/60 border-transparent' : 'bg-emerald-100 border-transparent')
                 : (oledDark ? 'bg-zinc-900 border-zinc-700' : 'bg-gray-100 border-gray-200')
             )}
             onPress={handleSoundToggle}

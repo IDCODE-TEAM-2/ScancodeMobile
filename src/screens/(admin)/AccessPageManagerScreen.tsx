@@ -356,18 +356,18 @@ export default function AccessPageManagerScreen({ route }: Props) {
 
             <View className="flex-row gap-2 mb-2">
               <TouchableOpacity
-                className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg py-2"
+                className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-lg py-2"
                 onPress={startEditingForm}
               >
-                <Text className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs">Edit Fields ({form.fields.length})</Text>
+                <Text className="text-gray-700 dark:text-zinc-200 font-semibold text-xs">Edit Fields ({form.fields.length})</Text>
               </TouchableOpacity>
               {!!slug && (
                 <TouchableOpacity
-                  className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg py-2"
+                  className="flex-1 flex-row items-center justify-center gap-1.5 border-[1.5px] border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-lg py-2"
                   onPress={handleCopyLink}
                 >
                   <Link2 size={13} color="#059669" strokeWidth={2.2} />
-                  <Text className="text-emerald-600 dark:text-emerald-400 font-semibold text-xs">Copy Link</Text>
+                  <Text className="text-gray-700 dark:text-zinc-200 font-semibold text-xs">Copy Link</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -430,7 +430,7 @@ export default function AccessPageManagerScreen({ route }: Props) {
                 </View>
               ) : (
                 <TouchableOpacity
-                  className="border-[1.5px] border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-2.5 py-1.5"
+                  className="border-[1.5px] border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-lg px-2.5 py-1.5"
                   onPress={() => handleQuickCheckIn(g)}
                   disabled={checkingIn}
                 >

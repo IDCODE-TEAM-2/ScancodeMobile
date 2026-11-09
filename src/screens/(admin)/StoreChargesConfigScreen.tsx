@@ -135,8 +135,8 @@ export default function StoreChargesConfigScreen() {
         {feedbackMsg && (
           <View
             className={cn(
-              'p-3.5 rounded-xl mb-4 border',
-              feedbackMsg.type === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
+              'p-3.5 rounded-xl mb-4',
+              feedbackMsg.type === 'success' ? 'bg-emerald-50' : 'bg-red-50 border border-red-200'
             )}
           >
             <Text

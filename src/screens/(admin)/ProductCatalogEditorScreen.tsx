@@ -347,7 +347,7 @@ export default function ProductCatalogEditorScreen({ navigation, route }: Props)
                       className={cn(
                         'px-3 py-1.5 rounded-full border',
                         isSelected
-                          ? 'bg-primary border-primary'
+                          ? 'bg-gray-900 border-gray-900'
                           : 'bg-white border-gray-300'
                       )}
                       activeOpacity={0.7}
@@ -425,7 +425,7 @@ export default function ProductCatalogEditorScreen({ navigation, route }: Props)
                   activeOpacity={0.75}
                   className={cn(
                     'flex-row items-center gap-1 mt-1.5 rounded-full px-2.5 py-1 border',
-                    p.isDelisted ? 'bg-emerald-50 border-emerald-200' : 'bg-gray-100 border-gray-200'
+                    p.isDelisted ? 'bg-emerald-50 border-gray-300 dark:border-zinc-700' : 'bg-gray-100 border-gray-200'
                   )}
                 >
                   {p.isDelisted ? (

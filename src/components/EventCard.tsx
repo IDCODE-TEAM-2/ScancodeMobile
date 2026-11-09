@@ -26,7 +26,7 @@ export default function EventCard({
 
   return (
     <TouchableOpacity
-      className="bg-white dark:bg-[#18181B] rounded-2xl mb-4 border border-green-300 dark:border-zinc-800 overflow-hidden shadow-sm"
+      className="bg-white dark:bg-[#18181B] rounded-2xl mb-4 border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm"
       onPress={onPress}
       activeOpacity={0.8}
     >

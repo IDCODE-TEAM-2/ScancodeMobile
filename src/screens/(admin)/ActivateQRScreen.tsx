@@ -464,7 +464,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
         ) : null}
 
         {step === 'success' && storefrontPublished ? (
-          <View className="items-center rounded-xl border border-emerald-200 bg-emerald-100 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
+          <View className="items-center rounded-xl bg-emerald-100 p-4 dark:bg-emerald-950/40">
             <View className="mb-1 flex-row items-center gap-2">
               <PartyPopper size={18} color={isDark ? '#34D399' : '#374151'} strokeWidth={2.2} />
               <Text className="text-lg font-extrabold text-emerald-800 dark:text-emerald-400">Storefront Activated</Text>
@@ -482,7 +482,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
         ) : step === 'success' && isUpgradeFlow ? (
-          <View className="items-center rounded-xl border border-emerald-200 bg-emerald-100 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
+          <View className="items-center rounded-xl bg-emerald-100 p-4 dark:bg-emerald-950/40">
             <View className="mb-1 flex-row items-center gap-2">
               <PartyPopper size={18} color={isDark ? '#34D399' : '#374151'} strokeWidth={2.2} />
               <Text className="text-lg font-extrabold text-emerald-800 dark:text-emerald-400">Plan upgraded</Text>

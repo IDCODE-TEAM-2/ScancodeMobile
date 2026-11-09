@@ -10,7 +10,7 @@ import {
     type NativeSyntheticEvent,
     type NativeScrollEvent,
 } from 'react-native';
-import { Heart, Search, ShoppingCart, MapPin, Package, Store, ArrowLeft } from 'lucide-react-native';
+import { Heart, Search, ShoppingCart, MapPin, Package, Store, ArrowLeft, LayoutGrid, List } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import StorefrontToolbar, { type WeeklyEvents } from '../../components/StorefrontToolbar';
 import {
@@ -88,6 +88,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
     const [isDeliveryEnabled, setIsDeliveryEnabled] = useState<boolean>(true);
     const [headerCollapsed, setHeaderCollapsed] = useState(false);
     const headerCollapsedRef = useRef(false);
+    const [isGridView, setIsGridView] = useState(false);
 
     useEffect(() => {
         const fetchVendor = async () => {
@@ -317,6 +318,9 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                 keyExtractor={(item) => item.id}
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
+                key={isGridView ? 'grid' : 'list'}
+                numColumns={isGridView ? 2 : 1}
+                columnWrapperStyle={isGridView ? { paddingHorizontal: 16, gap: 12 } : undefined}
                 ListHeaderComponent={
                     <View>
                         <View className="items-center pt-2 pb-3 bg-white dark:bg-[#09090B]">
@@ -387,7 +391,7 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                                             className={cn(
                                                 'w-[76px] rounded-xl p-2 items-center mr-2.5 border',
                                                 isSelected
-                                                    ? 'border-primary bg-emerald-50 dark:bg-emerald-950/50'
+                                                    ? 'border-gray-900 dark:border-white bg-gray-100 dark:bg-zinc-700'
                                                     : 'bg-white dark:bg-[#18181B] border-gray-200 dark:border-zinc-800'
                                             )}
                                             activeOpacity={0.8}
@@ -417,9 +421,23 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                             </ScrollView>
                         </View>
 
-                        <Text className="text-base font-bold text-gray-900 dark:text-white px-4 mt-4 mb-3">
-                            {activeCategory ? `${activeCategory} Products` : 'All Products'}
-                        </Text>
+                        <View className="flex-row items-center justify-between px-4 mt-4 mb-3">
+                            <Text className="text-base font-bold text-gray-900 dark:text-white">
+                                {activeCategory ? `${activeCategory} Products` : 'All Products'}
+                            </Text>
+                            {/* Grid / List toggle */}
+                            <TouchableOpacity
+                                className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-800 items-center justify-center"
+                                onPress={() => setIsGridView((v) => !v)}
+                                activeOpacity={0.7}
+                                accessibilityLabel={isGridView ? 'Switch to list view' : 'Switch to grid view'}
+                            >
+                                {isGridView
+                                    ? <List size={16} color={isDark ? '#D1D5DB' : '#374151'} strokeWidth={2} />
+                                    : <LayoutGrid size={16} color={isDark ? '#D1D5DB' : '#374151'} strokeWidth={2} />
+                                }
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 }
                 ListEmptyComponent={
@@ -428,7 +446,44 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                         <Text className="text-[13px] text-gray-500 dark:text-zinc-400 text-center">Try another search or category.</Text>
                     </View>
                 }
-                renderItem={({ item }) => (
+                renderItem={({ item }) => {
+                    if (isGridView) {
+                        // ── Chowdeck-style grid card ──
+                        const isFav = favoriteIds.includes(item.id);
+                        return (
+                            <TouchableOpacity
+                                className="flex-1 bg-white dark:bg-[#18181B] rounded-2xl mb-3 border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden"
+                                activeOpacity={0.8}
+                                onPress={() => itemDetailsRef.current?.present(item)}
+                            >
+                                {/* Square image on top */}
+                                <View className="w-full aspect-square bg-gray-100 dark:bg-zinc-800 items-center justify-center overflow-hidden">
+                                    <AppImage
+                                        uri={item.media[0]}
+                                        className="w-full h-full"
+                                        fallbackIcon={<Package size={30} color={isDark ? '#6B7280' : '#9CA3AF'} strokeWidth={1.6} />}
+                                    />
+                                </View>
+                                {/* Product info below */}
+                                <View className="p-2.5">
+                                    <Text className="text-sm font-semibold text-gray-800 dark:text-zinc-100 mb-0.5" numberOfLines={2}>{item.name}</Text>
+                                    <Text className="text-xs text-gray-400 dark:text-zinc-500 mb-2" numberOfLines={1}>{item.description}</Text>
+                                    <View className="flex-row items-center justify-between">
+                                        <Text className="text-[13px] font-bold text-primary">{formatMoney(item.price)}</Text>
+                                        <TouchableOpacity
+                                            className="bg-primary w-7 h-7 rounded-full items-center justify-center"
+                                            onPress={() => addToCart(item)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text className="text-white text-base font-bold leading-none" style={{ marginTop: -1 }}>+</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    }
+                    // ── Default list card ──
+                    return (
                     <TouchableOpacity
                         className="bg-white dark:bg-[#18181B] rounded-2xl flex-row p-3.5 mb-3 mx-4 border border-gray-100 dark:border-zinc-800 shadow-sm"
                         activeOpacity={0.8}
@@ -474,14 +529,15 @@ export default function StorefrontScreen({ navigation, route }: Props) {
                             </View>
                         </View>
                     </TouchableOpacity>
-                )}
+                    );
+                }}
             />
 
             <ItemDetailsModalScreen ref={itemDetailsRef} onAddToCart={addToCart} />
 
             {financialSummary.totalQty > 0 && (
                 <TouchableOpacity
-                    className="absolute bottom-6 left-5 right-5 bg-gray-900 dark:bg-emerald-950 rounded-2xl flex-row justify-between items-center p-4 shadow-lg border border-transparent dark:border-emerald-800"
+                    className="absolute bottom-6 left-5 right-5 bg-gray-900 dark:bg-zinc-900 rounded-2xl flex-row justify-between items-center p-4 shadow-lg border border-transparent dark:border-zinc-800"
                     activeOpacity={0.9}
                     onPress={() => navigation.navigate('CartDrawer', { slug, storefrontId, name: vendor?.name, table: scannedTableCode })}>
                     <View className="flex-row items-center">

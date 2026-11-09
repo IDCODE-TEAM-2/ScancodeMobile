@@ -152,11 +152,11 @@ export default function MerchantProfileBankScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerClassName="p-5 pb-12" keyboardShouldPersistTaps="handled">
-        <View className="flex-row bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 items-start gap-3">
+        <View className="flex-row p-3 mb-4 items-start gap-3">
           <Landmark size={24} color="#374151" strokeWidth={2} />
           <View className="flex-1">
-            <Text className="text-sm font-bold text-emerald-800 mb-0.5">Payment Account Details</Text>
-            <Text className="text-xs text-emerald-700 leading-[18px]">
+            <Text className="text-sm font-bold text-gray-900 mb-0.5">Payment Account Details</Text>
+            <Text className="text-xs text-gray-500 leading-[18px]">
               Add one or more bank accounts for customer direct transfers and tips. You can switch primary accounts anytime.
             </Text>
           </View>
@@ -165,8 +165,8 @@ export default function MerchantProfileBankScreen() {
         {feedbackMsg && (
           <View
             className={cn(
-              'p-3.5 rounded-xl mb-4 border',
-              feedbackMsg.type === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
+              'p-3.5 rounded-xl mb-4',
+              feedbackMsg.type === 'success' ? 'bg-emerald-50' : 'bg-red-50 border border-red-200'
             )}
           >
             <Text
@@ -195,7 +195,7 @@ export default function MerchantProfileBankScreen() {
           <Text className="text-base font-bold text-gray-900">Bank Accounts</Text>
           <TouchableOpacity
             onPress={handleAddAccount}
-            className="flex-row items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1.5"
+            className="flex-row items-center gap-1 bg-gray-100 border border-gray-300 rounded-full px-3 py-1.5"
             activeOpacity={0.7}
           >
             <Plus size={13} color="#059669" strokeWidth={2.5} />
@@ -209,8 +209,8 @@ export default function MerchantProfileBankScreen() {
               <View className="flex-row items-center gap-2">
                 <Text className="text-xs font-bold text-gray-700">Account #{index + 1}</Text>
                 {acc.isPrimary && (
-                  <View className="bg-emerald-100 rounded-full px-2 py-0.5">
-                    <Text className="text-[10px] font-bold text-emerald-800">PRIMARY</Text>
+                  <View className="px-1.5 py-0.5">
+                    <Text className="text-[10px] font-bold text-emerald-700">PRIMARY</Text>
                   </View>
                 )}
               </View>

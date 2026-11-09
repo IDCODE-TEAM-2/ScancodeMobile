@@ -98,7 +98,7 @@ export default function RegisterScreen({ navigation }: Props) {
                   className={cn(
                     'flex-1 flex-row items-center justify-center gap-2 rounded-xl border-[1.5px] py-3.5',
                     isActive
-                      ? 'bg-primary/10 dark:bg-primary/20 border-primary'
+                      ? 'bg-primary/10 dark:bg-primary/20 border-gray-900 dark:border-white'
                       : 'bg-white dark:bg-[#18181B] border-gray-300 dark:border-zinc-700'
                   )}
                   onPress={() => setRole(option.role)}

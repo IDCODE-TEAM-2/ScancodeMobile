@@ -439,7 +439,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   Your access pass has been confirmed. Show this screen or check your contact details upon entry.
                 </Text>
 
-                <View className="w-full bg-gray-50 dark:bg-zinc-900/80 rounded-xl p-4 border border-dashed border-emerald-500/50 mb-4">
+                <View className="w-full bg-gray-50 dark:bg-zinc-900/80 rounded-xl p-4 border border-dashed border-gray-300 dark:border-zinc-700 mb-4">
                   <View className="flex-row justify-between items-center mb-2">
                     <Text className="text-xs text-gray-400 dark:text-zinc-500">Attendee</Text>
                     <Text className="text-xs font-bold text-gray-900 dark:text-white">{rsvpSuccess.name}</Text>
@@ -503,15 +503,15 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                             onPress={() => setSelectedTier(tier)}
                             className={`px-3 py-2 rounded-xl border flex-row items-center gap-1.5 ${
                               isSelected
-                                ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-600'
+                                ? 'bg-gray-900 dark:bg-white border-gray-900 dark:border-white'
                                 : 'bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800'
                             }`}
                           >
-                            {isSelected && <Check size={13} color="#059669" strokeWidth={3} />}
+                            {isSelected && <Check size={13} color={isDark ? '#000000' : '#FFFFFF'} strokeWidth={3} />}
                             <Text
                               className={`text-xs font-bold ${
                                 isSelected
-                                  ? 'text-emerald-700 dark:text-emerald-300'
+                                  ? 'text-white dark:text-gray-900'
                                   : 'text-gray-700 dark:text-zinc-300'
                               }`}
                             >

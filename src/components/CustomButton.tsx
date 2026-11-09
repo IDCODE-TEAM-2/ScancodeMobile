@@ -19,7 +19,7 @@ export interface CustomButtonProps {
 const VARIANT_BUTTON_CLASSES: Record<NonNullable<CustomButtonProps['variant']>, string> = {
   primary: '', // primary is rendered via LinearGradient instead of a flat bg- class
   secondary: 'bg-emerald-50',
-  outline: 'bg-transparent border-[1.5px] border-primary',
+  outline: 'bg-transparent border-[1.5px] border-gray-900 dark:border-white',
   danger: 'bg-red-500',
 };
 
