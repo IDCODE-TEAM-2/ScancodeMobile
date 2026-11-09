@@ -61,8 +61,22 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
   const processingTransactions = useRef(new Set<string>());
   const mounted = useRef(true);
   const purchaseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stepRef = useRef<Step>('loading');
+  stepRef.current = step;
 
   const processPurchase = useCallback(async (purchase: Purchase): Promise<boolean> => {
+    // Ask to Buy / deferred payments arrive as 'pending' with no signed transaction yet.
+    // The final transaction is delivered later through purchaseUpdatedListener.
+    if (purchase.purchaseState === 'pending') {
+      if (purchaseTimeout.current) {
+        clearTimeout(purchaseTimeout.current);
+        purchaseTimeout.current = null;
+      }
+      setPendingProduct(null);
+      setStep('ready');
+      setErrorMessage('Your purchase is waiting for approval. ScanCode will activate it once the App Store confirms it.');
+      return false;
+    }
     const transactionKey = purchase.transactionId ?? purchase.id;
     if (!transactionKey || processingTransactions.current.has(transactionKey)) return false;
     processingTransactions.current.add(transactionKey);
@@ -70,6 +84,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
       clearTimeout(purchaseTimeout.current);
       purchaseTimeout.current = null;
     }
+    stepRef.current = 'verifying';
     setStep('verifying');
 
     try {
@@ -173,9 +188,14 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
         }
         const planIsActive = user.isPaid
           && (!user.planExpiresAt || Date.parse(user.planExpiresAt) > Date.now());
-        setPlanSelected(planIsActive ? user.planSelected : null);
-        setStorefrontPublished(storefront?.isPublished ?? false);
-        setStep(storefront?.isPublished ? 'success' : 'ready');
+        // StoreKit replays unfinished transactions as soon as the connection opens, so a
+        // purchase may already be verifying (or finished) by the time the account loads.
+        // Only move out of the initial loading state; never clobber an in-flight purchase.
+        if (stepRef.current === 'loading') {
+          setPlanSelected(planIsActive ? user.planSelected : null);
+          setStorefrontPublished(storefront?.isPublished ?? false);
+          setStep(storefront?.isPublished ? 'success' : 'ready');
+        }
         if (planIsActive) setErrorMessage(null);
       } catch (error: unknown) {
         if (!mounted.current) return;
@@ -266,14 +286,18 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
         return;
       }
 
-      let restored = false;
-      for (const purchase of subscriptionPurchases) {
-        restored = await processPurchase(purchase) || restored;
+      // Try the newest transaction first and stop at the first one that verifies, so an
+      // older expired transaction can't overwrite a successful restore with an error.
+      const newestFirst = [...subscriptionPurchases].sort(
+        (a, b) => (b.transactionDate ?? 0) - (a.transactionDate ?? 0),
+      );
+      for (const purchase of newestFirst) {
+        if (await processPurchase(purchase)) return;
       }
-      if (!restored) {
-        setStep('error');
-        setErrorMessage('The restored subscription could not be verified or linked to this account.');
-      }
+      // processPurchase already shows the specific failure reason from the last attempt.
+      // If every transaction was skipped (already being verified by the listener), don't
+      // leave the restore spinner running.
+      if (stepRef.current === 'restoring') setStep('ready');
     } catch (error: unknown) {
       setStep('error');
       setErrorMessage(error instanceof Error ? error.message : 'Could not restore App Store purchases.');
@@ -433,7 +457,10 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                           onPress={() => void beginPurchase(product.id)}
                         >
                           <Text className="text-sm font-bold text-white">{product.period}</Text>
-                          <Text className="mt-1 text-xs text-white">{product.price}</Text>
+                          {/* Show the App Store's localized price (currency varies by storefront). */}
+                          <Text className="mt-1 text-xs text-white">
+                            {price ? `${price} / ${product.period === 'Yearly' ? 'year' : 'month'}` : product.price}
+                          </Text>
                           {pendingProduct === product.id ? <ActivityIndicator color="#FFFFFF" className="mt-2" /> : null}
                         </TouchableOpacity>
                       );
