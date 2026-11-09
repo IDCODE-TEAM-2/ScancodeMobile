@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import {
   endConnection,
-  ErrorCode,
   fetchProducts,
   finishTransaction,
   getAvailablePurchases,
@@ -25,6 +24,7 @@ import {
 } from 'expo-iap';
 import { CheckCircle2, PartyPopper } from 'lucide-react-native';
 import {
+  ApiError,
   getMe,
   getMyStorefronts,
   publishStorefront,
@@ -33,6 +33,10 @@ import {
 import type { NavigationProp, RouteProps } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { cn } from '../../utils/cn';
+import {
+  appStoreErrorMessage,
+  isAppStoreCancellation,
+} from '../../utils/appStoreErrors';
 
 const PRODUCTS = [
   { id: 'com.scancode.pro.monthly', plan: 'ScanCode Pro', period: 'Monthly', price: '₦7,999 / month' },
@@ -40,13 +44,48 @@ const PRODUCTS = [
   { id: 'com.scancode.enterprise.monthly', plan: 'ScanCode Enterprise', period: 'Monthly', price: '₦15,999 / month' },
   { id: 'com.scancode.enterprise.yearly', plan: 'ScanCode Enterprise', period: 'Yearly', price: '₦159,999 / year' },
 ] as const;
+const PRODUCT_IDS: readonly string[] = PRODUCTS.map((product) => product.id);
+
+/** How long to wait for StoreKit's result after the purchase sheet closes before giving up. */
+const PURCHASE_RESULT_GRACE_MS = 30_000;
 
 interface Props {
   navigation: NavigationProp<'ActivateQR'>;
   route: RouteProps<'ActivateQR'>;
 }
 
-type Step = 'loading' | 'ready' | 'activating' | 'verifying' | 'restoring' | 'success' | 'error';
+type Step = 'loading' | 'ready' | 'purchasing' | 'verifying' | 'activating' | 'restoring' | 'success' | 'error';
+
+const BUSY_LABELS: Partial<Record<Step, string>> = {
+  loading: 'Loading subscription details…',
+  restoring: 'Restoring subscription…',
+  purchasing: 'Waiting for the App Store…',
+  verifying: 'Confirming your subscription…',
+  activating: 'Activating storefront…',
+};
+
+/**
+ * Where a transaction came from. It decides what the user is told:
+ * - purchase: the user just tapped Buy, so report every outcome.
+ * - restore:  the user tapped Restore Purchases; the caller reports the combined outcome.
+ * - replay:   StoreKit re-delivered an unfinished transaction when the store connected
+ *             (Apple: "the listener receives them once, immediately after the app launches").
+ *             Apply it if it grants access, otherwise handle it quietly.
+ */
+type Origin = 'purchase' | 'restore' | 'replay';
+
+type Outcome =
+  | { kind: 'activated' }
+  | { kind: 'inactive'; message: string }
+  | { kind: 'failed'; message: string }
+  | { kind: 'skipped' };
+
+/** Newest first, so the transaction most likely to be active is tried first. */
+function byNewest(a: Purchase, b: Purchase): number {
+  const expiry = (purchase: Purchase) =>
+    ('expirationDateIOS' in purchase ? purchase.expirationDateIOS : null) ?? purchase.transactionDate ?? 0;
+  return expiry(b) - expiry(a);
+}
 
 export default function ActivateQRScreen({ navigation, route }: Props) {
   const { storefrontId, slug, name } = route.params ?? {};
@@ -56,168 +95,209 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
   const [products, setProducts] = useState<ProductSubscriptionIOS[]>([]);
   const [planSelected, setPlanSelected] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [pendingProduct, setPendingProduct] = useState<string | null>(null);
   const [storefrontPublished, setStorefrontPublished] = useState(false);
-  const processingTransactions = useRef(new Set<string>());
+
   const mounted = useRef(true);
-  const purchaseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepRef = useRef<Step>('loading');
   stepRef.current = step;
+  /** SKU of the purchase the user started on this screen, so its result is reported to them. */
+  const purchasingSku = useRef<string | null>(null);
+  const purchaseGraceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Transactions being verified right now (StoreKit can deliver the same one twice). */
+  const inFlight = useRef(new Set<string>());
+  /** Transactions already finished in this session; never process them again. */
+  const finished = useRef(new Set<string>());
 
-  const processPurchase = useCallback(async (purchase: Purchase): Promise<boolean> => {
-    // Ask to Buy / deferred payments arrive as 'pending' with no signed transaction yet.
-    // The final transaction is delivered later through purchaseUpdatedListener.
-    if (purchase.purchaseState === 'pending') {
-      if (purchaseTimeout.current) {
-        clearTimeout(purchaseTimeout.current);
-        purchaseTimeout.current = null;
-      }
-      setPendingProduct(null);
-      setStep('ready');
-      setErrorMessage('Your purchase is waiting for approval. ScanCode will activate it once the App Store confirms it.');
-      return false;
-    }
-    const transactionKey = purchase.transactionId ?? purchase.id;
-    if (!transactionKey || processingTransactions.current.has(transactionKey)) return false;
-    processingTransactions.current.add(transactionKey);
-    if (purchaseTimeout.current) {
-      clearTimeout(purchaseTimeout.current);
-      purchaseTimeout.current = null;
-    }
-    stepRef.current = 'verifying';
-    setStep('verifying');
+  const showError = useCallback((message: string) => {
+    if (!mounted.current) return;
+    setNoticeMessage(null);
+    setErrorMessage(message);
+    setStep('error');
+  }, []);
 
+  const clearPurchaseAttempt = useCallback(() => {
+    purchasingSku.current = null;
+    if (purchaseGraceTimer.current) {
+      clearTimeout(purchaseGraceTimer.current);
+      purchaseGraceTimer.current = null;
+    }
+    if (mounted.current) setPendingProduct(null);
+  }, []);
+
+  const finish = useCallback(async (purchase: Purchase, key: string) => {
     try {
-      if (!PRODUCTS.some((product) => product.id === purchase.productId) || !purchase.purchaseToken) {
-        throw new Error('The App Store did not return a verifiable ScanCode subscription transaction.');
-      }
+      await finishTransaction({ purchase, isConsumable: false });
+      finished.current.add(key);
+    } catch (error: unknown) {
+      // Harmless: StoreKit will re-deliver it and the server treats re-verification as idempotent.
+      console.warn('Could not finish App Store transaction.', error);
+    }
+  }, []);
 
+  /**
+   * Verifies one transaction with ScanCode and finishes it when there is nothing more to do.
+   *
+   * Apple's rule: finish a transaction once you have delivered the service, or once you know there
+   * is nothing to deliver. An unfinished transaction is re-sent every launch, which is how an old
+   * expired test purchase kept showing "This App Store subscription is not active".
+   * Only transient failures (network, server errors) leave it unfinished so it can be retried.
+   */
+  const handleTransaction = useCallback(async (purchase: Purchase, origin: Origin): Promise<Outcome> => {
+    if (!PRODUCT_IDS.includes(purchase.productId)) return { kind: 'skipped' };
+
+    if (purchase.purchaseState === 'pending') {
+      return origin === 'replay'
+        ? { kind: 'skipped' }
+        : { kind: 'failed', message: appStoreErrorMessage({ code: 'deferred-payment' }) };
+    }
+
+    const key = purchase.transactionId ?? purchase.id;
+    if (!key || finished.current.has(key) || inFlight.current.has(key)) return { kind: 'skipped' };
+    if (!purchase.purchaseToken) {
+      return { kind: 'failed', message: 'The App Store did not return a signed transaction. Tap Restore Purchases to try again.' };
+    }
+
+    inFlight.current.add(key);
+    if (origin !== 'replay' && mounted.current) setStep('verifying');
+    try {
       let entitlement: Awaited<ReturnType<typeof verifyAppleSubscription>>;
       try {
         entitlement = await verifyAppleSubscription(purchase.purchaseToken);
       } catch (error: unknown) {
-        const reason = error instanceof Error ? error.message : 'Unknown verification error';
-        throw new Error(
-          `ScanCode could not verify this Apple transaction (${reason}). The purchase may have succeeded; use Restore Purchases before trying to buy again.`,
-        );
-      }
-      if (!entitlement.active) {
-        throw new Error('Apple could not confirm an active subscription for this account.');
+        if (error instanceof ApiError && (error.status === 402 || error.status === 400)) {
+          // 402: expired or refunded. 400: not a ScanCode subscription. Nothing to deliver.
+          await finish(purchase, key);
+          return { kind: 'inactive', message: 'This App Store subscription has expired. Choose a plan to subscribe again.' };
+        }
+        if (error instanceof ApiError && error.status === 409) {
+          // Linked to a different ScanCode account. Retrying will never succeed.
+          await finish(purchase, key);
+          return { kind: 'failed', message: error.message };
+        }
+        const reason = error instanceof Error ? error.message : 'Unknown error';
+        return {
+          kind: 'failed',
+          message: `Your payment went through, but ScanCode could not confirm it yet (${reason}). You will not be charged again; tap Restore Purchases in a moment.`,
+        };
       }
 
-      await finishTransaction({ purchase, isConsumable: false });
-      setPlanSelected(entitlement.planSelected);
-      let isPublished = false;
-      if (storefrontId !== undefined) {
-        setStep('activating');
-        const storefront = await publishStorefront(storefrontId);
-        isPublished = storefront.isPublished;
-        setStorefrontPublished(isPublished);
-        setStep(isPublished ? 'success' : 'ready');
-      } else {
-        setStep('success');
+      await finish(purchase, key);
+      if (!entitlement.active) {
+        return { kind: 'inactive', message: 'This App Store subscription has expired. Choose a plan to subscribe again.' };
       }
+
+      if (!mounted.current) return { kind: 'activated' };
+      setPlanSelected(entitlement.planSelected);
       setErrorMessage(null);
-      return storefrontId === undefined || isPublished;
-    } catch (error: unknown) {
-      setStep('error');
-      setErrorMessage(error instanceof Error ? error.message : 'Could not verify the App Store subscription.');
-      return false;
+      if (storefrontId === undefined) {
+        setStep('success');
+        return { kind: 'activated' };
+      }
+
+      setStep('activating');
+      try {
+        const storefront = await publishStorefront(storefrontId);
+        if (!mounted.current) return { kind: 'activated' };
+        setStorefrontPublished(storefront.isPublished);
+        setStep(storefront.isPublished ? 'success' : 'ready');
+      } catch (error: unknown) {
+        // The subscription is active; only publishing failed. The "Activate Storefront" button retries.
+        const reason = error instanceof Error ? error.message : 'Unknown error';
+        showError(`Your subscription is active, but the storefront could not be published (${reason}). Tap Activate Storefront to try again.`);
+      }
+      return { kind: 'activated' };
     } finally {
-      processingTransactions.current.delete(transactionKey);
-      setPendingProduct(null);
+      inFlight.current.delete(key);
     }
-  }, [storefrontId]);
+  }, [finish, showError, storefrontId]);
+
+  /** Purchases from the user's own Buy tap, plus anything StoreKit replays. */
+  const onTransaction = useCallback(async (purchase: Purchase) => {
+    const origin: Origin = purchasingSku.current === purchase.productId ? 'purchase' : 'replay';
+    if (origin === 'purchase') clearPurchaseAttempt();
+
+    const outcome = await handleTransaction(purchase, origin);
+    if (!mounted.current || origin !== 'purchase') return;
+    if (outcome.kind === 'inactive' || outcome.kind === 'failed') {
+      if (purchase.purchaseState === 'pending') {
+        setStep('ready');
+        setNoticeMessage(outcome.message);
+      } else {
+        showError(outcome.message);
+      }
+    }
+  }, [clearPurchaseAttempt, handleTransaction, showError]);
 
   useEffect(() => {
     mounted.current = true;
     const purchaseUpdates = purchaseUpdatedListener((purchase) => {
-      void processPurchase(purchase);
+      void onTransaction(purchase);
     });
     const purchaseErrors = purchaseErrorListener((error) => {
-      if (purchaseTimeout.current) {
-        clearTimeout(purchaseTimeout.current);
-        purchaseTimeout.current = null;
-      }
-      setPendingProduct(null);
-      if (error.code !== ErrorCode.UserCancelled) {
-        setStep('error');
-        setErrorMessage(error.message || 'The App Store could not complete this subscription.');
-      } else {
+      if (!purchasingSku.current) return; // Not from a purchase the user started here.
+      clearPurchaseAttempt();
+      if (isAppStoreCancellation(error)) {
         setStep('ready');
+      } else {
+        showError(appStoreErrorMessage(error));
       }
     });
 
-    async function prepareStore() {
-      if (Platform.OS === 'ios') {
-        try {
-          await initConnection();
-          const availableProducts = await fetchProducts({
-            skus: PRODUCTS.map((product) => product.id),
-            type: 'subs',
-          });
-          if (mounted.current) {
-            setProducts((availableProducts ?? []).filter(
-              (product): product is ProductSubscriptionIOS => product.platform === 'ios',
-            ));
-          }
-        } catch (error: unknown) {
-          if (mounted.current) {
-            setErrorMessage(error instanceof Error ? error.message : 'Could not load App Store products.');
-          }
-        }
-      }
-
+    async function loadAccount() {
       try {
         const [user, storefronts] = await Promise.all([
-          getMe().catch((error: unknown) => {
-            const reason = error instanceof Error ? error.message : 'Unknown API error';
-            throw new Error(`Could not load your account from ScanCode (${reason}).`);
-          }),
-          storefrontId === undefined
-            ? Promise.resolve([])
-            : getMyStorefronts().catch((error: unknown) => {
-              const reason = error instanceof Error ? error.message : 'Unknown API error';
-              throw new Error(`Could not load your storefront from ScanCode (${reason}).`);
-            }),
+          getMe(),
+          storefrontId === undefined ? Promise.resolve([]) : getMyStorefronts(),
         ]);
         if (!mounted.current) return;
         const storefront = storefronts.find((item) => item.id === storefrontId);
         if (storefrontId !== undefined && !storefront) {
           throw new Error('This storefront could not be found in your account.');
         }
+        // A replayed transaction may already have activated the plan; don't overwrite that.
+        if (stepRef.current !== 'loading') return;
         const planIsActive = user.isPaid
           && (!user.planExpiresAt || Date.parse(user.planExpiresAt) > Date.now());
-        // StoreKit replays unfinished transactions as soon as the connection opens, so a
-        // purchase may already be verifying (or finished) by the time the account loads.
-        // Only move out of the initial loading state; never clobber an in-flight purchase.
-        if (stepRef.current === 'loading') {
-          setPlanSelected(planIsActive ? user.planSelected : null);
-          setStorefrontPublished(storefront?.isPublished ?? false);
-          setStep(storefront?.isPublished ? 'success' : 'ready');
-        }
-        if (planIsActive) setErrorMessage(null);
+        setPlanSelected(planIsActive ? user.planSelected : null);
+        setStorefrontPublished(storefront?.isPublished ?? false);
+        setStep(storefront?.isPublished ? 'success' : 'ready');
       } catch (error: unknown) {
         if (!mounted.current) return;
-        setErrorMessage(error instanceof Error ? error.message : 'Could not load subscription details.');
-        setStep('error');
+        const reason = error instanceof Error ? error.message : 'Unknown error';
+        showError(`Could not load your ScanCode account (${reason}).`);
       }
     }
 
-    void prepareStore();
+    async function connectStore() {
+      if (Platform.OS !== 'ios') return;
+      try {
+        // Opening the connection also delivers any unfinished transactions to the listener above.
+        await initConnection();
+        const available = await fetchProducts({ skus: [...PRODUCT_IDS], type: 'subs' });
+        if (mounted.current) {
+          setProducts((available ?? []).filter(
+            (product): product is ProductSubscriptionIOS => product.platform === 'ios',
+          ));
+        }
+      } catch (error: unknown) {
+        console.warn('Could not load App Store products.', error);
+        // The "products not available" note below the plans covers this case.
+      }
+    }
+
+    void Promise.all([connectStore(), loadAccount()]);
     return () => {
       mounted.current = false;
-      if (purchaseTimeout.current) {
-        clearTimeout(purchaseTimeout.current);
-        purchaseTimeout.current = null;
-      }
+      if (purchaseGraceTimer.current) clearTimeout(purchaseGraceTimer.current);
       purchaseUpdates.remove();
       purchaseErrors.remove();
       void endConnection().catch((error: unknown) => {
         console.warn('Could not close the App Store connection.', error);
       });
     };
-  }, [processPurchase, storefrontId]);
+  }, [clearPurchaseAttempt, onTransaction, showError, storefrontId]);
 
   const isActiveSubscription = !!planSelected
     && ['PRO', 'ENTERPRISE', 'BUSINESS'].includes(planSelected.split('_')[0]);
@@ -225,82 +305,104 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
   const availableTiers = activeTier === 'ENTERPRISE' || activeTier === 'BUSINESS'
     ? []
     : activeTier === 'PRO' ? ['ENTERPRISE'] as const : ['PRO', 'ENTERPRISE'] as const;
-  const isBusy = step === 'loading' || step === 'activating' || step === 'verifying' || step === 'restoring';
+  const isBusy = step === 'loading' || step === 'purchasing' || step === 'verifying'
+    || step === 'activating' || step === 'restoring';
 
   async function activateExistingSubscription() {
     if (storefrontId === undefined) return;
     setStep('activating');
     setErrorMessage(null);
+    setNoticeMessage(null);
     try {
       const storefront = await publishStorefront(storefrontId);
       setStorefrontPublished(storefront.isPublished);
       setStep(storefront.isPublished ? 'success' : 'ready');
     } catch (error: unknown) {
-      setStep('error');
-      setErrorMessage(error instanceof Error ? error.message : 'Could not activate this storefront.');
+      showError(error instanceof Error ? error.message : 'Could not activate this storefront.');
     }
   }
 
   async function beginPurchase(productId: string) {
+    clearPurchaseAttempt();
+    purchasingSku.current = productId;
     setPendingProduct(productId);
     setErrorMessage(null);
-    setStep('activating');
-    if (purchaseTimeout.current) clearTimeout(purchaseTimeout.current);
-    purchaseTimeout.current = setTimeout(() => {
-      purchaseTimeout.current = null;
-      if (!mounted.current) return;
-      setPendingProduct(null);
-      setStep('error');
-      setErrorMessage(
-        'The App Store did not return a purchase result. Check your App Store connection and subscription availability, then try again.',
-      );
-    }, 120_000);
+    setNoticeMessage(null);
+    setStep('purchasing');
     try {
-      await requestPurchase({
-        request: { apple: { sku: productId } },
-        type: 'subs',
-      });
+      await requestPurchase({ request: { apple: { sku: productId } }, type: 'subs' });
+      // The sheet has closed. The result normally arrives through the listeners already; if
+      // nothing has arrived after a grace period, stop the spinner instead of waiting forever.
+      purchaseGraceTimer.current = setTimeout(() => {
+        purchaseGraceTimer.current = null;
+        if (!mounted.current || purchasingSku.current !== productId) return;
+        clearPurchaseAttempt();
+        setStep('ready');
+        setNoticeMessage('If you completed the purchase, tap Restore Purchases to activate it.');
+      }, PURCHASE_RESULT_GRACE_MS);
     } catch (error: unknown) {
-      if (purchaseTimeout.current) {
-        clearTimeout(purchaseTimeout.current);
-        purchaseTimeout.current = null;
+      if (purchasingSku.current !== productId) return; // Already handled by the error listener.
+      clearPurchaseAttempt();
+      if (isAppStoreCancellation(error)) {
+        setStep('ready');
+      } else {
+        showError(appStoreErrorMessage(error));
       }
-      setPendingProduct(null);
-      setStep('error');
-      setErrorMessage(error instanceof Error ? error.message : 'Could not start the App Store subscription.');
     }
   }
 
+  async function activeScanCodePurchases(): Promise<Purchase[]> {
+    // Apple: StoreKit keeps transactions up to date automatically, so current entitlements are
+    // normally all a restore needs. onlyIncludeActiveItemsIOS skips expired history.
+    const purchases = await getAvailablePurchases({ onlyIncludeActiveItemsIOS: true });
+    return purchases.filter((purchase) => PRODUCT_IDS.includes(purchase.productId)).sort(byNewest);
+  }
+
   async function restoreSubscription() {
+    clearPurchaseAttempt();
     setStep('restoring');
     setErrorMessage(null);
+    setNoticeMessage(null);
     try {
-      await restorePurchases();
-      const purchases = await getAvailablePurchases();
-      const subscriptionPurchases = purchases.filter((purchase) =>
-        PRODUCTS.some((product) => product.id === purchase.productId),
-      );
-      if (subscriptionPurchases.length === 0) {
+      let purchases = await activeScanCodePurchases();
+
+      // Only when StoreKit has nothing locally, force a sync with the App Store. Apple: this shows
+      // a sign-in prompt and is rarely needed; it fails with "Unable to Complete Request" when the
+      // device isn't signed in to the App Store, so it must not be the first or only step.
+      if (purchases.length === 0) {
+        try {
+          await restorePurchases();
+        } catch (error: unknown) {
+          if (isAppStoreCancellation(error)) {
+            setStep('ready');
+            return;
+          }
+          showError(appStoreErrorMessage(error));
+          return;
+        }
+        purchases = await activeScanCodePurchases();
+      }
+
+      if (purchases.length === 0) {
         setStep('ready');
-        setErrorMessage('No ScanCode subscription was found for this Apple account.');
+        setNoticeMessage('No active ScanCode subscription was found for this Apple ID.');
         return;
       }
 
-      // Try the newest transaction first and stop at the first one that verifies, so an
-      // older expired transaction can't overwrite a successful restore with an error.
-      const newestFirst = [...subscriptionPurchases].sort(
-        (a, b) => (b.transactionDate ?? 0) - (a.transactionDate ?? 0),
-      );
-      for (const purchase of newestFirst) {
-        if (await processPurchase(purchase)) return;
+      let lastProblem: string | null = null;
+      for (const purchase of purchases) {
+        const outcome = await handleTransaction(purchase, 'restore');
+        if (outcome.kind === 'activated') return;
+        if (outcome.kind === 'inactive' || outcome.kind === 'failed') lastProblem = outcome.message;
       }
-      // processPurchase already shows the specific failure reason from the last attempt.
-      // If every transaction was skipped (already being verified by the listener), don't
-      // leave the restore spinner running.
-      if (stepRef.current === 'restoring') setStep('ready');
+      if (!mounted.current) return;
+      if (lastProblem) {
+        showError(lastProblem);
+      } else {
+        setStep('ready'); // Every transaction was already handled elsewhere.
+      }
     } catch (error: unknown) {
-      setStep('error');
-      setErrorMessage(error instanceof Error ? error.message : 'Could not restore App Store purchases.');
+      showError(appStoreErrorMessage(error));
     }
   }
 
@@ -327,6 +429,8 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
   const productPrice = (productId: string) =>
     products.find((product) => product.id === productId)?.displayPrice ?? null;
 
+  const busyLabel = BUSY_LABELS[step] ?? 'Working…';
+
   return (
     <ScrollView
       className="flex-1 bg-gray-100 dark:bg-[#09090B]"
@@ -350,6 +454,12 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
         {errorMessage ? (
           <View className="mb-4 rounded-lg border border-red-200 bg-red-100 p-3 dark:border-red-800 dark:bg-red-950/40">
             <Text className="text-[13px] text-red-600 dark:text-red-400">{errorMessage}</Text>
+          </View>
+        ) : null}
+
+        {noticeMessage ? (
+          <View className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+            <Text className="text-[13px] text-amber-800 dark:text-amber-300">{noticeMessage}</Text>
           </View>
         ) : null}
 
@@ -394,13 +504,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
         ) : isBusy ? (
           <View className="items-center py-4">
             <ActivityIndicator color="#059669" />
-            <Text className="mt-2 text-sm text-gray-500 dark:text-zinc-400">
-              {step === 'loading' ? 'Loading subscription details…'
-                : step === 'restoring' ? 'Restoring subscription…'
-                  : step === 'verifying' ? 'Verifying with ScanCode…'
-                    : pendingProduct ? 'Waiting for the App Store…'
-                      : 'Activating storefront…'}
-            </Text>
+            <Text className="mt-2 text-sm text-gray-500 dark:text-zinc-400">{busyLabel}</Text>
           </View>
         ) : isActiveSubscription && !isUpgradeFlow ? (
           <View className="gap-3">
@@ -437,9 +541,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
             ) : null}
             {availableTiers.map((tier) => {
               const label = tier === 'PRO' ? 'ScanCode Pro' : 'ScanCode Enterprise';
-              const productsForTier = PRODUCTS.filter((product) =>
-                product.plan === label,
-              );
+              const productsForTier = PRODUCTS.filter((product) => product.plan === label);
               return (
                 <View key={tier} className="rounded-xl border border-gray-200 p-4 dark:border-zinc-700">
                   <Text className="mb-3 text-lg font-bold text-gray-900 dark:text-white">{label}</Text>
@@ -457,11 +559,10 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                           onPress={() => void beginPurchase(product.id)}
                         >
                           <Text className="text-sm font-bold text-white">{product.period}</Text>
-                          {/* Show the App Store's localized price (currency varies by storefront). */}
+                          {/* The App Store's localized price; currency varies by storefront. */}
                           <Text className="mt-1 text-xs text-white">
                             {price ? `${price} / ${product.period === 'Yearly' ? 'year' : 'month'}` : product.price}
                           </Text>
-                          {pendingProduct === product.id ? <ActivityIndicator color="#FFFFFF" className="mt-2" /> : null}
                         </TouchableOpacity>
                       );
                     })}

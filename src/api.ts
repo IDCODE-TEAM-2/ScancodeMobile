@@ -107,6 +107,14 @@ function isTransientNetworkError(err: unknown): boolean {
   return false;
 }
 
+/** An HTTP error response from the ScanCode API. `status` lets callers react to specific codes. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -151,9 +159,11 @@ async function request<T>(
     } catch (err) {
       clearTimeout(timeoutId);
       const isTimeout = err instanceof Error && err.name === 'AbortError';
-      const friendlyErr = isTimeout
-        ? new Error('Request timed out. Please check your connection and try again.')
-        : err instanceof Error ? err : new Error(String(err));
+      // Never show the native error text (e.g. "Failed to fetch ... at ExpoModulesCore/Promise.swift").
+      if (__DEV__) console.warn(`[api] ${method} ${API_BASE}${path} failed:`, err);
+      const friendlyErr = new Error(isTimeout
+        ? 'Request timed out. Please check your connection and try again.'
+        : 'Could not connect to ScanCode. Please check your internet connection and try again.');
 
       lastError = friendlyErr;
 
@@ -177,14 +187,20 @@ async function request<T>(
         continue;
       }
 
-      let message = `HTTP ${res.status}`;
-      try {
-        const err = await parseJsonBody<{ message?: string; error?: string }>(res);
-        message = err?.message ?? err?.error ?? message;
-      } catch {
-        // Server returned non-JSON body (e.g. HTML gateway error page) — use the status code.
+      // 4xx messages are written for users by the API (e.g. "already linked to another account").
+      // 5xx and non-JSON bodies (gateway HTML pages) are not, so show a generic message instead.
+      let message = res.status >= 500
+        ? 'ScanCode is having trouble right now. Please try again in a moment.'
+        : 'Something went wrong. Please try again.';
+      if (res.status < 500) {
+        try {
+          const err = await parseJsonBody<{ message?: string; error?: string }>(res);
+          message = err?.message ?? err?.error ?? message;
+        } catch {
+          // Non-JSON body; keep the generic message.
+        }
       }
-      throw new Error(message);
+      throw new ApiError(message, res.status);
     }
 
     // Success-path parse
@@ -746,7 +762,7 @@ async function authPost<T>(endpoint: string, body: unknown): Promise<T> {
     return await request<T>('POST', `/api/auth/${endpoint}`, body, false);
   } catch (err: unknown) {
     // Fall back to /auth/* on 404 for backwards compatibility with legacy/mock backends
-    if (err instanceof Error && err.message.includes('404')) {
+    if (err instanceof ApiError && err.status === 404) {
       return await request<T>('POST', `/auth/${endpoint}`, body, false);
     }
     throw err;
