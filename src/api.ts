@@ -757,16 +757,14 @@ export async function loginWithApple(identityToken: string): Promise<AuthRespons
   };
 }
 
+/**
+ * Public account endpoints (register, verify-otp, resend-otp, forgot-password, reset-password).
+ * The server serves these only at /auth/* (AuthController), the same paths the website uses.
+ * /api/auth/* only has login, apple and me, and the security rules answer 401 for anything else
+ * there, so calling /api/auth/register first made sign-up fail with "Unauthorized".
+ */
 async function authPost<T>(endpoint: string, body: unknown): Promise<T> {
-  try {
-    return await request<T>('POST', `/api/auth/${endpoint}`, body, false);
-  } catch (err: unknown) {
-    // Fall back to /auth/* on 404 for backwards compatibility with legacy/mock backends
-    if (err instanceof ApiError && err.status === 404) {
-      return await request<T>('POST', `/auth/${endpoint}`, body, false);
-    }
-    throw err;
-  }
+  return request<T>('POST', `/auth/${endpoint}`, body, false);
 }
 
 export function register(username: string, email: string, password: string, role?: AccountRole) {
