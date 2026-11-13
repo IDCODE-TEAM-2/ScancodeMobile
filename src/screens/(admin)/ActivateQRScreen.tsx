@@ -19,7 +19,7 @@ import {
   purchaseUpdatedListener,
   requestPurchase,
   restorePurchases,
-  type ProductSubscriptionIOS,
+  type ProductSubscription,
   type Purchase,
 } from 'expo-iap';
 import { CheckCircle2, PartyPopper } from 'lucide-react-native';
@@ -29,6 +29,7 @@ import {
   getMyStorefronts,
   publishStorefront,
   verifyAppleSubscription,
+  verifyGooglePlaySubscription,
 } from '../../api';
 import type { NavigationProp, RouteProps } from '../../types';
 import { useAppContext } from '../../context/AppContext';
@@ -46,6 +47,17 @@ const PRODUCTS = [
 ] as const;
 const PRODUCT_IDS: readonly string[] = PRODUCTS.map((product) => product.id);
 
+/** Subscriptions are sold through the App Store on iOS and Google Play on Android. */
+const STORE_SUPPORTED = Platform.OS === 'ios' || Platform.OS === 'android';
+const STORE_NAME = Platform.OS === 'ios' ? 'App Store' : 'Google Play';
+
+/** Confirms a purchase with ScanCode, which checks it with Apple or Google before granting the plan. */
+function verifyWithServer(purchase: Purchase, purchaseToken: string) {
+  return Platform.OS === 'android'
+    ? verifyGooglePlaySubscription(purchase.productId, purchaseToken)
+    : verifyAppleSubscription(purchaseToken);
+}
+
 /** How long to wait for StoreKit's result after the purchase sheet closes before giving up. */
 const PURCHASE_RESULT_GRACE_MS = 30_000;
 
@@ -59,7 +71,7 @@ type Step = 'loading' | 'ready' | 'purchasing' | 'verifying' | 'activating' | 'r
 const BUSY_LABELS: Partial<Record<Step, string>> = {
   loading: 'Loading subscription details…',
   restoring: 'Restoring subscription…',
-  purchasing: 'Waiting for the App Store…',
+  purchasing: `Waiting for ${STORE_NAME}…`,
   verifying: 'Confirming your subscription…',
   activating: 'Activating storefront…',
 };
@@ -92,7 +104,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
   const isUpgradeFlow = storefrontId === undefined;
   const { isDark } = useAppContext();
   const [step, setStep] = useState<Step>('loading');
-  const [products, setProducts] = useState<ProductSubscriptionIOS[]>([]);
+  const [products, setProducts] = useState<ProductSubscription[]>([]);
   const [planSelected, setPlanSelected] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -131,18 +143,23 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
       await finishTransaction({ purchase, isConsumable: false });
       finished.current.add(key);
     } catch (error: unknown) {
-      // Harmless: StoreKit will re-deliver it and the server treats re-verification as idempotent.
-      console.warn('Could not finish App Store transaction.', error);
+      // Harmless: the store will re-deliver it and the server treats re-verification as idempotent.
+      console.warn(`Could not finish ${STORE_NAME} transaction.`, error);
     }
   }, []);
 
   /**
    * Verifies one transaction with ScanCode and finishes it when there is nothing more to do.
    *
-   * Apple's rule: finish a transaction once you have delivered the service, or once you know there
-   * is nothing to deliver. An unfinished transaction is re-sent every launch, which is how an old
-   * expired test purchase kept showing "This App Store subscription is not active".
-   * Only transient failures (network, server errors) leave it unfinished so it can be retried.
+   * iOS: finish a transaction once the service is delivered, or once there is nothing to deliver.
+   * An unfinished transaction is re-sent every launch, which is how an old expired test purchase
+   * kept showing "This App Store subscription is not active".
+   *
+   * Android: finishing *acknowledges* the purchase, and Google refunds unacknowledged purchases
+   * after 3 days. So on Android a purchase is only acknowledged once ScanCode granted the plan;
+   * a rejected one is left for Google to refund.
+   *
+   * Transient failures (network, server errors) never finish, so they can be retried.
    */
   const handleTransaction = useCallback(async (purchase: Purchase, origin: Origin): Promise<Outcome> => {
     if (!PRODUCT_IDS.includes(purchase.productId)) return { kind: 'skipped' };
@@ -156,24 +173,28 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
     const key = purchase.transactionId ?? purchase.id;
     if (!key || finished.current.has(key) || inFlight.current.has(key)) return { kind: 'skipped' };
     if (!purchase.purchaseToken) {
-      return { kind: 'failed', message: 'The App Store did not return a signed transaction. Tap Restore Purchases to try again.' };
+      return { kind: 'failed', message: `${STORE_NAME} did not return a purchase token. Tap Restore Purchases to try again.` };
     }
+
+    // On Android, finishing acknowledges; never acknowledge something ScanCode didn't grant.
+    const finishRejected = Platform.OS === 'android' ? async () => {} : () => finish(purchase, key);
+    const expiredMessage = `This ${STORE_NAME} subscription isn't active. Choose a plan to subscribe again.`;
 
     inFlight.current.add(key);
     if (origin !== 'replay' && mounted.current) setStep('verifying');
     try {
       let entitlement: Awaited<ReturnType<typeof verifyAppleSubscription>>;
       try {
-        entitlement = await verifyAppleSubscription(purchase.purchaseToken);
+        entitlement = await verifyWithServer(purchase, purchase.purchaseToken);
       } catch (error: unknown) {
         if (error instanceof ApiError && (error.status === 402 || error.status === 400)) {
-          // 402: expired or refunded. 400: not a ScanCode subscription. Nothing to deliver.
-          await finish(purchase, key);
-          return { kind: 'inactive', message: 'This App Store subscription has expired. Choose a plan to subscribe again.' };
+          // 402: expired or refunded. 400: not a valid ScanCode subscription. Nothing to deliver.
+          await finishRejected();
+          return { kind: 'inactive', message: expiredMessage };
         }
         if (error instanceof ApiError && error.status === 409) {
           // Linked to a different ScanCode account. Retrying will never succeed.
-          await finish(purchase, key);
+          await finishRejected();
           return { kind: 'failed', message: error.message };
         }
         const reason = error instanceof Error ? error.message : 'Unknown error';
@@ -183,10 +204,11 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
         };
       }
 
-      await finish(purchase, key);
       if (!entitlement.active) {
-        return { kind: 'inactive', message: 'This App Store subscription has expired. Choose a plan to subscribe again.' };
+        await finishRejected();
+        return { kind: 'inactive', message: expiredMessage };
       }
+      await finish(purchase, key);
 
       if (!mounted.current) return { kind: 'activated' };
       setPlanSelected(entitlement.planSelected);
@@ -271,18 +293,18 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
     }
 
     async function connectStore() {
-      if (Platform.OS !== 'ios') return;
+      if (!STORE_SUPPORTED) return;
       try {
         // Opening the connection also delivers any unfinished transactions to the listener above.
         await initConnection();
         const available = await fetchProducts({ skus: [...PRODUCT_IDS], type: 'subs' });
         if (mounted.current) {
           setProducts((available ?? []).filter(
-            (product): product is ProductSubscriptionIOS => product.platform === 'ios',
+            (product): product is ProductSubscription => product.platform === Platform.OS,
           ));
         }
       } catch (error: unknown) {
-        console.warn('Could not load App Store products.', error);
+        console.warn(`Could not load ${STORE_NAME} products.`, error);
         // The "products not available" note below the plans covers this case.
       }
     }
@@ -294,7 +316,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
       purchaseUpdates.remove();
       purchaseErrors.remove();
       void endConnection().catch((error: unknown) => {
-        console.warn('Could not close the App Store connection.', error);
+        console.warn(`Could not close the ${STORE_NAME} connection.`, error);
       });
     };
   }, [clearPurchaseAttempt, onTransaction, showError, storefrontId]);
@@ -330,7 +352,23 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
     setNoticeMessage(null);
     setStep('purchasing');
     try {
-      await requestPurchase({ request: { apple: { sku: productId } }, type: 'subs' });
+      if (Platform.OS === 'android') {
+        // Google Play needs the offer token of the subscription's base plan.
+        const product = products.find((item) => item.id === productId);
+        const offerToken = product?.subscriptionOffers
+          ?.find((offer) => !!offer.offerTokenAndroid)?.offerTokenAndroid;
+        if (!offerToken) {
+          clearPurchaseAttempt();
+          showError('This plan is not available from Google Play right now. Please try again later.');
+          return;
+        }
+        await requestPurchase({
+          request: { google: { skus: [productId], subscriptionOffers: [{ sku: productId, offerToken }] } },
+          type: 'subs',
+        });
+      } else {
+        await requestPurchase({ request: { apple: { sku: productId } }, type: 'subs' });
+      }
       // The sheet has closed. The result normally arrives through the listeners already; if
       // nothing has arrived after a grace period, stop the spinner instead of waiting forever.
       purchaseGraceTimer.current = setTimeout(() => {
@@ -497,9 +535,9 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
               <Text className="text-base font-bold text-white">Done</Text>
             </TouchableOpacity>
           </View>
-        ) : Platform.OS !== 'ios' ? (
+        ) : !STORE_SUPPORTED ? (
           <Text className="text-center text-sm text-gray-600 dark:text-zinc-300">
-            ScanCode subscriptions are available on iOS.
+            ScanCode subscriptions are available in the iOS and Android apps.
           </Text>
         ) : isBusy ? (
           <View className="items-center py-4">
@@ -559,7 +597,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                           onPress={() => void beginPurchase(product.id)}
                         >
                           <Text className="text-sm font-bold text-white">{product.period}</Text>
-                          {/* The App Store's localized price; currency varies by storefront. */}
+                          {/* The store's localized price; currency varies by country. */}
                           <Text className="mt-1 text-xs text-white">
                             {price ? `${price} / ${product.period === 'Yearly' ? 'year' : 'month'}` : product.price}
                           </Text>
@@ -586,7 +624,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
 
             {products.length === 0 ? (
               <Text className="text-center text-xs text-gray-500 dark:text-zinc-400">
-                App Store subscription products are not available right now. Please try again later.
+                {STORE_NAME} subscription products are not available right now. Please try again later.
               </Text>
             ) : null}
 
@@ -597,7 +635,9 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
               <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-200">Restore Purchases</Text>
             </TouchableOpacity>
             <Text className="text-center text-[11px] text-gray-500 dark:text-zinc-500">
-              Subscriptions renew automatically unless canceled in your Apple account settings.
+              {Platform.OS === 'android'
+                ? 'Subscriptions renew automatically unless canceled in Google Play > Payments & subscriptions.'
+                : 'Subscriptions renew automatically unless canceled in your Apple account settings.'}
             </Text>
           </View>
         )}

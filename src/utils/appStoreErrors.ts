@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { ErrorCode } from 'expo-iap';
 
 const ENVELOPE_PREFIX = 'OPENIAP_ERROR_JSON:';
@@ -53,31 +54,40 @@ export function isAppStoreCancellation(error: unknown): boolean {
   return /\bcancel(l)?ed\b/i.test(message);
 }
 
+const IS_ANDROID = Platform.OS === 'android';
+const STORE = IS_ANDROID ? 'Google Play' : 'the App Store';
+const STORE_TITLE = IS_ANDROID ? 'Google Play' : 'The App Store';
+
 /** A message safe to show the user. Never exposes raw native exception text. */
 export function appStoreErrorMessage(error: unknown): string {
   switch (appStoreErrorCode(error)) {
     case ErrorCode.NetworkError:
     case ErrorCode.ServiceTimeout:
     case ErrorCode.RemoteError:
-      return 'Could not reach the App Store. Check your internet connection and try again.';
+      return `Could not reach ${STORE}. Check your internet connection and try again.`;
     case ErrorCode.ItemUnavailable:
     case ErrorCode.SkuNotFound:
     case ErrorCode.QueryProduct:
-      return 'This plan is not available from the App Store right now. Please try again later.';
+      return `This plan is not available from ${STORE} right now. Please try again later.`;
     case ErrorCode.AlreadyOwned:
       return 'You already have this subscription. Tap Restore Purchases to link it to your account.';
     case ErrorCode.DeferredPayment:
     case ErrorCode.Pending:
-      return 'Your purchase is waiting for approval. ScanCode will activate it once the App Store confirms it.';
+      return `Your purchase is waiting for approval. ScanCode will activate it once ${STORE} confirms it.`;
     case ErrorCode.IapNotAvailable:
     case ErrorCode.FeatureNotSupported:
-      return 'Purchases are turned off on this device. Check Screen Time restrictions in Settings.';
+    case ErrorCode.BillingUnavailable:
+      return IS_ANDROID
+        ? 'Google Play purchases are not available on this device. Make sure the Play Store app is installed and up to date.'
+        : 'Purchases are turned off on this device. Check Screen Time restrictions in Settings.';
     case ErrorCode.TransactionValidationFailed:
     case ErrorCode.PurchaseVerificationFailed:
-      return 'The App Store could not confirm this purchase. You have not been charged twice; tap Restore Purchases to try again.';
+      return `${STORE_TITLE} could not confirm this purchase. You have not been charged twice; tap Restore Purchases to try again.`;
     default:
       // StoreKit's "Unable to Complete Request" (code unknown/sync-error) lands here. It usually
-      // means the device is not signed in to the App Store or the App Store is temporarily down.
-      return 'The App Store could not complete the request. Make sure you are signed in to the App Store (Settings > your name > Media & Purchases), then try again.';
+      // means the device is not signed in to the store or the store is temporarily down.
+      return IS_ANDROID
+        ? 'Google Play could not complete the request. Make sure you are signed in to the Play Store, then try again.'
+        : 'The App Store could not complete the request. Make sure you are signed in to the App Store (Settings > your name > Media & Purchases), then try again.';
   }
 }

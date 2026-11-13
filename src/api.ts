@@ -928,6 +928,17 @@ export function verifyAppleSubscription(signedTransaction: string) {
   );
 }
 
+/** Android counterpart of verifyAppleSubscription: the server confirms the purchase with Google Play. */
+export function verifyGooglePlaySubscription(productId: string, purchaseToken: string) {
+  return request<{ active: boolean; planSelected: string | null; planExpiresAt: string | null }>(
+    'POST',
+    '/api/subscriptions/google/verify',
+    { productId, purchaseToken },
+    true,
+    false,
+  );
+}
+
 // All published storefronts across every vendor — the customer/vendor discovery directory.
 // Distinct from getMyStorefronts(), which is scoped to the signed-in vendor's own stores.
 export function getAllStorefronts() {
