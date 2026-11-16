@@ -22,7 +22,7 @@ import {
   type ProductSubscription,
   type Purchase,
 } from 'expo-iap';
-import { CheckCircle2, PartyPopper } from 'lucide-react-native';
+import { CheckCircle2, Crown, Mail, PartyPopper, RotateCcw, Sparkles } from 'lucide-react-native';
 import {
   ApiError,
   getMe,
@@ -559,47 +559,64 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
         ) : (
           <View className="gap-4">
             {storefrontId !== undefined && !isActiveSubscription && (
-              <View className="gap-2 rounded-xl border border-gray-200 p-4 dark:border-zinc-700">
-                <Text className="text-base font-bold text-gray-900 dark:text-white">ScanCode Basic</Text>
-                <Text className="text-sm text-gray-600 dark:text-zinc-300">
+              <View className="gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                <Text className="text-base font-extrabold text-gray-900 dark:text-white">ScanCode Basic</Text>
+                <Text className="text-[13px] leading-5 text-gray-600 dark:text-zinc-300">
                   Basic includes one published storefront, a QR code, and up to 8 products.
                 </Text>
                 <TouchableOpacity
-                  className="items-center rounded-xl bg-primary py-3.5"
+                  className="items-center rounded-xl border border-primary py-3.5"
                   onPress={activateExistingSubscription}
                 >
-                  <Text className="text-base font-bold text-white">Activate Basic Storefront</Text>
+                  <Text className="text-sm font-bold text-primary">Activate Basic Storefront</Text>
                 </TouchableOpacity>
               </View>
             )}
             {isActiveSubscription ? (
-              <Text className="text-center text-sm text-gray-600 dark:text-zinc-300">
+              <Text className="text-center text-[13px] text-gray-600 dark:text-zinc-300">
                 Current plan: {activeTier === 'BUSINESS' ? 'Enterprise' : activeTier}. Choose the next tier to upgrade.
               </Text>
             ) : null}
             {availableTiers.map((tier) => {
               const label = tier === 'PRO' ? 'ScanCode Pro' : 'ScanCode Enterprise';
+              const storefrontLimit = tier === 'PRO' ? 5 : 10;
               const productsForTier = PRODUCTS.filter((product) => product.plan === label);
               return (
-                <View key={tier} className="rounded-xl border border-gray-200 p-4 dark:border-zinc-700">
-                  <Text className="mb-3 text-lg font-bold text-gray-900 dark:text-white">{label}</Text>
-                  <View className="flex-row gap-2">
+                <View
+                  key={tier}
+                  className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-zinc-700 dark:bg-[#18181B]"
+                >
+                  <View className="mb-3 flex-row items-center gap-3">
+                    <View className="h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950/50">
+                      {tier === 'PRO'
+                        ? <Sparkles size={20} color={isDark ? '#34D399' : '#047857'} strokeWidth={2.2} />
+                        : <Crown size={20} color={isDark ? '#34D399' : '#047857'} strokeWidth={2.2} />}
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-lg font-extrabold text-gray-900 dark:text-white">{label}</Text>
+                      <Text className="text-xs text-gray-500 dark:text-zinc-400">
+                        Up to {storefrontLimit} storefronts
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="gap-2">
                     {productsForTier.map((product) => {
                       const price = productPrice(product.id);
+                      const unit = product.period === 'Yearly' ? 'year' : 'month';
                       return (
                         <TouchableOpacity
                           key={product.id}
                           className={cn(
-                            'flex-1 items-center rounded-lg bg-primary px-2 py-3',
+                            'flex-row items-center justify-between rounded-xl bg-primary px-4 py-3.5',
                             (!price || !!pendingProduct) && 'opacity-50',
                           )}
                           disabled={!price || !!pendingProduct}
                           onPress={() => void beginPurchase(product.id)}
                         >
-                          <Text className="text-sm font-bold text-white">{product.period}</Text>
+                          <Text className="text-[15px] font-bold text-white">{product.period}</Text>
                           {/* The store's localized price; currency varies by country. */}
-                          <Text className="mt-1 text-xs text-white">
-                            {price ? `${price} / ${product.period === 'Yearly' ? 'year' : 'month'}` : product.price}
+                          <Text className="text-[13px] font-semibold text-white">
+                            {price ? `${price} / ${unit}` : product.price}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -609,15 +626,16 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
               );
             })}
 
-            <View className="rounded-xl border border-gray-200 p-4 dark:border-zinc-700">
-              <Text className="text-lg font-bold text-gray-900 dark:text-white">ScanCode Ultimate</Text>
-              <Text className="mt-1 text-sm text-gray-600 dark:text-zinc-300">
+            <View className="rounded-2xl border border-dashed border-gray-300 p-4 dark:border-zinc-600">
+              <Text className="text-lg font-extrabold text-gray-900 dark:text-white">ScanCode Ultimate</Text>
+              <Text className="mt-1 text-[13px] leading-5 text-gray-600 dark:text-zinc-300">
                 Contact us for ScanCode Ultimate.
               </Text>
               <TouchableOpacity
-                className="mt-3 items-center rounded-lg border border-gray-300 py-3 dark:border-zinc-600"
+                className="mt-3 flex-row items-center justify-center gap-2 rounded-xl border border-gray-300 py-3 dark:border-zinc-600"
                 onPress={() => void Linking.openURL('mailto:support@scancode.ng?subject=ScanCode%20Ultimate')}
               >
+                <Mail size={16} color={isDark ? '#E4E4E7' : '#1F2937'} strokeWidth={2.2} />
                 <Text className="text-sm font-bold text-gray-800 dark:text-zinc-100">Contact Us</Text>
               </TouchableOpacity>
             </View>
@@ -629,12 +647,13 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
             ) : null}
 
             <TouchableOpacity
-              className="items-center rounded-xl border border-gray-300 py-3 dark:border-zinc-700"
+              className="flex-row items-center justify-center gap-2 rounded-xl py-3"
               onPress={() => void restoreSubscription()}
             >
+              <RotateCcw size={15} color={isDark ? '#A1A1AA' : '#4B5563'} strokeWidth={2.2} />
               <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-200">Restore Purchases</Text>
             </TouchableOpacity>
-            <Text className="text-center text-[11px] text-gray-500 dark:text-zinc-500">
+            <Text className="text-center text-[11px] leading-4 text-gray-500 dark:text-zinc-500">
               {Platform.OS === 'android'
                 ? 'Subscriptions renew automatically unless canceled in Google Play > Payments & subscriptions.'
                 : 'Subscriptions renew automatically unless canceled in your Apple account settings.'}

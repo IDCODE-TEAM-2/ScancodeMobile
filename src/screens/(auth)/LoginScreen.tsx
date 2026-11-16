@@ -10,7 +10,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QrCode, Compass } from 'lucide-react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { login, loginWithApple, saveToken } from '../../api';
+import * as WebBrowser from 'expo-web-browser';
+import { API_BASE, login, loginWithApple, saveToken } from '../../api';
 import { resolveAppState } from '../../utils/resolveAppState';
 import type { NavigationProp } from '../../types';
 import { useAppContext } from '../../context/AppContext';
@@ -72,6 +73,33 @@ export default function LoginScreen({ navigation }: Props) {
       if (!isCancel) {
         setError(err instanceof Error ? err.message : 'Apple sign-in failed. Try again.');
       }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /**
+   * Android Google sign-in. The server runs the OAuth2 handshake in an in-app browser tab and
+   * finishes by redirecting to scancode://oauth2/callback?token=… (see GoogleMobileAuthController),
+   * which the auth session captures and closes on.
+   */
+  async function handleGoogleSignIn() {
+    setError(null);
+    setLoading(true);
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(
+        `${API_BASE}/auth/google/mobile`,
+        'scancode://oauth2/callback',
+      );
+      if (result.type !== 'success') return; // Cancelled or dismissed by the user.
+      const token = /[?&]token=([^&#]+)/.exec(result.url)?.[1];
+      if (!token) {
+        throw new Error('Google sign-in did not return a session. Try again.');
+      }
+      await saveToken(decodeURIComponent(token));
+      setAppState(await resolveAppState());
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed. Try again.');
     } finally {
       setLoading(false);
     }
@@ -193,6 +221,27 @@ export default function LoginScreen({ navigation }: Props) {
                     style={{ width: '100%', height: 50 }}
                     onPress={handleAppleSignIn}
                   />
+                </>
+              )}
+
+              {Platform.OS === 'android' && (
+                <>
+                  <View className="flex-row items-center gap-2 my-3">
+                    <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
+                    <Text className="text-[11px] font-semibold text-gray-400 dark:text-zinc-500">OR</Text>
+                    <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
+                  </View>
+                  <TouchableOpacity
+                    className="w-full h-[50px] flex-row items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white dark:border-zinc-700 dark:bg-[#18181B]"
+                    onPress={handleGoogleSignIn}
+                    disabled={loading}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Continue with Google"
+                  >
+                    <Text className="text-lg font-extrabold text-[#4285F4]">G</Text>
+                    <Text className="text-[15px] font-semibold text-gray-800 dark:text-zinc-100">Continue with Google</Text>
+                  </TouchableOpacity>
                 </>
               )}
             </View>
