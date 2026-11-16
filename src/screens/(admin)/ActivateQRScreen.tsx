@@ -7,6 +7,7 @@ import {
   ScrollView,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import {
@@ -22,7 +23,7 @@ import {
   type ProductSubscription,
   type Purchase,
 } from 'expo-iap';
-import { CheckCircle2, Crown, Mail, PartyPopper, RotateCcw, Sparkles } from 'lucide-react-native';
+import { CheckCircle2, PartyPopper } from 'lucide-react-native';
 import {
   ApiError,
   getMe,
@@ -46,6 +47,17 @@ const PRODUCTS = [
   { id: 'com.scancode.enterprise.yearly', plan: 'ScanCode Enterprise', period: 'Yearly', price: '₦159,999 / year' },
 ] as const;
 const PRODUCT_IDS: readonly string[] = PRODUCTS.map((product) => product.id);
+
+/** One swipeable card on the plan picker. `plan` links a subscription tier to its PRODUCTS entries. */
+type PlanCard = {
+  key: string;
+  kind: 'basic' | 'tier' | 'contact';
+  kicker: string;
+  title: string;
+  plan?: string;
+  features: string[];
+};
+const CARD_GAP = 12;
 
 /** Subscriptions are sold through the App Store on iOS and Google Play on Android. */
 const STORE_SUPPORTED = Platform.OS === 'ios' || Platform.OS === 'android';
@@ -110,6 +122,9 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [pendingProduct, setPendingProduct] = useState<string | null>(null);
   const [storefrontPublished, setStorefrontPublished] = useState(false);
+  const [billing, setBilling] = useState<'Monthly' | 'Yearly'>('Monthly');
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const { width: screenWidth } = useWindowDimensions();
 
   const mounted = useRef(true);
   const stepRef = useRef<Step>('loading');
@@ -423,7 +438,11 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
 
       if (purchases.length === 0) {
         setStep('ready');
-        setNoticeMessage('No active ScanCode subscription was found for this Apple ID.');
+        setNoticeMessage(
+          Platform.OS === 'android'
+            ? 'No active ScanCode subscription was found for this Google Play account.'
+            : 'No active ScanCode subscription was found for this Apple ID.',
+        );
         return;
       }
 
@@ -469,25 +488,91 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
 
   const busyLabel = BUSY_LABELS[step] ?? 'Working…';
 
+  const showPlanPicker = STORE_SUPPORTED
+    && !isBusy
+    && !(step === 'success' && (storefrontPublished || isUpgradeFlow))
+    && !(isActiveSubscription && !isUpgradeFlow);
+
+  const planCards: PlanCard[] = [
+    ...(storefrontId !== undefined && !isActiveSubscription
+      ? [{
+        key: 'basic',
+        kind: 'basic' as const,
+        kicker: 'BASIC',
+        title: 'Basic',
+        features: ['One published storefront', 'A QR code', 'Up to 8 products'],
+      }]
+      : []),
+    ...availableTiers.map((tier) => ({
+      key: tier,
+      kind: 'tier' as const,
+      kicker: tier === 'PRO' ? 'PRO' : 'ENTERPRISE',
+      title: tier === 'PRO' ? 'Pro' : 'Enterprise',
+      plan: tier === 'PRO' ? 'ScanCode Pro' : 'ScanCode Enterprise',
+      features: [`Up to ${tier === 'PRO' ? 5 : 10} storefronts`],
+    })),
+    {
+      key: 'ultimate',
+      kind: 'contact' as const,
+      kicker: 'ULTIMATE',
+      title: 'Ultimate',
+      features: ['Contact us for ScanCode Ultimate.'],
+    },
+  ];
+  const activeIndex = Math.min(selectedIndex, planCards.length - 1);
+  const selectedCard: PlanCard | undefined = planCards[activeIndex];
+  const selectedProduct = selectedCard?.plan
+    ? PRODUCTS.find((item) => item.plan === selectedCard.plan && item.period === billing)
+    : undefined;
+  const selectedPrice = selectedProduct ? productPrice(selectedProduct.id) : null;
+  const ctaDisabled = selectedCard?.kind === 'tier' && (!selectedPrice || !!pendingProduct);
+  const ctaLabel = selectedCard?.kind === 'basic'
+    ? 'Activate Basic Storefront'
+    : selectedCard?.kind === 'contact'
+      ? 'Contact Us'
+      : `Subscribe to ${selectedCard?.title ?? 'plan'}`;
+  const cardWidth = Math.round(screenWidth * 0.78);
+
   return (
     <ScrollView
-      className="flex-1 bg-gray-100 dark:bg-[#09090B]"
+      className="flex-1 bg-white dark:bg-[#09090B]"
       contentContainerClassName="justify-center p-5"
     >
-      <View className="rounded-2xl border border-transparent bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-[#18181B]">
-        <Text className="mb-1 text-[11px] font-extrabold tracking-wide text-primary">
-          {isUpgradeFlow ? 'SCAN CODE PLANS' : 'STOREFRONT ACTIVATION'}
-        </Text>
-        <Text className="mb-4 text-[22px] font-extrabold text-gray-900 dark:text-white">
-          {isUpgradeFlow ? 'Upgrade your plan' : name}
-        </Text>
+      <View>
+        {showPlanPicker ? (
+          <View className="mb-4 items-center">
+            <TouchableOpacity
+              className="self-end py-1"
+              onPress={() => void restoreSubscription()}
+              accessibilityRole="button"
+              accessibilityLabel="Restore Purchases"
+            >
+              <Text className="text-[13px] font-semibold text-gray-700 dark:text-zinc-300">Restore Purchases</Text>
+            </TouchableOpacity>
+            <Text className="mt-2 text-center text-[26px] font-extrabold text-gray-900 dark:text-white">
+              Choose Your Plan
+            </Text>
+            <Text className="mt-1 text-center text-[13px] text-gray-500 dark:text-zinc-400">
+              {isUpgradeFlow ? 'Pick the plan that fits your business.' : `Pick a plan to activate ${name ?? 'your storefront'}.`}
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text className="mb-1 text-center text-[11px] font-extrabold tracking-wide text-primary">
+              {isUpgradeFlow ? 'SCAN CODE PLANS' : 'STOREFRONT ACTIVATION'}
+            </Text>
+            <Text className="mb-4 text-center text-[22px] font-extrabold text-gray-900 dark:text-white">
+              {isUpgradeFlow ? 'Upgrade your plan' : name}
+            </Text>
 
-        <View className="mb-5 flex-row items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-zinc-900">
-          <CheckCircle2 size={20} color={isDark ? '#34D399' : '#374151'} strokeWidth={2.2} />
-          <Text className="flex-1 text-[13px] text-gray-600 dark:text-zinc-300">
-            Pro supports up to 5 storefronts; Enterprise supports up to 10.
-          </Text>
-        </View>
+            <View className="mb-5 flex-row items-center gap-3 rounded-xl bg-gray-50 p-4 dark:bg-zinc-900">
+              <CheckCircle2 size={20} color={isDark ? '#34D399' : '#374151'} strokeWidth={2.2} />
+              <Text className="flex-1 text-[13px] text-gray-600 dark:text-zinc-300">
+                Pro supports up to 5 storefronts; Enterprise supports up to 10.
+              </Text>
+            </View>
+          </>
+        )}
 
         {errorMessage ? (
           <View className="mb-4 rounded-lg border border-red-200 bg-red-100 p-3 dark:border-red-800 dark:bg-red-950/40">
@@ -557,88 +642,128 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
         ) : (
-          <View className="gap-4">
-            {storefrontId !== undefined && !isActiveSubscription && (
-              <View className="gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
-                <Text className="text-base font-extrabold text-gray-900 dark:text-white">ScanCode Basic</Text>
-                <Text className="text-[13px] leading-5 text-gray-600 dark:text-zinc-300">
-                  Basic includes one published storefront, a QR code, and up to 8 products.
-                </Text>
-                <TouchableOpacity
-                  className="items-center rounded-xl border border-primary py-3.5"
-                  onPress={activateExistingSubscription}
-                >
-                  <Text className="text-sm font-bold text-primary">Activate Basic Storefront</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+          <View className="items-center gap-4">
             {isActiveSubscription ? (
               <Text className="text-center text-[13px] text-gray-600 dark:text-zinc-300">
                 Current plan: {activeTier === 'BUSINESS' ? 'Enterprise' : activeTier}. Choose the next tier to upgrade.
               </Text>
             ) : null}
-            {availableTiers.map((tier) => {
-              const label = tier === 'PRO' ? 'ScanCode Pro' : 'ScanCode Enterprise';
-              const storefrontLimit = tier === 'PRO' ? 5 : 10;
-              const productsForTier = PRODUCTS.filter((product) => product.plan === label);
-              return (
-                <View
-                  key={tier}
-                  className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-zinc-700 dark:bg-[#18181B]"
-                >
-                  <View className="mb-3 flex-row items-center gap-3">
-                    <View className="h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950/50">
-                      {tier === 'PRO'
-                        ? <Sparkles size={20} color={isDark ? '#34D399' : '#047857'} strokeWidth={2.2} />
-                        : <Crown size={20} color={isDark ? '#34D399' : '#047857'} strokeWidth={2.2} />}
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-lg font-extrabold text-gray-900 dark:text-white">{label}</Text>
-                      <Text className="text-xs text-gray-500 dark:text-zinc-400">
-                        Up to {storefrontLimit} storefronts
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="gap-2">
-                    {productsForTier.map((product) => {
-                      const price = productPrice(product.id);
-                      const unit = product.period === 'Yearly' ? 'year' : 'month';
-                      return (
-                        <TouchableOpacity
-                          key={product.id}
-                          className={cn(
-                            'flex-row items-center justify-between rounded-xl bg-primary px-4 py-3.5',
-                            (!price || !!pendingProduct) && 'opacity-50',
-                          )}
-                          disabled={!price || !!pendingProduct}
-                          onPress={() => void beginPurchase(product.id)}
-                        >
-                          <Text className="text-[15px] font-bold text-white">{product.period}</Text>
-                          {/* The store's localized price; currency varies by country. */}
-                          <Text className="text-[13px] font-semibold text-white">
-                            {price ? `${price} / ${unit}` : product.price}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              );
-            })}
 
-            <View className="rounded-2xl border border-dashed border-gray-300 p-4 dark:border-zinc-600">
-              <Text className="text-lg font-extrabold text-gray-900 dark:text-white">ScanCode Ultimate</Text>
-              <Text className="mt-1 text-[13px] leading-5 text-gray-600 dark:text-zinc-300">
-                Contact us for ScanCode Ultimate.
+            {planCards.some((card) => card.kind === 'tier') ? (
+              <View className="flex-row justify-center gap-8">
+                {(['Monthly', 'Yearly'] as const).map((period) => (
+                  <TouchableOpacity
+                    key={period}
+                    onPress={() => setBilling(period)}
+                    accessibilityRole="button"
+                    className={cn(
+                      'border-b-2 px-1 pb-1.5',
+                      billing === period ? 'border-black dark:border-white' : 'border-transparent',
+                    )}
+                  >
+                    <Text
+                      className={cn(
+                        'text-[15px] font-bold',
+                        billing === period ? 'text-black dark:text-white' : 'text-gray-400 dark:text-zinc-500',
+                      )}
+                    >
+                      {period}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={cardWidth + CARD_GAP}
+              className="-mx-5 self-stretch"
+              contentContainerStyle={{ paddingHorizontal: 20, gap: CARD_GAP }}
+              onMomentumScrollEnd={(event) =>
+                setSelectedIndex(Math.round(event.nativeEvent.contentOffset.x / (cardWidth + CARD_GAP)))}
+            >
+              {planCards.map((card, index) => {
+                const selected = index === activeIndex;
+                const product = card.plan
+                  ? PRODUCTS.find((item) => item.plan === card.plan && item.period === billing)
+                  : undefined;
+                const storePrice = product ? productPrice(product.id) : null;
+                const priceLine = product
+                  ? (storePrice ? `${storePrice} / ${billing === 'Yearly' ? 'year' : 'month'}` : product.price)
+                  : null;
+                return (
+                  <TouchableOpacity
+                    key={card.key}
+                    activeOpacity={0.9}
+                    onPress={() => setSelectedIndex(index)}
+                    style={{ width: cardWidth }}
+                    className={cn(
+                      'rounded-2xl bg-white p-5 dark:bg-[#18181B]',
+                      selected ? 'border-2 border-black dark:border-white' : 'border border-gray-200 dark:border-zinc-700',
+                    )}
+                  >
+                    <View className="flex-row items-start justify-between">
+                      <Text className="text-[11px] font-extrabold tracking-widest text-gray-500 dark:text-zinc-400">
+                        {card.kicker}
+                      </Text>
+                      <View
+                        className={cn(
+                          'h-6 w-6 rounded-full border-2',
+                          selected ? 'border-black bg-black dark:border-white dark:bg-white' : 'border-gray-300 dark:border-zinc-600',
+                        )}
+                      />
+                    </View>
+                    <Text className="mt-1 text-[26px] font-extrabold text-gray-900 dark:text-white">{card.title}</Text>
+                    {priceLine ? (
+                      <Text className="mt-0.5 text-[13px] text-gray-500 dark:text-zinc-400">{priceLine}</Text>
+                    ) : null}
+                    <View className="my-4 h-px bg-gray-200 dark:bg-zinc-700" />
+                    <View className="gap-3">
+                      {card.features.map((feature) => (
+                        <View key={feature} className="flex-row gap-3">
+                          <Text className="text-[14px] text-gray-900 dark:text-white">✓</Text>
+                          <Text className="flex-1 text-[14px] text-gray-700 dark:text-zinc-300">{feature}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {planCards.length > 1 ? (
+              <Text className="text-center text-xs text-gray-500 dark:text-zinc-400">Swipe to compare all plans</Text>
+            ) : null}
+
+            <TouchableOpacity
+              className={cn(
+                'w-full items-center rounded-xl bg-black py-4 dark:bg-white',
+                ctaDisabled && 'opacity-50',
+              )}
+              disabled={ctaDisabled}
+              onPress={() => {
+                if (!selectedCard) return;
+                if (selectedCard.kind === 'basic') {
+                  void activateExistingSubscription();
+                } else if (selectedCard.kind === 'tier') {
+                  if (selectedProduct) void beginPurchase(selectedProduct.id);
+                } else {
+                  void Linking.openURL('mailto:support@scancode.ng?subject=ScanCode%20Ultimate');
+                }
+              }}
+            >
+              <Text className="text-base font-bold text-white dark:text-black">{ctaLabel}</Text>
+            </TouchableOpacity>
+
+            {selectedCard?.kind === 'tier' ? (
+              <Text className="text-center text-[13px] font-semibold text-gray-900 dark:text-white">
+                {selectedPrice
+                  ? `${selectedPrice} / ${billing === 'Yearly' ? 'year' : 'month'}`
+                  : selectedProduct?.price}
               </Text>
-              <TouchableOpacity
-                className="mt-3 flex-row items-center justify-center gap-2 rounded-xl border border-gray-300 py-3 dark:border-zinc-600"
-                onPress={() => void Linking.openURL('mailto:support@scancode.ng?subject=ScanCode%20Ultimate')}
-              >
-                <Mail size={16} color={isDark ? '#E4E4E7' : '#1F2937'} strokeWidth={2.2} />
-                <Text className="text-sm font-bold text-gray-800 dark:text-zinc-100">Contact Us</Text>
-              </TouchableOpacity>
-            </View>
+            ) : null}
 
             {products.length === 0 ? (
               <Text className="text-center text-xs text-gray-500 dark:text-zinc-400">
@@ -646,18 +771,26 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
               </Text>
             ) : null}
 
-            <TouchableOpacity
-              className="flex-row items-center justify-center gap-2 rounded-xl py-3"
-              onPress={() => void restoreSubscription()}
-            >
-              <RotateCcw size={15} color={isDark ? '#A1A1AA' : '#4B5563'} strokeWidth={2.2} />
-              <Text className="text-sm font-semibold text-gray-700 dark:text-zinc-200">Restore Purchases</Text>
-            </TouchableOpacity>
             <Text className="text-center text-[11px] leading-4 text-gray-500 dark:text-zinc-500">
               {Platform.OS === 'android'
                 ? 'Subscriptions renew automatically unless canceled in Google Play > Payments & subscriptions.'
                 : 'Subscriptions renew automatically unless canceled in your Apple account settings.'}
             </Text>
+            <View className="flex-row items-center justify-center gap-3">
+              <Text
+                className="text-xs text-gray-600 underline dark:text-zinc-400"
+                onPress={() => navigation.navigate('TermsOfService')}
+              >
+                Terms of Use
+              </Text>
+              <Text className="text-xs text-gray-400 dark:text-zinc-600">•</Text>
+              <Text
+                className="text-xs text-gray-600 underline dark:text-zinc-400"
+                onPress={() => navigation.navigate('PrivacyPolicy')}
+              >
+                Privacy Policy
+              </Text>
+            </View>
           </View>
         )}
       </View>

@@ -120,7 +120,7 @@ export default function LoginScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-gray-50 dark:bg-[#09090B]"
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
       style={{ paddingTop: Math.max(insets.top, 16) }}
     >
       <ScrollView
@@ -233,15 +233,15 @@ export default function LoginScreen({ navigation }: Props) {
                     <View className="flex-1 h-px bg-gray-200 dark:bg-zinc-800" />
                   </View>
                   <TouchableOpacity
-                    className="w-full h-[50px] flex-row items-center justify-center gap-3 rounded-xl border border-[#747775] bg-white dark:border-[#8E918F] dark:bg-[#131314]"
+                    className="w-full h-[50px] flex-row items-center justify-start gap-3 rounded-lg border border-gray-300 bg-white px-5 dark:border-[#8E918F] dark:bg-[#131314]"
                     onPress={handleGoogleSignIn}
                     disabled={loading}
                     activeOpacity={0.8}
                     accessibilityRole="button"
                     accessibilityLabel="Continue with Google"
                   >
-                    <GoogleLogo size={20} />
-                    <Text className="text-[15px] font-medium text-[#1F1F1F] dark:text-[#E3E3E3]">Continue with Google</Text>
+                    <GoogleLogo size={22} />
+                    <Text className="text-[15px] font-semibold text-gray-700 dark:text-[#E3E3E3]">Continue with Google</Text>
                   </TouchableOpacity>
                 </>
               )}
