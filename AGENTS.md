@@ -42,6 +42,13 @@ memory regression) — do not assume a training-data cutoff knows the right APIs
 
 Most recent first. Add an entry here for every fix so changes stay traceable across sessions.
 
+### 2026-11-24 — Paystack web checkout for mobile plans
+
+Added authenticated Paystack checkout as the first paid-plan action in the mobile QR
+subscription picker, ahead of the existing App Store/Google Play purchase. Successful
+payments refresh the account entitlement and activate a selected storefront; web payments
+are described as non-renewing for the chosen period.
+
 ### 2026-11-05 — Storefront-only Discover and Cloudinary image uploads
 
 The customer Discover directory now allowlists PRODUCT, RESTAURANT, and HOTEL storefronts

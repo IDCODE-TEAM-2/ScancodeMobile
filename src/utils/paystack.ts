@@ -11,6 +11,7 @@ import {
 export interface PaystackPaymentOptions {
   purpose: PaymentPurpose;
   payload: string | Record<string, unknown>;
+  requireAuth?: boolean;
   title?: string;
   onSuccess: (reference: string) => void | Promise<void>;
   onError?: (errorMessage: string) => void;
@@ -33,6 +34,7 @@ interface PaystackSessionOptions {
 export async function payWithPaystack({
   purpose,
   payload,
+  requireAuth = false,
   title = 'Payment',
   onSuccess,
   onError,
@@ -40,7 +42,7 @@ export async function payWithPaystack({
 }: PaystackPaymentOptions): Promise<void> {
   return runPaystackSession({
     title,
-    initialize: () => initializePayment(purpose, payload, false),
+    initialize: () => initializePayment(purpose, payload, requireAuth),
     verify: verifyPayment,
     onSuccess,
     onError,

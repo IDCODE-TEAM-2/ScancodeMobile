@@ -419,6 +419,10 @@ export interface CommerceVerifyResponse {
 export type PaymentPurpose =
   | 'STOREFRONT_CREATION'
   | 'EVENT_CREATION'
+  | 'QR_PRO'
+  | 'QR_PRO_SUB'
+  | 'QR_BUSINESS'
+  | 'QR_BUSINESS_SUB'
   | 'ORDER'
   | 'TIP'
   | 'REQUEST'
