@@ -553,8 +553,8 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
       title: tier === 'PRO' ? 'Pro' : 'Enterprise',
       plan: tier === 'PRO' ? 'ScanCode Pro' : 'ScanCode Enterprise',
       features: tier === 'PRO'
-        ? ['Up to 150 products per storefront', 'Paystack online payments', 'Up to 5 event pages', 'Up to 5 storefronts']
-        : ['Unlimited products per storefront', 'Paystack online payments', 'Unlimited event pages', 'Up to 10 storefronts'],
+        ? ['Up to 150 products per storefront', 'Paystack online payments', 'Up to 5 storefronts']
+        : ['Unlimited products per storefront', 'Paystack online payments', 'Up to 10 storefronts'],
     })),
     {
       key: 'ultimate',
