@@ -63,6 +63,13 @@ type PlanCard = {
 const STORE_SUPPORTED = Platform.OS === 'ios' || Platform.OS === 'android';
 const STORE_NAME = Platform.OS === 'ios' ? 'App Store' : 'Google Play';
 
+/**
+ * Paystack checkout for ScanCode plans is not shown on iOS: App Store Guideline 3.1.1 requires
+ * digital subscriptions in an iOS app to be sold only through In-App Purchase, with no buttons or
+ * links to other ways of paying. iOS shows App Store prices and the App Store purchase only.
+ */
+const OFFER_WEB_CHECKOUT = Platform.OS !== 'ios';
+
 /** Confirms a purchase with ScanCode, which checks it with Apple or Google before granting the plan. */
 function verifyWithServer(purchase: Purchase, purchaseToken: string) {
   return Platform.OS === 'android'
@@ -307,49 +314,6 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
       }
     }
 
-    async function beginWebPurchase(purpose: PaymentPurpose) {
-      setErrorMessage(null);
-      setNoticeMessage(null);
-      setStep('paystack');
-      await payWithPaystack({
-        purpose,
-        payload: {},
-        requireAuth: true,
-        title: 'Subscription payment',
-        onSuccess: async () => {
-          if (!mounted.current) return;
-          setStep('verifying');
-          const user = await getMe();
-          if (!mounted.current) return;
-          const planIsActive = user.isPaid
-            && (!user.planExpiresAt || Date.parse(user.planExpiresAt) > Date.now());
-          if (!planIsActive) {
-            throw new Error('Payment was confirmed, but the subscription is not active yet. Please refresh your account shortly.');
-          }
-          setPlanSelected(user.planSelected);
-          if (storefrontId === undefined) {
-            setStep('success');
-            return;
-          }
-          setStep('activating');
-          const storefront = await publishStorefront(storefrontId);
-          if (!mounted.current) return;
-          if (!storefront.isPublished) {
-            showError('Your subscription is active, but the storefront could not be activated. Please try again.');
-            return;
-          }
-          setStorefrontPublished(storefront.isPublished);
-          setStep('success');
-        },
-        onError: (message) => {
-          if (mounted.current) showError(message);
-        },
-        onCancel: () => {
-          if (mounted.current) setStep('ready');
-        },
-      });
-    }
-
     async function connectStore() {
       if (!STORE_SUPPORTED) return;
       try {
@@ -400,6 +364,49 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
     } catch (error: unknown) {
       showError(error instanceof Error ? error.message : 'Could not activate this storefront.');
     }
+  }
+
+  async function beginWebPurchase(purpose: PaymentPurpose) {
+    setErrorMessage(null);
+    setNoticeMessage(null);
+    setStep('paystack');
+    await payWithPaystack({
+      purpose,
+      payload: {},
+      requireAuth: true,
+      title: 'Subscription payment',
+      onSuccess: async () => {
+        if (!mounted.current) return;
+        setStep('verifying');
+        const user = await getMe();
+        if (!mounted.current) return;
+        const planIsActive = user.isPaid
+          && (!user.planExpiresAt || Date.parse(user.planExpiresAt) > Date.now());
+        if (!planIsActive) {
+          throw new Error('Payment was confirmed, but the subscription is not active yet. Please refresh your account shortly.');
+        }
+        setPlanSelected(user.planSelected);
+        if (storefrontId === undefined) {
+          setStep('success');
+          return;
+        }
+        setStep('activating');
+        const storefront = await publishStorefront(storefrontId);
+        if (!mounted.current) return;
+        if (!storefront.isPublished) {
+          showError('Your subscription is active, but the storefront could not be activated. Please try again.');
+          return;
+        }
+        setStorefrontPublished(storefront.isPublished);
+        setStep('success');
+      },
+      onError: (message) => {
+        if (mounted.current) showError(message);
+      },
+      onCancel: () => {
+        if (mounted.current) setStep('ready');
+      },
+    });
   }
 
   async function beginPurchase(productId: string) {
@@ -745,9 +752,10 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                         selected ? 'border-emerald-700 bg-emerald-700 dark:border-emerald-400 dark:bg-emerald-400' : 'border-gray-300 dark:border-zinc-600',
                       )} />
                     </View>
-                    {product ? (
+                    {/* iOS headlines the App Store's own localized price; elsewhere the Paystack price. */}
+                    {product && (OFFER_WEB_CHECKOUT || storePrice) ? (
                       <Text className="mt-2 text-[16px] font-bold text-gray-900 dark:text-white">
-                        {product.price}
+                        {OFFER_WEB_CHECKOUT ? product.price : storePrice}
                       </Text>
                     ) : null}
                     <View className="my-4 h-px bg-gray-100 dark:bg-zinc-700" />
@@ -759,7 +767,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                         </View>
                       ))}
                     </View>
-                    {storePrice ? (
+                    {storePrice && OFFER_WEB_CHECKOUT ? (
                       <Text className="mt-3 text-xs text-gray-500 dark:text-zinc-400">
                         In-app store price: {storePrice}
                       </Text>
@@ -769,7 +777,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
               })}
             </View>
 
-            {selectedCard?.kind === 'tier' && selectedProduct ? (
+            {OFFER_WEB_CHECKOUT && selectedCard?.kind === 'tier' && selectedProduct ? (
               <TouchableOpacity
                 className="w-full items-center rounded-xl bg-emerald-700 py-4"
                 disabled={isBusy}
@@ -801,13 +809,16 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
 
             {products.length === 0 ? (
               <Text className="text-center text-xs text-gray-500 dark:text-zinc-400">
-                {STORE_NAME} in-app purchases are unavailable right now. Pay on web with Paystack instead.
+                {OFFER_WEB_CHECKOUT
+                  ? `${STORE_NAME} in-app purchases are unavailable right now. Pay on web with Paystack instead.`
+                  : 'App Store subscriptions are not available right now. Please try again later.'}
               </Text>
             ) : null}
 
             <Text className="text-center text-[11px] leading-4 text-gray-500 dark:text-zinc-500">
-              Paystack web payments cover the selected period and do not renew automatically. In-app subscriptions renew through{' '}
-              {Platform.OS === 'android' ? 'Google Play' : 'the App Store'}.
+              {OFFER_WEB_CHECKOUT
+                ? 'Paystack web payments cover the selected period and do not renew automatically. In-app subscriptions renew through Google Play.'
+                : 'Subscriptions renew automatically until cancelled in your Apple ID settings at least 24 hours before the end of the current period.'}
             </Text>
             <View className="flex-row items-center justify-center gap-3">
               <Text
