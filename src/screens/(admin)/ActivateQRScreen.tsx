@@ -582,7 +582,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
     ? 'Activate Basic Storefront'
     : selectedCard?.kind === 'contact'
       ? 'Contact Us'
-      : `Subscribe with ${STORE_NAME}`;
+      : 'Subscribe';
 
   return (
     <ScrollView
@@ -600,10 +600,10 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
             >
               <Text className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-400">Restore purchases</Text>
             </TouchableOpacity>
-            <Text className="mt-3 text-[26px] font-extrabold text-gray-900 dark:text-white">
+            <Text className="mt-3 text-center text-[26px] font-extrabold text-gray-900 dark:text-white">
               Plans that grow with you
             </Text>
-            <Text className="mt-1 text-[14px] leading-5 text-gray-500 dark:text-zinc-400">
+            <Text className="mt-1 text-center text-[14px] leading-5 text-gray-500 dark:text-zinc-400">
               {isUpgradeFlow ? 'Choose the product capacity and event tools you need.' : `Choose a plan to activate ${name ?? 'your storefront'}.`}
             </Text>
           </View>
@@ -695,7 +695,7 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
             ) : null}
 
             {planCards.some((card) => card.kind === 'tier') ? (
-              <View className="self-start rounded-xl bg-gray-100 p-1 dark:bg-zinc-900">
+              <View className="self-center rounded-xl bg-gray-100 p-1 dark:bg-zinc-900">
                 <View className="flex-row gap-1">
                 {(['Monthly', 'Yearly'] as const).map((period) => (
                   <TouchableOpacity
@@ -736,8 +736,8 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                     accessibilityRole="radio"
                     accessibilityState={{ selected }}
                     className={cn(
-                      'rounded-2xl bg-white p-5 dark:bg-[#18181B]',
-                      selected ? 'border-2 border-emerald-700 dark:border-emerald-400' : 'border border-gray-200 dark:border-zinc-700',
+                      'rounded-2xl p-5',
+                      selected ? 'bg-emerald-50 dark:bg-emerald-950' : 'bg-gray-50 dark:bg-[#18181B]',
                     )}
                   >
                     <View className="flex-row items-start justify-between">
@@ -747,10 +747,6 @@ export default function ActivateQRScreen({ navigation, route }: Props) {
                         </Text>
                         <Text className="mt-1 text-[22px] font-extrabold text-gray-900 dark:text-white">{card.title}</Text>
                       </View>
-                      <View className={cn(
-                        'h-5 w-5 rounded-full border-2',
-                        selected ? 'border-emerald-700 bg-emerald-700 dark:border-emerald-400 dark:bg-emerald-400' : 'border-gray-300 dark:border-zinc-600',
-                      )} />
                     </View>
                     {/* iOS headlines the App Store's own localized price; elsewhere the Paystack price. */}
                     {product && (OFFER_WEB_CHECKOUT || storePrice) ? (
